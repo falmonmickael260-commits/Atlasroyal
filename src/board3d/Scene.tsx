@@ -38,7 +38,16 @@ const useReadySize = () => {
     read();
     const ro = new ResizeObserver(read);
     ro.observe(el);
-    return () => ro.disconnect();
+    // Les rappels de ResizeObserver ne sont pas délivrés tant que le document
+    // est masqué : un onglet ouvert en arrière-plan mesurerait 0×0 et n'en
+    // sortirait jamais. Ces deux évènements-là, eux, arrivent.
+    window.addEventListener('resize', read);
+    document.addEventListener('visibilitychange', read);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', read);
+      document.removeEventListener('visibilitychange', read);
+    };
   }, []);
   return { ref, size };
 };
