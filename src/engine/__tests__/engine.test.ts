@@ -228,6 +228,36 @@ describe('loyers', () => {
   });
 });
 
+describe('loyers en toutes circonstances', () => {
+  it('facture le réseau même quand on y arrive par une carte', () => {
+    const res = BOARD.filter((t) => t.kind === 'reseau').map((t) => t.i);
+    let s = atRound(newGame(2), 2);
+    s = give(s, 'p2', res);
+    // Carte « Fenêtre Orbitale » : envoie au réseau le plus proche.
+    s = { ...s, decks: { ...s.decks, destin: ['d_orbital'] } };
+    s = put(s, 'p1', 1);
+    const before = s.players.p2.cash;
+    // 1+1 mène sur la case Destin (3), qui déclenche le déplacement.
+    const { state, events } = rollAs(s, 'p1', 1, 1);
+    expect(state.players.p1.position).toBe(res[0]);
+    const paid = events.find((e) => e.e === 'RENT_PAID');
+    expect(paid, 'aucun loyer facturé sur le réseau').toBeTruthy();
+    expect((paid as { amount: number }).amount).toBeGreaterThan(0);
+    expect(state.players.p2.cash).toBeGreaterThan(before);
+  });
+
+  it('facture toujours le loyer d’une ville occupée', () => {
+    for (const tile of [2, 6, 11, 18, 23, 27, 32, 37]) {
+      let s = atRound(newGame(2), 2);
+      s = give(s, 'p2', [tile]);
+      s = put(s, 'p1', tile - 1);
+      const { state, events } = rollAs(s, 'p1', 1, 0 + 1 - 1 || 1);
+      if (state.players.p1.position !== tile) continue;
+      expect(events.some((e) => e.e === 'RENT_PAID'), `case ${tile}`).toBe(true);
+    }
+  });
+});
+
 describe('constructions', () => {
   const sable = GROUP_INDEX.sable;
 

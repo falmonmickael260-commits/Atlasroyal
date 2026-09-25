@@ -52,12 +52,12 @@ export const tileTexture = (tile: Tile, w: number, d: number): THREE.CanvasTextu
 
   // Fond feutre
   const g = c.createLinearGradient(0, 0, 0, d);
-  g.addColorStop(0, '#132033');
-  g.addColorStop(1, '#0C1626');
+  g.addColorStop(0, '#2C3B54');
+  g.addColorStop(1, '#1F2C42');
   c.fillStyle = g;
   c.fillRect(0, 0, w, d);
 
-  c.strokeStyle = 'rgba(255,255,255,0.10)';
+  c.strokeStyle = 'rgba(255,255,255,0.18)';
   c.lineWidth = 0.02;
   c.strokeRect(0.01, 0.01, w - 0.02, d - 0.02);
 
@@ -160,24 +160,72 @@ export const diceFaceTexture = (value: number): THREE.CanvasTexture => {
   return finish(cv);
 };
 
+/**
+ * Plateau de table en bois. Généré : veines, nœuds et lames légèrement
+ * contrastées, pour que le plateau repose sur quelque chose de tangible
+ * plutôt que de flotter dans le noir.
+ */
+export const woodTexture = (size = 12): THREE.CanvasTexture => {
+  const { cv, c } = makeCanvas(size, size);
+
+  const base = c.createLinearGradient(0, 0, size, size);
+  base.addColorStop(0, '#5A3A22');
+  base.addColorStop(0.45, '#6B472A');
+  base.addColorStop(1, '#4E3120');
+  c.fillStyle = base;
+  c.fillRect(0, 0, size, size);
+
+  // Veines : des sinusoïdes de fréquences variées le long des lames.
+  for (let i = 0; i < 260; i++) {
+    const y = Math.random() * size;
+    const amp = 0.05 + Math.random() * 0.22;
+    const freq = 0.6 + Math.random() * 2.4;
+    const dark = Math.random() > 0.5;
+    c.strokeStyle = dark
+      ? `rgba(40, 24, 13, ${0.05 + Math.random() * 0.16})`
+      : `rgba(150, 105, 66, ${0.04 + Math.random() * 0.1})`;
+    c.lineWidth = 0.008 + Math.random() * 0.03;
+    c.beginPath();
+    for (let x = 0; x <= size; x += 0.12) {
+      const yy = y + Math.sin(x * freq + i) * amp;
+      x === 0 ? c.moveTo(x, yy) : c.lineTo(x, yy);
+    }
+    c.stroke();
+  }
+
+  // Joints de lames.
+  c.strokeStyle = 'rgba(28, 16, 8, 0.45)';
+  c.lineWidth = 0.02;
+  for (let y = 1.5; y < size; y += 1.9) {
+    c.beginPath();
+    c.moveTo(0, y);
+    c.lineTo(size, y);
+    c.stroke();
+  }
+
+  const tex = finish(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+};
+
 /** Tapis central : méridiens + logo. */
 export const centerTexture = (size: number): THREE.CanvasTexture => {
   const { cv, c } = makeCanvas(size, size);
   const g = c.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  g.addColorStop(0, '#0E2A22');
-  g.addColorStop(0.55, '#0B1E1A');
-  g.addColorStop(1, '#081420');
+  g.addColorStop(0, '#1E5442');
+  g.addColorStop(0.55, '#174537');
+  g.addColorStop(1, '#123528');
   c.fillStyle = g;
   c.fillRect(0, 0, size, size);
 
-  c.strokeStyle = 'rgba(234,179,8,0.13)';
+  c.strokeStyle = 'rgba(234,179,8,0.2)';
   c.lineWidth = 0.02;
   for (let r = 1.4; r < size / 2; r += 1.25) {
     c.beginPath();
     c.arc(size / 2, size / 2, r, 0, Math.PI * 2);
     c.stroke();
   }
-  c.strokeStyle = 'rgba(255,255,255,0.06)';
+  c.strokeStyle = 'rgba(255,255,255,0.09)';
   for (let a = 0; a < 12; a++) {
     const th = (a / 12) * Math.PI * 2;
     c.beginPath();

@@ -5,7 +5,7 @@ import { GEO, PLACEMENTS } from './layout';
 import { centerTexture, tileTexture } from './textures';
 import type { GameState } from '../engine/types';
 
-const SLAB = new THREE.MeshStandardMaterial({ color: '#0A1322', roughness: 0.85, metalness: 0.1 });
+const SLAB = new THREE.MeshStandardMaterial({ color: '#223149', roughness: 0.8, metalness: 0.08 });
 
 /** Une case : dalle en relief + face imprimée + liseré propriétaire. */
 const Tile = ({
@@ -53,7 +53,7 @@ export const Board = ({ state, highlight }: { state: GameState; highlight: numbe
       {/* Socle : donne l'épaisseur et reçoit les ombres. */}
       <mesh position={[0, -0.34, 0]} receiveShadow>
         <boxGeometry args={[GEO.side + 0.7, 0.42, GEO.side + 0.7]} />
-        <meshStandardMaterial color="#060C16" roughness={0.9} metalness={0.2} />
+        <meshStandardMaterial color="#162031" roughness={0.85} metalness={0.15} />
       </mesh>
       <mesh position={[0, -0.56, 0]}>
         <boxGeometry args={[GEO.side + 1.5, 0.12, GEO.side + 1.5]} />

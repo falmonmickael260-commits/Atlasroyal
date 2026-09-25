@@ -151,6 +151,14 @@ const moveTo = (c: Ctx, p: PlayerId, target: TileIndex, collectGo: boolean) => {
   movePlayer(c, p, steps, collectGo);
 };
 
+/**
+ * Somme du dernier lancer. Les réseaux facturent un multiple des dés : un
+ * déplacement provoqué par une carte doit donc s'appuyer sur le lancer du
+ * tour, sinon le loyer tomberait à zéro et la case serait gratuite.
+ */
+const lastSum = (s: GameState): number =>
+  s.lastRoll ? s.lastRoll[0] + s.lastRoll[1] : 7;
+
 const nearestOf = (from: TileIndex, list: readonly TileIndex[]): TileIndex => {
   let best = list[0];
   let bestD = BOARD_SIZE + 1;
@@ -214,16 +222,16 @@ const applyEffect = (c: Ctx, p: PlayerId, fx: CardEffect): boolean => {
     }
     case 'moveTo':
       moveTo(c, p, fx.tile, fx.collectGo);
-      resolveLanding(c, p, 0);
+      resolveLanding(c, p, lastSum(c.s));
       return true;
     case 'moveBy':
       movePlayer(c, p, fx.steps, fx.steps > 0);
-      resolveLanding(c, p, 0);
+      resolveLanding(c, p, lastSum(c.s));
       return true;
     case 'moveToNearest': {
       const list = fx.target === 'hub' ? HUB_TILES : RESEAU_TILES;
       moveTo(c, p, nearestOf(c.s.players[p].position, list), true);
-      resolveLanding(c, p, 0);
+      resolveLanding(c, p, lastSum(c.s));
       return true;
     }
     case 'goToJail':

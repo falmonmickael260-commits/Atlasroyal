@@ -1,13 +1,14 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { woodTexture } from './textures';
 import { Board } from './Board';
 import { Buildings } from './Buildings';
 import { Tokens } from './Tokens';
 import { Dice } from './Dice';
 import { CityLife } from './CityLife';
 import { CameraRig } from './CameraRig';
-import { GEO, inwardOf } from './layout';
+import { GEO } from './layout';
 import type { Cinema } from '../ui/cinema';
 import type { GameState, PlayerId } from '../engine/types';
 
@@ -67,23 +68,26 @@ const DevHandle = () => {
 
 const Lights = () => (
   <>
-    <hemisphereLight args={['#BFDBFE', '#052e1a', 0.7]} />
-    <ambientLight intensity={0.42} />
+    {/* Pièce éclairée : la lumière vient du plafond et rebondit sur la table,
+        au lieu du contre-jour froid d'une scène flottant dans le vide. */}
+    <hemisphereLight args={['#FFF3DC', '#4A3A2A', 1.15]} />
+    <ambientLight intensity={0.85} color="#FFF6E6" />
     <directionalLight
-      position={[14, 22, 12]}
-      intensity={2.7}
-      color="#FFF7E0"
+      position={[12, 26, 14]}
+      intensity={2.6}
+      color="#FFF4DE"
       castShadow
       shadow-mapSize={[2048, 2048]}
-      shadow-camera-left={-22}
-      shadow-camera-right={22}
-      shadow-camera-top={22}
-      shadow-camera-bottom={-22}
+      shadow-camera-left={-26}
+      shadow-camera-right={26}
+      shadow-camera-top={26}
+      shadow-camera-bottom={-26}
       shadow-bias={-0.0006}
     />
-    {/* Contre-jour froid : détache le plateau du fond. */}
-    <directionalLight position={[-16, 10, -14]} intensity={0.8} color="#60A5FA" />
-    <pointLight position={[0, 9, 0]} intensity={26} distance={34} color="#EAB308" />
+    {/* Lumière d'appoint, côté opposé : adoucit les ombres sans les effacer. */}
+    <directionalLight position={[-16, 14, -12]} intensity={0.9} color="#CFE0FF" />
+    {/* Suspension au-dessus de la table : le halo chaud qui centre le regard. */}
+    <pointLight position={[0, 13, 2]} intensity={90} distance={46} decay={1.6} color="#FFE2A8" />
   </>
 );
 
@@ -102,17 +106,16 @@ export const Scene = ({
   quality: 'high' | 'low';
   onContextLost?: () => void;
 }) => {
-  const fog = useMemo(() => new THREE.FogExp2('#050A14', 0.0125), []);
+    const fog = useMemo(() => new THREE.FogExp2('#241B14', 0.006), []);
+  const wood = useMemo(() => {
+    const t = woodTexture();
+    t.repeat.set(3, 3);
+    return t;
+  }, []);
   const { ref, size } = useReadySize();
-  // Les dés tombent près du pion qui joue : la caméra y est déjà.
-  const diceAt = useMemo(
-    () =>
-      inwardOf(
-        activePlayer ? (cinema.tokenTile[activePlayer] ?? state.players[activePlayer].position) : 0,
-        3.1,
-      ),
-    [activePlayer, cinema.tokenTile, state.players],
-  );
+  // Les dés roulent au centre du plateau, comme sur une vraie table : un
+  // emplacement fixe, toujours dégagé, que toute la tablée regarde.
+  const diceAt = useMemo<[number, number, number]>(() => [0, 0, 4.2], []);
   const ready = size.w > 0 && size.h > 0;
 
   return (
@@ -146,7 +149,7 @@ export const Scene = ({
             });
           }}
         >
-          <color attach="background" args={['#050A14']} />
+          <color attach="background" args={['#1C1611']} />
           <primitive attach="fog" object={fog} />
           {import.meta.env.DEV && <DevHandle />}
           <Lights />
@@ -157,10 +160,15 @@ export const Scene = ({
             <Dice dice={cinema.dice} at={diceAt} />
             <CityLife quality={quality} />
           </Suspense>
-          {/* Sol de réflexion : le plateau flotte au-dessus d'une mer sombre. */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.6, 0]} receiveShadow>
-            <circleGeometry args={[GEO.side * 2.4, 64]} />
-            <meshStandardMaterial color="#04070E" roughness={0.35} metalness={0.85} />
+          {/* La table sur laquelle le plateau est posé. */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.82, 0]} receiveShadow>
+            <circleGeometry args={[GEO.side * 1.9, 72]} />
+            <meshStandardMaterial map={wood} roughness={0.72} metalness={0.04} />
+          </mesh>
+          {/* Chant de la table : elle a une épaisseur, donc une ombre portée. */}
+          <mesh position={[0, -1.05, 0]}>
+            <cylinderGeometry args={[GEO.side * 1.9, GEO.side * 1.88, 0.46, 72]} />
+            <meshStandardMaterial color="#3E2718" roughness={0.8} metalness={0.05} />
           </mesh>
           <CameraRig focus={cinema.focus} compact={compact} playing={cinema.playing} />
         </Canvas>

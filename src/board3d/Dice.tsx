@@ -2,32 +2,15 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { diceFaceTexture } from './textures';
+import { FACE_ORDER, restFor } from './diceFaces';
 
 /**
  * Dés 3D. Pas de moteur physique : une trajectoire scriptée (arc + rotation
  * amortie + rebond) donne la sensation de poids pour une fraction du coût.
- * Faces opposées : 1/6, 2/5, 3/4 — comme un vrai dé.
+ *
+ * La table d'orientation vit dans `diceFaces.ts` et est vérifiée par un test :
+ * un dé qui n'affiche pas le chiffre tiré est un bug silencieux.
  */
-const FACE_ORDER = [1, 6, 2, 5, 3, 4]; // +x, -x, +y, -y, +z, -z
-
-/** Rotation amenant la valeur demandée vers le haut. */
-const restFor = (value: number): [number, number, number] => {
-  switch (value) {
-    case 1:
-      return [0, 0, -Math.PI / 2];
-    case 6:
-      return [0, 0, Math.PI / 2];
-    case 2:
-      return [0, 0, 0];
-    case 5:
-      return [Math.PI, 0, 0];
-    case 3:
-      return [-Math.PI / 2, 0, 0];
-    default:
-      return [Math.PI / 2, 0, 0];
-  }
-};
-
 const Die = ({
   value,
   rolling,
@@ -75,10 +58,10 @@ const Die = ({
     if (rolling) {
       const p = t.current;
       // Deux rebonds amortis pendant la chute.
-      const bounce = Math.abs(Math.sin(p * 5.2)) * Math.max(0, 1 - p * 0.75);
+      const bounce = Math.abs(Math.sin(p * 6.4)) * Math.max(0, 1 - p * 1.05);
       m.position.set(
         home[0] + Math.sin(p * 3.1 + seed) * 0.5,
-        home[1] + 1.5 * Math.max(0, 1 - p * 0.8) + bounce * 0.9,
+        home[1] + 1.7 * Math.max(0, 1 - p * 1.1) + bounce * 0.85,
         home[2] + Math.cos(p * 2.7 + seed) * 0.5,
       );
       m.rotation.x += spin.current.x * dt;
@@ -87,9 +70,10 @@ const Die = ({
       return;
     }
 
-    // Repos : on rejoint la face demandée et la position d'assise.
+    // Repos : le dé se cale franchement sur sa face. Une convergence molle
+    // laisse un doute sur le chiffre au moment où on le lit.
     const [rx, ry, rz] = restFor(value);
-    const k = 1 - Math.pow(0.0006, dt);
+    const k = 1 - Math.pow(0.00002, dt);
     m.rotation.x += (rx - m.rotation.x) * k;
     m.rotation.y += (ry - m.rotation.y) * k;
     m.rotation.z += (rz - m.rotation.z) * k;

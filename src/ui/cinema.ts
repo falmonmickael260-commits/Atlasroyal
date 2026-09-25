@@ -3,8 +3,9 @@ import { useRoom } from '../net/room';
 import { audio } from '../audio/audio';
 import { PLACEMENTS } from '../board3d/layout';
 import { CARDS_BY_ID } from '../engine/cards';
-import { tileAt } from '../engine/board';
-import type { PlayerId } from '../engine/types';
+import { HUB_TILES, LEVEL_NAMES, RESEAU_TILES, RULES, tileAt } from '../engine/board';
+import { countOwnedIn, ownsFullGroup } from '../engine/rules';
+import type { GameState, PlayerId } from '../engine/types';
 
 export interface Banner {
   key: number;
@@ -22,12 +23,22 @@ export interface CashFly {
   amount: number;
 }
 
+/** Dernier lancer, conservé à l'écran jusqu'au suivant. */
+export interface RollInfo {
+  player: PlayerId;
+  dice: [number, number];
+  total: number;
+  double: boolean;
+}
+
 export interface Cinema {
   /** Case occupée visuellement (peut être en retard sur l'état autoritaire). */
   tokenTile: Record<PlayerId, number>;
   /** Incrémenté à chaque pas : déclenche le rebond du pion. */
   hop: Record<PlayerId, number>;
   dice: { values: [number, number]; rolling: boolean; key: number } | null;
+  /** Résultat lisible en permanence, pour que toute la table le voie. */
+  roll: RollInfo | null;
   focus: { at: [number, number, number]; zoom: number; key: number };
   banner: Banner | null;
   card: string | null;
@@ -41,7 +52,7 @@ export interface Cinema {
 const OVERVIEW: [number, number, number] = [0, 0, 0];
 
 const initial: Cinema = {
-  tokenTile: {}, hop: {}, dice: null,
+  tokenTile: {}, hop: {}, dice: null, roll: null,
   focus: { at: OVERVIEW, zoom: 1, key: 0 },
   banner: null, card: null, highlight: null, build: null, cashFly: null, playing: false,
 };
@@ -98,21 +109,31 @@ export const useCinematic = () => {
       }
       case 'DICE_ROLLED': {
         audio.diceShake();
-        setCinema((c) => ({ ...c, dice: { values: ev.dice, rolling: true, key: k }, focus: { at: at(c.tokenTile[ev.player] ?? 0), zoom: 1.6, key: k } }));
-        dur = 1250;
+        setCinema((c) => ({
+          ...c,
+          dice: { values: ev.dice, rolling: true, key: k },
+          roll: { player: ev.player, dice: ev.dice, total: ev.dice[0] + ev.dice[1], double: ev.isDouble },
+          // Les dés roulent au centre : c'est là que la caméra se pose.
+          focus: { at: [0, 0, 2.4], zoom: 1.5, key: k },
+        }));
+        dur = 980;
         window.setTimeout(() => {
           audio.diceLand();
           setCinema((c) => (c.dice?.key === k ? { ...c, dice: { ...c.dice, rolling: false } } : c));
-        }, 1050 * slow);
+        }, 820 * slow);
         break;
       }
       case 'JAIL_ATTEMPT': {
         audio.diceShake();
-        setCinema((c) => ({ ...c, dice: { values: ev.dice, rolling: true, key: k } }));
+        setCinema((c) => ({
+          ...c,
+          dice: { values: ev.dice, rolling: true, key: k },
+          roll: { player: ev.player, dice: ev.dice, total: ev.dice[0] + ev.dice[1], double: ev.success },
+        }));
         window.setTimeout(() => {
           audio.diceLand();
           setCinema((c) => (c.dice?.key === k ? { ...c, dice: { ...c.dice, rolling: false } } : c));
-        }, 1050 * slow);
+        }, 820 * slow);
         banner({
           kind: 'jail',
           title: ev.success ? 'Double ! Libéré' : `Tentative ${ev.attempt}/3`,
@@ -130,7 +151,9 @@ export const useCinematic = () => {
           dice: c.dice ? { ...c.dice, rolling: false } : null,
         }));
         // Les longs déplacements accélèrent : on garde le rythme sans sacrifier la lisibilité.
-        dur = ev.total > 8 ? 130 : 165;
+        // Un déplacement long s'accélère : on garde le rythme sans perdre
+        // la lecture case par case.
+        dur = ev.total > 8 ? 108 : 138;
         break;
       }
       case 'PASSED_GO':
@@ -144,7 +167,7 @@ export const useCinematic = () => {
       case 'LANDED':
         audio.land();
         setCinema((c) => ({ ...c, highlight: ev.tile, focus: { at: at(ev.tile), zoom: 1.35, key: k } }));
-        dur = 260;
+        dur = 200;
         break;
       case 'PROPERTY_OFFERED':
         setCinema((c) => ({ ...c, focus: { at: at(ev.tile), zoom: 1.75, key: k } }));
@@ -154,11 +177,19 @@ export const useCinematic = () => {
         audio.buy();
         banner({ kind: 'buy', title: tileAt(ev.tile).name, detail: 'Acquise', amount: -ev.price, color: '#22C55E' }, 1100);
         break;
-      case 'RENT_PAID':
+      case 'RENT_PAID': {
         audio.pay();
         setCinema((c) => ({ ...c, cashFly: { key: k, from: ev.from, to: ev.to, amount: ev.amount } }));
-        banner({ kind: 'rent', title: 'Loyer', detail: tileAt(ev.tile).name, amount: -ev.amount, color: '#F05252' }, 1350);
+        const proprio = state.players[ev.to]?.name ?? '';
+        banner({
+          kind: 'rent',
+          title: `Loyer · ${tileAt(ev.tile).name}`,
+          detail: `${rentReason(state, ev.tile)} — versé à ${proprio}`,
+          amount: -ev.amount,
+          color: '#F05252',
+        }, 1800);
         break;
+      }
       case 'TAX_PAID':
         audio.pay();
         setCinema((c) => ({ ...c, cashFly: { key: k, from: ev.player, to: null, amount: ev.amount } }));
@@ -244,3 +275,25 @@ export const useCinematic = () => {
 };
 
 export const cardOf = (id: string | null) => (id ? CARDS_BY_ID[id] : null);
+
+/**
+ * D'où vient le montant du loyer. Le joueur qui paie doit pouvoir le
+ * vérifier sans ouvrir de panneau : c'est la différence entre subir et
+ * comprendre.
+ */
+const rentReason = (state: GameState, tile: number): string => {
+  const t = tileAt(tile);
+  const st = state.tiles[tile];
+  if (!st?.owner) return '';
+  if (t.kind === 'hub') {
+    const n = countOwnedIn(state, st.owner, HUB_TILES);
+    return `${n} hub${n > 1 ? 's' : ''} sur 4`;
+  }
+  if (t.kind === 'reseau') {
+    const n = countOwnedIn(state, st.owner, RESEAU_TILES);
+    const mult = RULES.reseauRent[Math.max(0, n - 1)] ?? RULES.reseauRent[0];
+    return `${mult} × la somme des dés`;
+  }
+  if (st.level > 0) return LEVEL_NAMES[st.level];
+  return ownsFullGroup(state, st.owner, tile) ? 'Terrain nu, groupe complet (×2)' : 'Terrain nu';
+};

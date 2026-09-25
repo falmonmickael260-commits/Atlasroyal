@@ -323,3 +323,53 @@
   84%  { opacity: 1; scale: 1; }
   100% { translate: var(--x1) var(--y1); opacity: 0; scale: 0.7; }
 }
+
+/* ---------------- rappel du lancer ---------------- */
+.rollout {
+  position: absolute;
+  left: 50%;
+  top: 84px;
+  transform: translateX(-50%);
+  z-index: 11;
+  padding: 10px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  animation: rollout-in 320ms var(--ease-spring) both;
+}
+@keyframes rollout-in {
+  from { opacity: 0; transform: translate(-50%, -10px) scale(.92); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.rollout__who {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.rollout__dice { display: flex; align-items: center; gap: 8px; }
+.rollout__plus, .rollout__eq { color: var(--fg-dim); font-size: 14px; }
+.rollout__total {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--gold);
+  min-width: 32px;
+  text-align: center;
+}
+.rollout__double {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent-lift);
+}
+
+@media (max-width: 860px) {
+  /* En compact le rail des joueurs occupe le haut : on se pose sous lui. */
+  .rollout { top: auto; bottom: 108px; padding: 8px 14px; }
+  .rollout__total { font-size: 22px; }
+}

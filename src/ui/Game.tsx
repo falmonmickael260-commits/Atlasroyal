@@ -9,6 +9,7 @@ import { useCompact, useQuality } from './useCompact';
 import { Icon } from './Icon';
 import { euro } from './format';
 import { BannerLayer } from './panels/BannerLayer';
+import { RollReadout } from './panels/RollReadout';
 import { CardOverlay } from './panels/CardOverlay';
 import { PropertyPrompt } from './panels/PropertyPrompt';
 import { Portfolio } from './panels/Portfolio';
@@ -242,6 +243,7 @@ export const Game = () => {
         })}
       </div>
 
+      <RollReadout roll={cinema.roll} state={state} />
       <BannerLayer banner={cinema.banner} />
       <CashFlight fly={cinema.cashFly} />
       <CardOverlay cardId={cinema.card} />
