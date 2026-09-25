@@ -8,6 +8,7 @@ import { Tokens } from './Tokens';
 import { Dice } from './Dice';
 import { CityLife } from './CityLife';
 import { CameraRig } from './CameraRig';
+import { AdaptiveQuality } from './AdaptiveQuality';
 import { GEO } from './layout';
 import type { Cinema } from '../ui/cinema';
 import type { GameState, PlayerId } from '../engine/types';
@@ -152,6 +153,7 @@ export const Scene = ({
           <color attach="background" args={['#1C1611']} />
           <primitive attach="fog" object={fog} />
           {import.meta.env.DEV && <DevHandle />}
+          <AdaptiveQuality />
           <Lights />
           <Suspense fallback={null}>
             <Board state={state} highlight={cinema.highlight} />
