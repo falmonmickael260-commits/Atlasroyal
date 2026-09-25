@@ -51,10 +51,18 @@ export const saveIdentity = ({ id: _id, ...profile }: Identity) => {
   write(typeof localStorage !== 'undefined' ? localStorage : undefined, PROFILE_KEY, profile);
 };
 
-export const rememberRoom = (code: string, host: boolean) =>
-  write(typeof sessionStorage !== 'undefined' ? sessionStorage : undefined, ROOM_KEY, { code, host });
+export interface RememberedRoom {
+  code: string;
+  host: boolean;
+  /** Le transport doit être retrouvé à l'identique : un salon Supabase ne se
+   *  rejoint pas en BroadcastChannel. */
+  mode: 'local' | 'supabase';
+}
 
-export const recallRoom = (): { code: string; host: boolean } | null =>
+export const rememberRoom = (room: RememberedRoom) =>
+  write(typeof sessionStorage !== 'undefined' ? sessionStorage : undefined, ROOM_KEY, room);
+
+export const recallRoom = (): RememberedRoom | null =>
   read(typeof sessionStorage !== 'undefined' ? sessionStorage : undefined, ROOM_KEY);
 
 /** Oublie le salon : un départ volontaire ne doit pas déclencher de reprise. */

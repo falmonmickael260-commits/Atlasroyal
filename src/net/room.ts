@@ -218,14 +218,14 @@ export const useRoom = create<RoomStore>((set, get) => {
       // Si l'hôte est déjà en jeu, on demande l'état complet.
       transport.sendToHost({ k: 'REQUEST_SYNC', id: id.id });
     }
-    rememberRoom(code, asHost);
+    rememberRoom({ code, host: asHost, mode });
     set({ connecting: false, isHost: asHost, mode, screen: 'lobby' });
   };
 
   return {
     identity: loadIdentity(),
     screen: 'home',
-    mode: 'local',
+    mode: supabaseConfigured ? 'supabase' : 'local',
     isHost: false,
     connecting: false,
     resuming: false,
@@ -301,7 +301,7 @@ export const useRoom = create<RoomStore>((set, get) => {
       if (!last || last.host || get().screen !== 'home') return;
       set({ resuming: true });
       try {
-        await connect(last.code, get().mode, false);
+        await connect(last.code, last.mode, false);
         // Sans réponse de l'hôte, le salon n'existe plus : on rend la main.
         await new Promise((r) => setTimeout(r, 6000));
         if (!get().lobby) {
