@@ -1,0 +1,39 @@
+{
+  "name": "atlas-royale",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jeu de plateau multijoueur en ligne, 2 à 6 joueurs. Univers et plateau originaux.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "intro:studio": "remotion studio remotion/index.ts",
+    "intro:render": "remotion render remotion/index.ts AtlasIntro out/atlas-intro.mp4"
+  },
+  "dependencies": {
+    "@react-three/fiber": "9.8.0",
+    "@remotion/google-fonts": "4.0.526",
+    "@remotion/player": "4.0.526",
+    "@supabase/supabase-js": "2.109.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.526",
+    "three": "0.186.0",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.526",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.7",
+    "@types/three": "0.186.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3",
+    "vite": "7.3.6",
+    "vitest": "3.2.7"
+  }
+}
