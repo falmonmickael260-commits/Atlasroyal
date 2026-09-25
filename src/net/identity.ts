@@ -56,3 +56,8 @@ export const rememberRoom = (code: string, host: boolean) =>
 
 export const recallRoom = (): { code: string; host: boolean } | null =>
   read(typeof sessionStorage !== 'undefined' ? sessionStorage : undefined, ROOM_KEY);
+
+/** Oublie le salon : un départ volontaire ne doit pas déclencher de reprise. */
+export const forgetRoom = () => {
+  try { sessionStorage?.removeItem(ROOM_KEY); } catch { /* stockage indisponible */ }
+};

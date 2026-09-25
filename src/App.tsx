@@ -27,7 +27,14 @@ const Loading = ({ label }: { label: string }) => (
 
 export const App = () => {
   const screen = useRoom((s) => s.screen);
+  const resume = useRoom((s) => s.resume);
+  const resuming = useRoom((s) => s.resuming);
   const [intro, setIntro] = useState(() => !introAlreadySeen());
+
+  // Rafraîchissement en pleine partie : on y retourne sans rien retaper.
+  useEffect(() => {
+    void resume();
+  }, [resume]);
 
   useEffect(() => {
     document.title = screen === 'game' ? 'ATLAS ROYALE — en partie' : 'ATLAS ROYALE';
@@ -40,7 +47,7 @@ export const App = () => {
           <Intro onDone={() => setIntro(false)} />
         </Suspense>
       )}
-      {screen === 'home' && <Home />}
+      {screen === 'home' && (resuming ? <Loading label="Reprise de la partie" /> : <Home />)}
       {screen === 'lobby' && <Lobby />}
       {screen === 'game' && (
         <Suspense fallback={<Loading label="Chargement du plateau" />}>

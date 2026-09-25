@@ -5,7 +5,7 @@ import type { Command, GameEvent, GameState } from '../engine/types';
 import { LocalTransport } from './localTransport';
 import { SupabaseTransport, supabaseConfigured } from './supabaseTransport';
 import { COLORS, TOKENS, makeRoomCode, type ClientMsg, type LobbyState, type Seat } from './protocol';
-import { loadIdentity, rememberRoom, saveIdentity, type Identity } from './identity';
+import { forgetRoom, loadIdentity, recallRoom, rememberRoom, saveIdentity, type Identity } from './identity';
 import type { Transport } from './transport';
 
 export type NetMode = 'local' | 'supabase';
@@ -33,6 +33,9 @@ interface RoomStore {
   send: (cmd: Command) => void;
   shiftQueue: (n: number) => void;
   clearToast: () => void;
+  /** Reprise après rafraîchissement : rejoint le dernier salon connu. */
+  resume: () => Promise<void>;
+  resuming: boolean;
 }
 
 /** Contexte hors-store : une seule connexion vivante à la fois. */
@@ -225,6 +228,7 @@ export const useRoom = create<RoomStore>((set, get) => {
     mode: 'local',
     isHost: false,
     connecting: false,
+    resuming: false,
     error: null,
     lobby: null,
     state: null,
@@ -254,6 +258,7 @@ export const useRoom = create<RoomStore>((set, get) => {
     },
 
     leaveRoom: () => {
+      forgetRoom();
       transport?.sendToHost({ k: 'LEAVE', id: get().identity.id });
       teardown();
       set({ screen: 'home', lobby: null, state: null, queue: [], isHost: false });
@@ -285,6 +290,32 @@ export const useRoom = create<RoomStore>((set, get) => {
     },
 
     send: (cmd) => { transport?.sendToHost({ k: 'INTENT', cmd }); },
+
+    /**
+     * Après un rafraîchissement, l'onglet garde son identité et le code du
+     * dernier salon : on y retourne tout seul. L'hôte est exclu — son autorité
+     * vit en mémoire et rejoindre recréerait un salon vide portant le même code.
+     */
+    resume: async () => {
+      const last = recallRoom();
+      if (!last || last.host || get().screen !== 'home') return;
+      set({ resuming: true });
+      try {
+        await connect(last.code, get().mode, false);
+        // Sans réponse de l'hôte, le salon n'existe plus : on rend la main.
+        await new Promise((r) => setTimeout(r, 6000));
+        if (!get().lobby) {
+          forgetRoom();
+          teardown();
+          set({ screen: 'home', error: 'La partie précédente n’est plus accessible.' });
+        }
+      } catch {
+        forgetRoom();
+        set({ screen: 'home' });
+      } finally {
+        set({ resuming: false });
+      }
+    },
 
     shiftQueue: (n) => set((s) => ({ queue: s.queue.slice(n) })),
     clearToast: () => set({ toast: null }),
