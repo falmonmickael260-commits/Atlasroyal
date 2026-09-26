@@ -87,13 +87,32 @@ const Crown = ({ landmark, mat }: { landmark: CityTile['landmark']; mat: THREE.M
 const Structure = ({
   level, color, landmark,
 }: { level: number; color: string; landmark: CityTile['landmark'] }) => {
-  const mat = useMemo(() => new THREE.MeshStandardMaterial({
-    color, roughness: 0.45, metalness: 0.25,
-  }), [color]);
+  const mat = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color,
+        roughness: 0.38,
+        metalness: 0.08,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.25,
+      }),
+    [color],
+  );
+
+  // Embase commune : un liseré sombre au pied de chaque construction. Elle
+  // ancre le volume sur la case et lui donne une ombre de contact nette,
+  // au lieu de paraître posé en lévitation sur l'impression.
+  const socle = (
+    <mesh receiveShadow castShadow position={[0, 0.018, 0]}>
+      <boxGeometry args={[0.74, 0.036, 0.62]} />
+      <meshStandardMaterial color="#1A2436" roughness={0.75} />
+    </mesh>
+  );
 
   if (level === 1) {
     return (
       <group>
+        {socle}
         <mesh castShadow material={mat} position={[0, 0.17, 0]}>
           <boxGeometry args={[0.52, 0.34, 0.46]} />
         </mesh>
@@ -110,6 +129,7 @@ const Structure = ({
   if (level === 2) {
     return (
       <group>
+        {socle}
         <mesh castShadow material={mat} position={[0, 0.24, 0]}>
           <boxGeometry args={[0.66, 0.48, 0.5]} />
         </mesh>
@@ -131,6 +151,7 @@ const Structure = ({
   // Grand Hôtel : tour + enseigne + couronne lumineuse
   return (
     <group>
+      {socle}
       <mesh castShadow material={mat} position={[0, 0.34, 0]}>
         <boxGeometry args={[0.62, 0.68, 0.52]} />
       </mesh>

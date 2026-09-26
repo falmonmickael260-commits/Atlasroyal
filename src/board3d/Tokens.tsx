@@ -63,7 +63,7 @@ const Shape = ({ token, mat }: { token: string; mat: THREE.Material }) => {
     default: // Obélisque
       return (
         <group>
-          <mesh castShadow position={[0, 0.26, 0]}>
+          <mesh castShadow material={mat} position={[0, 0.26, 0]}>
             <cylinderGeometry args={[0.03, 0.14, 0.52, 4]} />
           </mesh>
           <mesh material={mat} position={[0, 0.06, 0]}>
@@ -75,7 +75,7 @@ const Shape = ({ token, mat }: { token: string; mat: THREE.Material }) => {
 };
 
 /** Taille des pions : assez gros pour se repérer d'un coup d'œil. */
-const PAWN_SCALE = 1.42;
+const PAWN_SCALE = 1.62;
 
 const Pawn = ({
   color, token, target, bankrupt, active, labels, id, slot,
@@ -98,17 +98,27 @@ const Pawn = ({
   const g = useRef<THREE.Group>(null);
   const pos = useRef(new THREE.Vector3(...target));
   const vec = useMemo(() => new THREE.Vector3(), []);
-  const mat = useMemo(() => new THREE.MeshStandardMaterial({
-    color, roughness: 0.28, metalness: 0.65,
-    emissive: new THREE.Color(color).multiplyScalar(0.25),
-  }), [color]);
+  const mat = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color,
+        roughness: 0.3,
+        metalness: 0.15,
+        clearcoat: 0.7,
+        clearcoatRoughness: 0.2,
+        emissive: new THREE.Color(color).multiplyScalar(0.12),
+      }),
+    [color],
+  );
 
   useFrame((st, dt) => {
     if (!g.current) return;
     vec.set(...target);
     const d = pos.current.distanceTo(vec);
     // Lerp cadré sur le delta-temps : identique quel que soit le framerate.
-    pos.current.lerp(vec, 1 - Math.pow(0.0009, dt));
+    // Approche volontairement moins sèche qu'auparavant : le pion doit
+    // marquer chaque case au lieu de filer d'un bout à l'autre.
+    pos.current.lerp(vec, 1 - Math.pow(0.02, dt));
     // Le pion saute d'autant plus haut qu'il lui reste du chemin : c'est le pas.
     const hop = Math.min(0.42, d * 0.85);
     g.current.position.set(pos.current.x, pos.current.y + hop, pos.current.z);
@@ -142,7 +152,17 @@ const Pawn = ({
 
   return (
     <group ref={g}>
-      <Shape token={token} mat={mat} />
+      {/* Socle commun à toutes les silhouettes : un pion de jeu repose sur
+          une base tournée, c'est elle qui lui donne son assise. */}
+      <mesh castShadow receiveShadow material={mat} position={[0, 0.028, 0]}>
+        <cylinderGeometry args={[0.2, 0.23, 0.056, 24]} />
+      </mesh>
+      <mesh material={mat} position={[0, 0.07, 0]}>
+        <cylinderGeometry args={[0.14, 0.2, 0.04, 24]} />
+      </mesh>
+      <group position={[0, 0.06, 0]}>
+        <Shape token={token} mat={mat} />
+      </group>
       {active && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
           <ringGeometry args={[0.3, 0.38, 28]} />

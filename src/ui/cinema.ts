@@ -155,7 +155,7 @@ export const useCinematic = () => {
         // Les longs déplacements accélèrent : on garde le rythme sans sacrifier la lisibilité.
         // Un déplacement long s'accélère : on garde le rythme sans perdre
         // la lecture case par case.
-        dur = ev.total > 8 ? 108 : 138;
+        dur = ev.total > 8 ? 135 : 175;
         break;
       }
       case 'PASSED_GO':
