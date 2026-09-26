@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { createGame } from '../engine/engine';
 import { BOARD, GROUP_INDEX } from '../engine/board';
 import { Scene } from '../board3d/Scene';
@@ -41,12 +41,12 @@ const EMPTY_CINEMA = (state: GameState): Cinema => ({
   hop: {},
   dice: { values: [4, 2], rolling: false, key: 1 },
   roll: { player: state.order[0], dice: [4, 2], total: 6, double: false },
-  focus: { at: [0, 0, 0], zoom: 1, key: 1 },
   banner: null,
   card: null,
   highlight: null,
   build: null,
   cashFly: null,
+  purchase: null,
   playing: false,
 });
 
@@ -55,6 +55,7 @@ export const BoardPreview = () => {
   const compact = useCompact();
   const quality = useQuality();
   const state = build(level);
+  const labels = useRef(new Map<string, HTMLElement | null>());
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#050A14' }}>
@@ -64,6 +65,7 @@ export const BoardPreview = () => {
         compact={compact}
         quality={quality}
         activePlayer={state.order[0]}
+        labels={labels}
       />
       <div className="panel" style={{ position: 'absolute', left: 16, top: 16, padding: 16, display: 'flex', gap: 8 }}>
         {(['Terrain', 'Maison', 'Villa', 'Grand Hôtel'] as const).map((label, i) => (

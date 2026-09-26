@@ -1,15 +1,14 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { woodTexture } from './textures';
+import { setMaxAnisotropy, setTextureDensity } from './textures';
 import { Board } from './Board';
 import { Buildings } from './Buildings';
 import { Tokens } from './Tokens';
 import { Dice } from './Dice';
-import { CityLife } from './CityLife';
-import { CameraRig } from './CameraRig';
+import { FixedCamera } from './FixedCamera';
+import { Room } from './Room';
 import { AdaptiveQuality } from './AdaptiveQuality';
-import { GEO } from './layout';
 import type { Cinema } from '../ui/cinema';
 import type { GameState, PlayerId } from '../engine/types';
 
@@ -92,6 +91,17 @@ const Lights = () => (
   </>
 );
 
+/**
+ * La densité doit être fixée avant que le moindre `useMemo` de texture ne
+ * s'exécute : on la règle au chargement du module, pas dans un effet.
+ */
+/** Densité d'affichage plafonnée : au-delà de 2, le coût dépasse le gain. */
+const MAX_DPR = Math.min(2, typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1);
+
+setTextureDensity(
+  typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 160 : 256,
+);
+
 export const Scene = ({
   state,
   cinema,
@@ -99,6 +109,7 @@ export const Scene = ({
   activePlayer,
   quality,
   onContextLost,
+  labels,
 }: {
   state: GameState;
   cinema: Cinema;
@@ -106,13 +117,10 @@ export const Scene = ({
   activePlayer: PlayerId | null;
   quality: 'high' | 'low';
   onContextLost?: () => void;
+  /** Étiquettes DOM des prénoms, positionnées par la scène. */
+  labels: React.RefObject<Map<PlayerId, HTMLElement | null>>;
 }) => {
     const fog = useMemo(() => new THREE.FogExp2('#241B14', 0.006), []);
-  const wood = useMemo(() => {
-    const t = woodTexture();
-    t.repeat.set(3, 3);
-    return t;
-  }, []);
   const { ref, size } = useReadySize();
   // Les dés roulent au centre du plateau, comme sur une vraie table : un
   // emplacement fixe, toujours dégagé, que toute la tablée regarde.
@@ -123,11 +131,15 @@ export const Scene = ({
     <div ref={ref} style={{ position: 'absolute', inset: 0, background: '#050A14' }}>
       {ready && (
         <Canvas
-          shadows={quality === 'high'}
-          dpr={quality === 'high' ? [1, 1.8] : [1, 1.2]}
+          shadows={quality === 'high' ? 'soft' : false}
+          // On suit la densité réelle de l'écran : c'est ce qui sépare un
+          // rendu net d'un rendu qui « bave » sur un affichage haute densité.
+          dpr={quality === 'high' ? [1, MAX_DPR] : [1, 1.25]}
           gl={{
-            antialias: quality === 'high',
+            antialias: true,
             powerPreference: 'high-performance',
+            alpha: false,
+            stencil: false,
           }}
           camera={{
             position: [0, 28, 26],
@@ -142,6 +154,11 @@ export const Scene = ({
             height: size.h,
           }}
           onCreated={({ gl }) => {
+        // L'anisotropie maximale du contexte : indispensable pour des cases
+        // lisibles quand le plateau est vu de biais.
+        setMaxAnisotropy(gl.capabilities.getMaxAnisotropy());
+        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMappingExposure = 1.05;
             // Une perte de contexte WebGL (veille, bascule de GPU, onglets multiples)
             // est récupérable : sans preventDefault le navigateur ne le restaure pas.
             gl.domElement.addEventListener('webglcontextlost', (e) => {
@@ -156,23 +173,18 @@ export const Scene = ({
           <AdaptiveQuality />
           <Lights />
           <Suspense fallback={null}>
-            <Board state={state} highlight={cinema.highlight} />
+            <Board state={state} highlight={cinema.highlight} purchase={cinema.purchase} />
             <Buildings state={state} />
-            <Tokens state={state} tokenTile={cinema.tokenTile} activePlayer={activePlayer} />
+            <Tokens
+              state={state}
+              tokenTile={cinema.tokenTile}
+              activePlayer={activePlayer}
+              labels={labels}
+            />
             <Dice dice={cinema.dice} at={diceAt} />
-            <CityLife quality={quality} />
           </Suspense>
-          {/* La table sur laquelle le plateau est posé. */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.82, 0]} receiveShadow>
-            <circleGeometry args={[GEO.side * 1.9, 72]} />
-            <meshStandardMaterial map={wood} roughness={0.72} metalness={0.04} />
-          </mesh>
-          {/* Chant de la table : elle a une épaisseur, donc une ombre portée. */}
-          <mesh position={[0, -1.05, 0]}>
-            <cylinderGeometry args={[GEO.side * 1.9, GEO.side * 1.88, 0.46, 72]} />
-            <meshStandardMaterial color="#3E2718" roughness={0.8} metalness={0.05} />
-          </mesh>
-          <CameraRig focus={cinema.focus} compact={compact} playing={cinema.playing} />
+          <Room full />
+          <FixedCamera compact={compact} />
         </Canvas>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { tileAt } from '../../engine/board';
+import { TileChip, tileColor } from './TradeTicker';
 import { ownedBy } from '../../engine/rules';
 import { Icon } from '../Icon';
 import { euro } from '../format';
@@ -17,10 +18,12 @@ const Toggle = ({
       {tiles.map((i) => (
         <button
           key={i}
-          className="pill-opt"
+          className="pill-opt pill-opt--tile"
           aria-pressed={selected.includes(i)}
+          style={{ ['--tile-color' as string]: tileColor(i) }}
           onClick={() => { audio.click(); onToggle(i); }}
         >
+          <i className="tilechip__dot" style={{ background: tileColor(i) }} />
           {tileAt(i).name}
         </button>
       ))}
@@ -69,11 +72,25 @@ export const TradePanel = ({
               <div className="holding" key={o.id} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
                 <div style={{ fontSize: 13 }}>
                   <strong>{state.players[o.from].name}</strong> vous propose :
-                  <div style={{ color: 'var(--success)', marginTop: 4 }}>
-                    Vous recevez {[...o.giveTiles.map((i) => tileAt(i).name), o.giveCash ? euro(o.giveCash) : null].filter(Boolean).join(', ') || '—'}
+                  <div style={{ marginTop: 6 }}>
+                    <span style={{ color: 'var(--success)', fontSize: 11, letterSpacing: '.1em' }}>
+                      VOUS RECEVEZ
+                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 3 }}>
+                      {o.giveTiles.map((i) => <TileChip key={i} tile={i} />)}
+                      {o.giveCash > 0 && <span className="tilechip tilechip--cash">{euro(o.giveCash)}</span>}
+                      {o.giveTiles.length === 0 && !o.giveCash && <span className="ticker__nothing">rien</span>}
+                    </div>
                   </div>
-                  <div style={{ color: 'var(--danger-lift)' }}>
-                    Vous cédez {[...o.getTiles.map((i) => tileAt(i).name), o.getCash ? euro(o.getCash) : null].filter(Boolean).join(', ') || '—'}
+                  <div style={{ marginTop: 8 }}>
+                    <span style={{ color: 'var(--danger-lift)', fontSize: 11, letterSpacing: '.1em' }}>
+                      VOUS CÉDEZ
+                    </span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 3 }}>
+                      {o.getTiles.map((i) => <TileChip key={i} tile={i} />)}
+                      {o.getCash > 0 && <span className="tilechip tilechip--cash">{euro(o.getCash)}</span>}
+                      {o.getTiles.length === 0 && !o.getCash && <span className="ticker__nothing">rien</span>}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>

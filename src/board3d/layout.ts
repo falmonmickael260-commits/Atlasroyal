@@ -50,11 +50,18 @@ export const placement = (i: number): TilePlacement => {
 export const PLACEMENTS = Array.from({ length: BOARD_SIZE }, (_, i) => placement(i));
 
 /** Emplacement d'un pion sur sa case : petite grille pour éviter la superposition. */
-export const tokenSlot = (tileIndex: number, slot: number): [number, number, number] => {
+export const tokenSlot = (
+  tileIndex: number,
+  slot: number,
+  total = 1,
+): [number, number, number] => {
   const p = PLACEMENTS[tileIndex];
-  const cols = 3;
-  const gx = ((slot % cols) - 1) * 0.52;
-  const gz = (Math.floor(slot / cols) - 0.5) * 0.52;
+  // Deux rangées de trois : à six pions sur une case, aucun n'en cache un
+  // autre et chaque étiquette reste attribuable.
+  const cols = total > 4 ? 3 : Math.max(1, Math.min(2, total));
+  const rows = Math.ceil(total / cols);
+  const gx = ((slot % cols) - (cols - 1) / 2) * 0.76;
+  const gz = (Math.floor(slot / cols) - (rows - 1) / 2) * 0.62;
   // Décalage exprimé dans le repère de la case, puis ramené au repère monde.
   const c = Math.cos(p.rot), s = Math.sin(p.rot);
   const offX = p.isCorner ? 0 : 0;

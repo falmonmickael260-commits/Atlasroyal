@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRoom } from '../net/room';
 import { audio } from '../audio/audio';
-import { PLACEMENTS } from '../board3d/layout';
 import { CARDS_BY_ID } from '../engine/cards';
 import { HUB_TILES, LEVEL_NAMES, RESEAU_TILES, RULES, tileAt } from '../engine/board';
 import { countOwnedIn, ownsFullGroup } from '../engine/rules';
@@ -39,31 +38,26 @@ export interface Cinema {
   dice: { values: [number, number]; rolling: boolean; key: number } | null;
   /** Résultat lisible en permanence, pour que toute la table le voie. */
   roll: RollInfo | null;
-  focus: { at: [number, number, number]; zoom: number; key: number };
   banner: Banner | null;
   card: string | null;
   highlight: number | null;
   build: { tile: number; level: number; key: number } | null;
   cashFly: CashFly | null;
+  /** Acquisition à mettre en scène sur la case : anneau, éclat, couleur. */
+  purchase: { tile: number; color: string; key: number } | null;
   /** Vrai tant que des évènements restent à mettre en scène. */
   playing: boolean;
 }
 
-const OVERVIEW: [number, number, number] = [0, 0, 0];
-
 const initial: Cinema = {
   tokenTile: {}, hop: {}, dice: null, roll: null,
-  focus: { at: OVERVIEW, zoom: 1, key: 0 },
-  banner: null, card: null, highlight: null, build: null, cashFly: null, playing: false,
+  banner: null, card: null, highlight: null, build: null, cashFly: null, purchase: null,
+  playing: false,
 };
 
 const reducedMotion = () =>
   typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const at = (tile: number): [number, number, number] => {
-  const p = PLACEMENTS[tile];
-  return [p.pos[0] * 0.72, 0, p.pos[2] * 0.72];
-};
 
 /**
  * Transforme le flux d'évènements de l'autorité en mise en scène.
@@ -102,8 +96,7 @@ export const useCinematic = () => {
 
     switch (ev.e) {
       case 'TURN_STARTED': {
-        const tile = state.players[ev.player]?.position ?? 0;
-        setCinema((c) => ({ ...c, banner: null, card: null, highlight: null, focus: { at: at(tile), zoom: 1, key: k } }));
+        setCinema((c) => ({ ...c, banner: null, card: null, highlight: null }));
         dur = 420;
         break;
       }
@@ -113,8 +106,6 @@ export const useCinematic = () => {
           ...c,
           dice: { values: ev.dice, rolling: true, key: k },
           roll: { player: ev.player, dice: ev.dice, total: ev.dice[0] + ev.dice[1], double: ev.isDouble },
-          // Les dés roulent au centre : c'est là que la caméra se pose.
-          focus: { at: [0, 0, 2.4], zoom: 1.5, key: k },
         }));
         dur = 980;
         window.setTimeout(() => {
@@ -147,7 +138,6 @@ export const useCinematic = () => {
           ...c,
           tokenTile: { ...c.tokenTile, [ev.player]: ev.to },
           hop: { ...c.hop, [ev.player]: (c.hop[ev.player] ?? 0) + 1 },
-          focus: { at: at(ev.to), zoom: 1.2, key: k },
           dice: c.dice ? { ...c.dice, rolling: false } : null,
         }));
         // Les longs déplacements accélèrent : on garde le rythme sans sacrifier la lisibilité.
@@ -166,17 +156,26 @@ export const useCinematic = () => {
         break;
       case 'LANDED':
         audio.land();
-        setCinema((c) => ({ ...c, highlight: ev.tile, focus: { at: at(ev.tile), zoom: 1.35, key: k } }));
+        setCinema((c) => ({ ...c, highlight: ev.tile }));
         dur = 200;
         break;
       case 'PROPERTY_OFFERED':
-        setCinema((c) => ({ ...c, focus: { at: at(ev.tile), zoom: 1.75, key: k } }));
+        setCinema((c) => ({ ...c }));
         dur = 320;
         break;
-      case 'PROPERTY_BOUGHT':
+      case 'PROPERTY_BOUGHT': {
         audio.buy();
-        banner({ kind: 'buy', title: tileAt(ev.tile).name, detail: 'Acquise', amount: -ev.price, color: '#22C55E' }, 1100);
+        const couleur = state.players[ev.player]?.color ?? '#EAB308';
+        setCinema((c) => ({ ...c, purchase: { tile: ev.tile, color: couleur, key: k } }));
+        banner({
+          kind: 'buy',
+          title: tileAt(ev.tile).name,
+          detail: `Acquise par ${state.players[ev.player]?.name ?? ''}`,
+          amount: -ev.price,
+          color: couleur,
+        }, 1400);
         break;
+      }
       case 'RENT_PAID': {
         audio.pay();
         setCinema((c) => ({ ...c, cashFly: { key: k, from: ev.from, to: ev.to, amount: ev.amount } }));
@@ -197,7 +196,7 @@ export const useCinematic = () => {
         break;
       case 'CARD_DRAWN':
         audio.card();
-        setCinema((c) => ({ ...c, card: ev.card, focus: { at: OVERVIEW, zoom: 1.5, key: k } }));
+        setCinema((c) => ({ ...c, card: ev.card }));
         dur = 2900;
         window.setTimeout(() => setCinema((c) => (c.card === ev.card ? { ...c, card: null } : c)), 2800 * slow);
         break;
@@ -212,7 +211,7 @@ export const useCinematic = () => {
       case 'BUILT': {
         audio.build();
         const names = ['', 'Maison', 'Villa', 'Grand Hôtel'];
-        setCinema((c) => ({ ...c, build: { tile: ev.tile, level: ev.level, key: k }, focus: { at: at(ev.tile), zoom: 2.1, key: k } }));
+        setCinema((c) => ({ ...c, build: { tile: ev.tile, level: ev.level, key: k } }));
         banner({ kind: 'build', title: names[ev.level], detail: tileAt(ev.tile).name, amount: -ev.cost, color: '#EAB308' }, 2300);
         break;
       }
@@ -222,7 +221,7 @@ export const useCinematic = () => {
         break;
       case 'JAILED':
         audio.jail();
-        setCinema((c) => ({ ...c, tokenTile: { ...c.tokenTile, [ev.player]: 10 }, focus: { at: at(10), zoom: 1.6, key: k } }));
+        setCinema((c) => ({ ...c, tokenTile: { ...c.tokenTile, [ev.player]: 10 } }));
         banner({ kind: 'jail', title: 'PRISON', detail: { doubles: 'Trois doubles consécutifs', card: 'Ordre de la carte', tile: 'Case Allez en Prison' }[ev.reason], color: '#94A3B8' }, 1800);
         break;
       case 'JAIL_RELEASED':

@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  // Ancré sur le dossier du projet : le serveur se lance correctement quel
+  // que soit le répertoire courant.
+  root: import.meta.dirname,
   plugins: [react()],
   server: { port: 5174, host: true },
   build: {

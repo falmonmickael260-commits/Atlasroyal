@@ -50,11 +50,11 @@ describe('plateau', () => {
 });
 
 describe('création de partie', () => {
-  it.each([2, 3, 4, 5, 6])('démarre à %i joueurs avec 15 000 € chacun', (n) => {
+  it.each([2, 3, 4, 5, 6])('démarre à %i joueurs avec la fortune de départ', (n) => {
     const s = newGame(n);
     expect(s.order).toHaveLength(n);
     for (const id of s.order) {
-      expect(s.players[id].cash).toBe(15_000);
+      expect(s.players[id].cash).toBe(RULES.startingCash);
       expect(s.players[id].position).toBe(0);
     }
     expect(s.phase).toBe('ROLL_DICE');
@@ -117,12 +117,12 @@ describe('dés et déplacement', () => {
   it('verse 200 € au passage du Départ et 400 € sur le Départ exact', () => {
     let s = put(newGame(2), 'p1', 36);
     const passed = rollAs(s, 'p1', 3, 3).state; // 36 -> 2, passe le Départ
-    expect(passed.players.p1.cash).toBe(15_000 + RULES.passGo);
+    expect(passed.players.p1.cash).toBe(RULES.startingCash + RULES.passGo);
 
     s = put(newGame(2), 'p1', 36);
     const exact = rollAs(s, 'p1', 2, 2).state; // 36 -> 0 pile
     expect(exact.players.p1.position).toBe(0);
-    expect(exact.players.p1.cash).toBe(15_000 + RULES.exactGo);
+    expect(exact.players.p1.cash).toBe(RULES.startingCash + RULES.exactGo);
   });
 });
 
@@ -167,7 +167,7 @@ describe('acquisition', () => {
     const price = (tileAt(4) as { price: number }).price;
     const after = applyCommand(s, { t: 'BUY_PROPERTY', by: 'p1' }).state;
     expect(after.tiles[4].owner).toBe('p1');
-    expect(after.players.p1.cash).toBe(15_000 - price);
+    expect(after.players.p1.cash).toBe(RULES.startingCash - price);
     expect(after.pending).toBeNull();
   });
 
@@ -192,7 +192,7 @@ describe('loyers', () => {
     const { state, events } = rollAs(s, 'p1', 1, 1);
     const rent = (tileAt(2) as { rent: number[] }).rent[0];
     expect(events.some((e) => e.e === 'RENT_PAID')).toBe(true);
-    expect(state.players.p1.cash).toBe(15_000 - rent);
+    expect(state.players.p1.cash).toBe(RULES.startingCash - rent);
     expect(state.players.p2.cash).toBe(before + rent);
   });
 
@@ -210,7 +210,7 @@ describe('loyers', () => {
     s = give(s, 'p2', [2]);
     s = { ...s, tiles: { ...s.tiles, 2: { ...s.tiles[2], mortgaged: true } } };
     const { state } = rollAs(s, 'p1', 1, 1);
-    expect(state.players.p1.cash).toBe(15_000);
+    expect(state.players.p1.cash).toBe(RULES.startingCash);
   });
 
   it('escalade le loyer des hubs avec le nombre possédés', () => {
@@ -279,7 +279,7 @@ describe('constructions', () => {
       }
       expect(sable.map((t) => s.tiles[t].level)).toEqual([lvl, lvl, lvl]);
     }
-    expect(s.players.p1.cash).toBe(15_000 - cost * 9);
+    expect(s.players.p1.cash).toBe(RULES.startingCash - cost * 9);
     expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: sable[0] }).rejected).toMatch(/Hôtel/);
   });
 
@@ -324,10 +324,10 @@ describe('hypothèques', () => {
     let s = give(newGame(2), 'p1', [tile]);
     s = applyCommand(s, { t: 'MORTGAGE', by: 'p1', tile }).state;
     expect(s.tiles[tile].mortgaged).toBe(true);
-    expect(s.players.p1.cash).toBe(15_000 + price / 2);
+    expect(s.players.p1.cash).toBe(RULES.startingCash + price / 2);
     s = applyCommand(s, { t: 'UNMORTGAGE', by: 'p1', tile }).state;
     expect(s.tiles[tile].mortgaged).toBe(false);
-    expect(s.players.p1.cash).toBe(15_000 + price / 2 - Math.round((price / 2) * 1.1));
+    expect(s.players.p1.cash).toBe(RULES.startingCash + price / 2 - Math.round((price / 2) * 1.1));
   });
 
   it('refuse d’hypothéquer une ville construite', () => {
@@ -355,7 +355,7 @@ describe('prison', () => {
   it('libère immédiatement contre 50 €', () => {
     const s = applyCommand(jailed(), { t: 'PAY_JAIL_FINE', by: 'p1' }).state;
     expect(s.players.p1.inJail).toBe(false);
-    expect(s.players.p1.cash).toBe(15_000 - RULES.jailFine);
+    expect(s.players.p1.cash).toBe(RULES.startingCash - RULES.jailFine);
     expect(s.pot).toBe(RULES.jailFine);
     expect(s.phase).toBe('ROLL_DICE');
   });
@@ -379,7 +379,7 @@ describe('prison', () => {
     }
     const third = rollAs(s, 'p1', 3, 5, 'ATTEMPT_JAIL_ROLL').state;
     expect(third.players.p1.inJail).toBe(false);
-    expect(third.players.p1.cash).toBe(15_000 - RULES.jailFine);
+    expect(third.players.p1.cash).toBe(RULES.startingCash - RULES.jailFine);
     expect(third.players.p1.position).toBe(JAIL_TILE + 8);
   });
 
@@ -397,14 +397,14 @@ describe('taxes, cagnotte et Parc Gratuit', () => {
     const s = put(atRound(newGame(2), 2), 'p1', 0);
     const { state } = rollAs(s, 'p1', 2, 3); // case 5 : Impôt Mondial
     expect(state.pot).toBe(1200);
-    expect(state.players.p1.cash).toBe(15_000 - 1200);
+    expect(state.players.p1.cash).toBe(RULES.startingCash - 1200);
   });
 
   it('reverse 100 % de la cagnotte au joueur qui atteint le Parc', () => {
     let s = put(atRound(newGame(2), 2), 'p1', 14);
     s = { ...s, pot: 2500 };
     const { state, events } = rollAs(s, 'p1', 3, 3); // 14 -> 20
-    expect(state.players.p1.cash).toBe(15_000 + 2500);
+    expect(state.players.p1.cash).toBe(RULES.startingCash + 2500);
     expect(state.pot).toBe(0);
     expect(events.some((e) => e.e === 'POT_WON')).toBe(true);
   });
@@ -466,8 +466,8 @@ describe('échanges', () => {
     const after = applyCommand(s, { t: 'ACCEPT_TRADE', by: 'p2', id: s.trades[0].id }).state;
     expect(after.tiles[1].owner).toBe('p2');
     expect(after.tiles[2].owner).toBe('p1');
-    expect(after.players.p1.cash).toBe(15_000 - 500);
-    expect(after.players.p2.cash).toBe(15_000 + 500);
+    expect(after.players.p1.cash).toBe(RULES.startingCash - 500);
+    expect(after.players.p2.cash).toBe(RULES.startingCash + 500);
     expect(after.trades).toHaveLength(0);
   });
 
@@ -521,10 +521,17 @@ describe('dettes et faillite', () => {
 
   it('permet d’hypothéquer puis de régler la dette', () => {
     let s = inDebt();
-    s = give(s, 'p1', [1, 2, 4, 6, 8, 9, 11, 13, 14, 16]);
-    for (const t of [1, 2, 4, 6, 8, 9, 11, 13, 14, 16]) {
+    const aVendre = [1, 2, 4, 6, 8, 9, 11, 13, 14, 16, 18, 19, 21, 23];
+    s = give(s, 'p1', aVendre);
+    // On hypothèque jusqu'à couvrir la dette, sans présumer de son montant :
+    // il dépend du barème, qui peut évoluer.
+    const du = (st: GameState) =>
+      st.pending?.type === 'DEBT' ? st.pending.debt.amount : 0;
+    for (const t of aVendre) {
+      if (s.players.p1.cash >= du(s)) break;
       s = applyCommand(s, { t: 'MORTGAGE', by: 'p1', tile: t }).state;
     }
+    expect(s.players.p1.cash, 'fonds réunis insuffisants').toBeGreaterThanOrEqual(du(s));
     const r = applyCommand(s, { t: 'SETTLE_DEBT', by: 'p1' });
     expect(r.rejected).toBeUndefined();
     expect(r.state.pending).toBeNull();
@@ -602,8 +609,8 @@ describe('patrimoine', () => {
     const sable = GROUP_INDEX.sable;
     let s = give(newGame(2), 'p1', sable);
     const prices = sable.reduce((a, i) => a + (tileAt(i) as { price: number }).price, 0);
-    expect(netWorth(s, 'p1')).toBe(15_000 + prices);
+    expect(netWorth(s, 'p1')).toBe(RULES.startingCash + prices);
     s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: sable[0] }).state;
-    expect(netWorth(s, 'p1')).toBe(15_000 + prices);
+    expect(netWorth(s, 'p1')).toBe(RULES.startingCash + prices);
   });
 });

@@ -33,7 +33,7 @@ Le dernier joueur financièrement viable gagne.
 
 | Règle | Valeur |
 |---|---|
-| Fortune de départ | 15 000 € |
+| Fortune de départ | 35 000 € |
 | Passage par le Départ | +200 € |
 | Arrivée exacte sur le Départ | +400 € (animation distincte) |
 | Premier tour de table | aucun achat possible |
@@ -51,7 +51,7 @@ Le dernier joueur financièrement viable gagne.
 
 Prix des villes : 900 € (Marrakech) à 4 500 € (Monaco). Loyers indexés sur le
 prix, multipliés par 5 / 14 / 26 selon le niveau de construction. Un Grand Hôtel
-à Monaco coûte 7 800 € au visiteur : la moitié d'une fortune de départ.
+à Monaco coûte 7 800 € au visiteur.
 
 **Choix assumés** — deux points s'écartent des habitudes du genre, à la demande
 du cahier des charges : une propriété refusée reste simplement disponible (pas
@@ -148,14 +148,26 @@ reconnexion, l'hôte retrouve le siège et renvoie l'état complet. Le profil
 
 ## 4. Rendu
 
-Plateau en relief sous three.js / React Three Fiber : dalles épaisses, bâtiments
-volumétriques qui sortent du sol, dés animés, trafic sur l'anneau, appareils en
-approche, balises clignotantes, poussière lumineuse.
+Le jeu est posé sur une table, dans une pièce. Murs, sol, tapis, bibliothèque,
+plante, lampe : **tout le décor est strictement immobile**. La caméra ne suit
+jamais un pion, ne zoome pas, ne dérive pas. Seuls s'animent les objets du
+jeu — dés, pions, constructions, cartes, argent, échanges.
+
+Le cadrage n'est pas estimé mais **mesuré** : la caméra projette les quatre
+coins du plateau et recule jusqu'à ce qu'ils tiennent tous, en réservant la
+place des panneaux d'interface. Un plateau vu de biais se projette de façon
+asymétrique, et une formule fondée sur la distance au centre le coupe sur les
+côtés (`FixedCamera.tsx`).
 
 - Les faces de cases sont **peintes au Canvas 2D** puis uploadées en texture :
-  pas de police 3D à charger, typographie nette, zéro requête réseau.
-- La caméra **calcule** sa distance à partir du champ de vision et du rapport
-  d'image, pour que le plateau tienne à l'écran du 16/9 au portrait étroit.
+  pas de police 3D à charger, typographie nette, zéro requête réseau. La
+  densité est de 256 px par unité monde (160 sur mobile), avec filtrage
+  anisotrope maximal — c'est lui qui sauve la lisibilité en vue oblique.
+- Le rendu suit la **densité réelle de l'écran** (jusqu'à 2×), avec
+  antialiasing et ombres douces. `AdaptiveQuality` mesure la cadence après une
+  seconde et allège par paliers si la machine ne suit pas.
+- Les prénoms des joueurs sont rendus en **DOM**, positionnés chaque image par
+  projection de la position du pion : le texte reste net quel que soit l'angle.
 - Les effets sonores sont **synthétisés** (WebAudio) : aucun asset binaire.
 - `prefers-reduced-motion` raccourcit les mises en scène au lieu de les couper.
 - three.js n'est chargé qu'à l'entrée en partie (accueil : ~77 ko gzip).

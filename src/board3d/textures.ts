@@ -7,7 +7,24 @@ import type { Tile } from '../engine/types';
  * en texture. Cela évite tout chargement de police 3D (troika/CDN) et donne
  * une typographie nette, contrôlée au pixel près.
  */
-const DPI = 128;
+/**
+ * Densité des textures peintes, en pixels par unité monde.
+ *
+ * Le plateau est vu de biais : c'est le filtrage anisotrope qui sauve la
+ * lisibilité, mais il ne peut pas inventer des pixels absents. On monte donc
+ * la densité, en la plafonnant sur mobile où la mémoire graphique est comptée.
+ */
+let DPI = 256;
+
+export const setTextureDensity = (dpi: number) => {
+  DPI = dpi;
+};
+
+/** Anisotropie maximale du contexte, renseignée au démarrage du rendu. */
+let MAX_ANISO = 8;
+export const setMaxAnisotropy = (v: number) => {
+  MAX_ANISO = Math.max(1, v);
+};
 
 const roundRect = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
   c.beginPath();
@@ -33,15 +50,19 @@ const makeCanvas = (w: number, h: number) => {
   const cv = document.createElement('canvas');
   cv.width = Math.round(w * DPI);
   cv.height = Math.round(h * DPI);
-  const c = cv.getContext('2d')!;
+  const c = cv.getContext('2d', { alpha: true })!;
   c.scale(DPI, DPI);
+  c.textRendering = 'geometricPrecision';
   return { cv, c };
 };
 
 const finish = (cv: HTMLCanvasElement) => {
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  tex.anisotropy = MAX_ANISO;
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
   return tex;
 };
@@ -107,12 +128,40 @@ export const tileTexture = (tile: Tile, w: number, d: number): THREE.CanvasTextu
     title(tile.name.toUpperCase(), d / 2 - 0.12, 17, '#FCA5A5');
     title(`− ${tile.amount.toLocaleString('fr-FR')} €`, d / 2 + 0.22, 18, '#F8FAFC');
   } else if (tile.kind === 'card') {
+    // Une case carte doit s'expliquer sans ouvrir de menu : un dos de carte
+    // dessiné, le nom de la pioche, et l'action écrite en toutes lettres.
     const isDestin = tile.deck === 'destin';
-    c.fillStyle = isDestin ? 'rgba(139,47,184,0.2)' : 'rgba(217,119,6,0.2)';
+    const tint = isDestin ? '#D183F5' : '#FFB24D';
+    c.fillStyle = isDestin ? 'rgba(139,47,184,0.26)' : 'rgba(217,119,6,0.26)';
     roundRect(c, 0.08, 0.08, w - 0.16, d - 0.16, 0.1);
     c.fill();
-    title(isDestin ? 'DESTIN' : 'MARCHÉ', d / 2, 22, isDestin ? '#D183F5' : '#FFB24D');
-    title('◆ ◆ ◆', d / 2 + 0.34, 14, 'rgba(255,255,255,0.35)', 500);
+
+    title(isDestin ? 'DESTIN' : 'MARCHÉ', 0.42, 19, tint);
+
+    // Deux cartes en éventail, dos visible.
+    const cx = w / 2;
+    const cy = d / 2 + 0.05;
+    for (const [dx, rot, alpha] of [[-0.1, -0.22, 0.55], [0.06, 0.16, 1]] as const) {
+      c.save();
+      c.translate(cx + dx, cy);
+      c.rotate(rot);
+      c.globalAlpha = alpha;
+      c.fillStyle = isDestin ? '#3B1650' : '#4A2B08';
+      roundRect(c, -0.3, -0.42, 0.6, 0.84, 0.08);
+      c.fill();
+      c.strokeStyle = tint;
+      c.lineWidth = 0.028;
+      roundRect(c, -0.3, -0.42, 0.6, 0.84, 0.08);
+      c.stroke();
+      c.fillStyle = tint;
+      c.beginPath();
+      c.arc(0, 0, 0.11, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
+
+    title('PIOCHE', d - 0.42, 14, '#F8FAFC');
+    title('UNE CARTE', d - 0.2, 14, '#F8FAFC');
   } else {
     // Coins
     const tones: Record<string, [string, string]> = {
@@ -252,5 +301,42 @@ export const centerTexture = (size: number): THREE.CanvasTexture => {
   c.stroke();
   c.restore();
 
+  return finish(cv);
+};
+
+/** Papier peint : grain très fin, pour que le mur ne soit pas un aplat mort. */
+export const wallTexture = (size = 8): THREE.CanvasTexture => {
+  const { cv, c } = makeCanvas(size, size);
+  const g = c.createLinearGradient(0, 0, 0, size);
+  g.addColorStop(0, '#D8CBB4');
+  g.addColorStop(1, '#C3B49A');
+  c.fillStyle = g;
+  c.fillRect(0, 0, size, size);
+  for (let i = 0; i < 2600; i++) {
+    c.fillStyle = `rgba(${Math.random() > 0.5 ? '255,255,255' : '120,102,80'}, ${Math.random() * 0.07})`;
+    c.fillRect(Math.random() * size, Math.random() * size, 0.035, 0.035);
+  }
+  const tex = finish(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+};
+
+/** Tapis : trame tissée et bordure, vu de loin donc volontairement sobre. */
+export const rugTexture = (size = 10): THREE.CanvasTexture => {
+  const { cv, c } = makeCanvas(size, size);
+  c.fillStyle = '#6B3F3A';
+  c.fillRect(0, 0, size, size);
+  c.strokeStyle = 'rgba(0,0,0,0.16)';
+  c.lineWidth = 0.02;
+  for (let i = 0; i < size; i += 0.1) {
+    c.beginPath(); c.moveTo(i, 0); c.lineTo(i, size); c.stroke();
+    c.beginPath(); c.moveTo(0, i); c.lineTo(size, i); c.stroke();
+  }
+  c.strokeStyle = '#8E5A4A';
+  c.lineWidth = 0.34;
+  c.strokeRect(size * 0.11, size * 0.11, size * 0.78, size * 0.78);
+  c.strokeStyle = '#C89B6A';
+  c.lineWidth = 0.12;
+  c.strokeRect(size * 0.17, size * 0.17, size * 0.66, size * 0.66);
   return finish(cv);
 };

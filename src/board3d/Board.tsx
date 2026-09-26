@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import { BOARD, GROUPS } from '../engine/board';
 import { GEO, PLACEMENTS } from './layout';
 import { centerTexture, tileTexture } from './textures';
@@ -44,7 +45,55 @@ const Tile = ({
   );
 };
 
-export const Board = ({ state, highlight }: { state: GameState; highlight: number | null }) => {
+/**
+ * Éclat d'acquisition : un anneau s'ouvre sur la case et s'efface.
+ * Court et net — l'achat doit se voir sans ralentir le tour, et tous les
+ * clients le jouent puisqu'il découle du même évènement serveur.
+ */
+const PurchaseFlash = ({
+  purchase,
+}: { purchase: { tile: number; color: string; key: number } | null }) => {
+  const ring = useRef<THREE.Mesh>(null);
+  const t = useRef(99);
+
+  useEffect(() => {
+    t.current = 0;
+  }, [purchase?.key]);
+
+  useFrame((_, dt) => {
+    const m = ring.current;
+    if (!m || !purchase) return;
+    t.current += dt;
+    const p = Math.min(1, t.current / 0.85);
+    const eased = 1 - Math.pow(1 - p, 3);
+    m.scale.setScalar(0.35 + eased * 1.5);
+    (m.material as THREE.MeshBasicMaterial).opacity = (1 - p) * 0.85;
+    m.visible = p < 1;
+  });
+
+  if (!purchase) return null;
+  const pl = PLACEMENTS[purchase.tile];
+  return (
+    <mesh
+      ref={ring}
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[pl.pos[0], GEO.thickness / 2 + 0.03, pl.pos[2]]}
+    >
+      <ringGeometry args={[0.55, 0.95, 40]} />
+      <meshBasicMaterial color={purchase.color} transparent opacity={0} toneMapped={false} />
+    </mesh>
+  );
+};
+
+export const Board = ({
+  state,
+  highlight,
+  purchase,
+}: {
+  state: GameState;
+  highlight: number | null;
+  purchase: { tile: number; color: string; key: number } | null;
+}) => {
   const center = useMemo(() => centerTexture(GEO.side - GEO.tileD * 2), []);
   const inner = GEO.side - GEO.tileD * 2;
 
@@ -64,6 +113,8 @@ export const Board = ({ state, highlight }: { state: GameState; highlight: numbe
         <planeGeometry args={[inner, inner]} />
         <meshStandardMaterial map={center} roughness={0.85} toneMapped={false} />
       </mesh>
+
+      <PurchaseFlash purchase={purchase} />
 
       {BOARD.map((t) => (
         <Tile

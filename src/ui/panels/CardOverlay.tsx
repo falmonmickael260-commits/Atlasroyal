@@ -1,5 +1,6 @@
 import { Icon } from '../Icon';
 import { cardOf } from '../cinema';
+import { effectSummary } from '../../engine/cards';
 
 const TONE: Record<string, { bg: string; fg: string; ring: string }> = {
   positif: { bg: 'linear-gradient(165deg,#14532D,#052E16)', fg: '#86EFAC', ring: '#22C55E' },
@@ -30,6 +31,20 @@ export const CardOverlay = ({ cardId }: { cardId: string | null }) => {
           </div>
           <div className="cardfx__title">{card.title}</div>
           <div className="cardfx__text">{card.text}</div>
+          {(() => {
+            const fx = effectSummary(card.effect);
+            return (
+              <div
+                className="cardfx__effect"
+                style={{
+                  color: fx.sign > 0 ? '#86EFAC' : fx.sign < 0 ? '#FCA5A5' : '#E2E8F0',
+                  borderColor: fx.sign > 0 ? 'rgba(134,239,172,.5)' : fx.sign < 0 ? 'rgba(252,165,165,.5)' : 'rgba(226,232,240,.35)',
+                }}
+              >
+                {fx.text}
+              </div>
+            );
+          })()}
           <div className="cardfx__rarity" style={{ color: tone.fg }}>
             {RARITY[card.rarity]}
           </div>

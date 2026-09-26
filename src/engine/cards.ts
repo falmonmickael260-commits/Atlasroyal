@@ -1,4 +1,4 @@
-import type { CardDef } from './types';
+import type { CardDef, CardEffect } from './types';
 
 /**
  * Cartes originales ATLAS ROYALE.
@@ -173,3 +173,47 @@ export const buildDeck = (deck: CardDef['deck']): string[] =>
   CARDS.filter((c) => c.deck === deck).flatMap((c) =>
     Array.from({ length: deckWeights[c.rarity] }, () => c.id),
   );
+
+/**
+ * Résumé chiffré d'un effet, pour l'afficher sur la carte.
+ *
+ * On ne réinterprète pas la règle : on lit la même donnée que le moteur, ce
+ * qui garantit que l'affichage ne pourra pas diverger de ce qui est appliqué.
+ */
+export const effectSummary = (fx: CardEffect): { text: string; sign: -1 | 0 | 1 } => {
+  const euro = (n: number) => `${Math.abs(n).toLocaleString('fr-FR').replace(/ | /g, ' ')} €`;
+  switch (fx.k) {
+    case 'cash':
+      return { text: `${fx.amount >= 0 ? '+' : '−'} ${euro(fx.amount)}`, sign: fx.amount >= 0 ? 1 : -1 };
+    case 'cashToPot':
+      return { text: `− ${euro(fx.amount)}`, sign: -1 };
+    case 'collectFromEach':
+      return { text: `+ ${euro(fx.amount)} par joueur`, sign: 1 };
+    case 'payEach':
+      return { text: `− ${euro(fx.amount)} par joueur`, sign: -1 };
+    case 'cashPerProperty':
+      return {
+        text: `${fx.amount >= 0 ? '+' : '−'} ${euro(fx.amount)} par propriété`,
+        sign: fx.amount >= 0 ? 1 : -1,
+      };
+    case 'repairs':
+      return { text: `Travaux : ${euro(fx.perHouse)} / ${euro(fx.perVilla)} / ${euro(fx.perHotel)}`, sign: -1 };
+    case 'takePot':
+      return { text: 'Toute la cagnotte', sign: 1 };
+    case 'discountNextPurchase':
+      return { text: `− ${fx.percent} % sur la prochaine acquisition`, sign: 1 };
+    case 'moveTo':
+    case 'moveBy':
+    case 'moveToNearest':
+      return { text: 'Déplacement', sign: 0 };
+    case 'goToJail':
+      return { text: 'Direction la Prison', sign: -1 };
+    case 'jailFree':
+      return { text: 'Sortie de prison', sign: 1 };
+    case 'multi': {
+      const parts = fx.effects.map((e) => effectSummary(e));
+      const chiffre = parts.find((p) => p.sign !== 0);
+      return { text: parts.map((p) => p.text).join(' · '), sign: chiffre?.sign ?? 0 };
+    }
+  }
+};

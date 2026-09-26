@@ -74,10 +74,26 @@ const Shape = ({ token, mat }: { token: string; mat: THREE.Material }) => {
   }
 };
 
+/** Taille des pions : assez gros pour se repérer d'un coup d'œil. */
+const PAWN_SCALE = 1.42;
+
 const Pawn = ({
-  color, token, target, bankrupt, active,
+  color, token, target, bankrupt, active, labels, id, slot,
 }: {
-  color: string; token: string; target: [number, number, number]; bankrupt: boolean; active: boolean;
+  color: string;
+  token: string;
+  target: [number, number, number];
+  bankrupt: boolean;
+  active: boolean;
+  /**
+   * Étiquettes DOM des prénoms. On résout l'élément à chaque image plutôt
+   * qu'au rendu : au premier rendu de la scène, le DOM des étiquettes n'existe
+   * pas encore, et une référence capturée resterait nulle pour toujours.
+   */
+  labels: React.RefObject<Map<PlayerId, HTMLElement | null>>;
+  id: PlayerId;
+  /** Rang du pion sur sa case : sert à étager les prénoms. */
+  slot: number;
 }) => {
   const g = useRef<THREE.Group>(null);
   const pos = useRef(new THREE.Vector3(...target));
@@ -99,8 +115,29 @@ const Pawn = ({
     g.current.rotation.y += dt * (d > 0.02 ? 6 : 0.45);
     const bob = active ? Math.sin(st.clock.elapsedTime * 2.6) * 0.03 : 0;
     g.current.position.y += bob;
-    const s = bankrupt ? 0.001 : 1;
+    const s = bankrupt ? 0.001 : PAWN_SCALE;
     g.current.scale.lerp(vec.set(s, s, s), 1 - Math.pow(0.02, dt));
+
+    // Le prénom suit le pion : on projette sa position dans le repère écran
+    // et on déplace l'étiquette DOM. Passer par le DOM garde le texte net,
+    // là où une texture 3D le rendrait flou de biais.
+    const label = labels.current?.get(id) ?? null;
+    if (label) {
+      if (bankrupt) {
+        label.style.opacity = '0';
+      } else {
+        vec.set(g.current.position.x, g.current.position.y + 0.95, g.current.position.z);
+        vec.project(st.camera);
+        const x = (vec.x * 0.5 + 0.5) * st.size.width;
+        const y = (-vec.y * 0.5 + 0.5) * st.size.height;
+        // Les prénoms s'étagent verticalement quand plusieurs pions partagent
+        // une case : deux étiquettes côte à côte se recouvriraient.
+        const etage = slot * 19;
+        label.style.transform =
+          `translate3d(${Math.round(x)}px, ${Math.round(y - etage)}px, 0) translate(-50%, -100%)`;
+        label.style.opacity = vec.z < 1 ? '1' : '0';
+      }
+    }
   });
 
   return (
@@ -117,13 +154,21 @@ const Pawn = ({
 };
 
 export const Tokens = ({
-  state, tokenTile, activePlayer,
+  state, tokenTile, activePlayer, labels,
 }: {
-  state: GameState; tokenTile: Record<PlayerId, number>; activePlayer: PlayerId | null;
+  state: GameState;
+  tokenTile: Record<PlayerId, number>;
+  activePlayer: PlayerId | null;
+  labels: React.RefObject<Map<PlayerId, HTMLElement | null>>;
 }) => {
   // Deux pions sur la même case occupent deux emplacements distincts.
   const slots: Record<PlayerId, number> = {};
   const perTile: Record<number, number> = {};
+  const totalOnTile: Record<number, number> = {};
+  for (const id of state.order) {
+    const t = tokenTile[id] ?? state.players[id].position;
+    totalOnTile[t] = (totalOnTile[t] ?? 0) + 1;
+  }
   for (const id of state.order) {
     const t = tokenTile[id] ?? state.players[id].position;
     slots[id] = perTile[t] ?? 0;
@@ -135,7 +180,7 @@ export const Tokens = ({
       {state.order.map((id) => {
         const p = state.players[id];
         const tile = tokenTile[id] ?? p.position;
-        const [x, , z] = tokenSlot(tile, slots[id]);
+        const [x, , z] = tokenSlot(tile, slots[id], totalOnTile[tile] ?? 1);
         return (
           <Pawn
             key={id}
@@ -144,6 +189,9 @@ export const Tokens = ({
             target={[x, GEO.thickness / 2 + 0.02, z]}
             bankrupt={p.bankrupt}
             active={activePlayer === id}
+            labels={labels}
+            id={id}
+            slot={slots[id]}
           />
         );
       })}

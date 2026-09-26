@@ -2,7 +2,7 @@ import type { Tile, GroupId, CityTile, OwnableTile, TileIndex } from './types';
 
 /** Règles économiques — une seule source de vérité. */
 export const RULES = {
-  startingCash: 15_000,
+  startingCash: 35_000,
   passGo: 200,
   exactGo: 400,
   jailFine: 50,

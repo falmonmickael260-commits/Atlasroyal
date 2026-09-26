@@ -3,6 +3,10 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { diceFaceTexture } from './textures';
 import { FACE_ORDER, restFor } from './diceFaces';
+import { roundedBoxGeometry } from './roundedBox';
+
+/** Arête du dé, en unités monde. */
+const DIE_SIZE = 0.92;
 
 /**
  * Dés 3D. Pas de moteur physique : une trajectoire scriptée (arc + rotation
@@ -27,19 +31,24 @@ const Die = ({
   const spin = useRef(new THREE.Vector3());
   const homeVec = useMemo(() => new THREE.Vector3(...home), [home]);
 
+  // Résine polie : un vernis net sur un corps mat, comme un dé de casino.
   const materials = useMemo(
     () =>
       FACE_ORDER.map(
         (v) =>
-          new THREE.MeshStandardMaterial({
+          new THREE.MeshPhysicalMaterial({
             map: diceFaceTexture(v),
-            roughness: 0.28,
-            metalness: 0.05,
-            toneMapped: false,
+            roughness: 0.22,
+            metalness: 0.0,
+            clearcoat: 0.85,
+            clearcoatRoughness: 0.12,
+            reflectivity: 0.4,
           }),
       ),
     [],
   );
+
+  const geometry = useMemo(() => roundedBoxGeometry(DIE_SIZE, DIE_SIZE * 0.17, 6), []);
 
   useEffect(() => {
     t.current = 0;
@@ -81,9 +90,7 @@ const Die = ({
   });
 
   return (
-    <mesh ref={ref} castShadow material={materials} position={home}>
-      <boxGeometry args={[0.86, 0.86, 0.86]} />
-    </mesh>
+    <mesh ref={ref} castShadow receiveShadow material={materials} geometry={geometry} position={home} />
   );
 };
 

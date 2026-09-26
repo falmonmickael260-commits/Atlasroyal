@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoom } from '../net/room';
 import { RULES, tileAt } from '../engine/board';
 import { liquidationValue, netWorth, ownedBy } from '../engine/rules';
@@ -10,6 +10,8 @@ import { Icon } from './Icon';
 import { euro } from './format';
 import { BannerLayer } from './panels/BannerLayer';
 import { RollReadout } from './panels/RollReadout';
+import { TokenLabels } from './panels/TokenLabels';
+import { TradeTicker } from './panels/TradeTicker';
 import { CardOverlay } from './panels/CardOverlay';
 import { PropertyPrompt } from './panels/PropertyPrompt';
 import { Portfolio } from './panels/Portfolio';
@@ -27,6 +29,11 @@ export const Game = () => {
   const quality = useQuality();
   const [drawer, setDrawer] = useState<Drawer>('none');
   const [glLost, setGlLost] = useState(false);
+  // Pont entre les étiquettes DOM et la scène, qui les positionne.
+  const labels = useRef<Map<string, HTMLElement | null>>(new Map());
+  const registerLabels = useCallback((m: Map<string, HTMLElement | null>) => {
+    labels.current = m;
+  }, []);
   const [sfx, setSfx] = useState(audio.sfxOn);
   const [music, setMusic] = useState(audio.musicOn);
 
@@ -185,6 +192,7 @@ export const Game = () => {
           quality={quality}
           activePlayer={state.order[state.currentIndex]}
           onContextLost={() => setGlLost(true)}
+          labels={labels}
         />
       </div>
 
@@ -243,7 +251,9 @@ export const Game = () => {
         })}
       </div>
 
+      <TokenLabels state={state} register={registerLabels} />
       <RollReadout roll={cinema.roll} state={state} />
+      {!spectator && <TradeTicker state={state} me={me} onOpen={() => setDrawer('trade')} />}
       <BannerLayer banner={cinema.banner} />
       <CashFlight fly={cinema.cashFly} />
       <CardOverlay cardId={cinema.card} />
