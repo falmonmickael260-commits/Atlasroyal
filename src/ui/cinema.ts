@@ -45,6 +45,10 @@ export interface Cinema {
   cashFly: CashFly | null;
   /** Acquisition à mettre en scène sur la case : anneau, éclat, couleur. */
   purchase: { tile: number; color: string; key: number } | null;
+  /** Case suivie par la caméra pendant un déplacement, sinon `null`. */
+  follow: number | null;
+  /** Case d'arrivée annoncée dès le lancer, mise en évidence pendant le trajet. */
+  destination: number | null;
   /** Vrai tant que des évènements restent à mettre en scène. */
   playing: boolean;
 }
@@ -52,6 +56,7 @@ export interface Cinema {
 const initial: Cinema = {
   tokenTile: {}, hop: {}, dice: null, roll: null,
   banner: null, card: null, highlight: null, build: null, cashFly: null, purchase: null,
+  follow: null, destination: null,
   playing: false,
 };
 
@@ -106,6 +111,12 @@ export const useCinematic = () => {
           ...c,
           dice: { values: ev.dice, rolling: true, key: k },
           roll: { player: ev.player, dice: ev.dice, total: ev.dice[0] + ev.dice[1], double: ev.isDouble },
+          // La case d'arrivée est connue dès le lancer : on l'annonce pour que
+          // chacun puisse suivre le trajet en sachant où il finit.
+          destination:
+            ev.doublesStreak >= 3
+              ? null
+              : (((c.tokenTile[ev.player] ?? 0) + ev.dice[0] + ev.dice[1]) % 40),
         }));
         dur = 980;
         window.setTimeout(() => {
@@ -138,6 +149,7 @@ export const useCinematic = () => {
           ...c,
           tokenTile: { ...c.tokenTile, [ev.player]: ev.to },
           hop: { ...c.hop, [ev.player]: (c.hop[ev.player] ?? 0) + 1 },
+          follow: ev.to,
           dice: c.dice ? { ...c.dice, rolling: false } : null,
         }));
         // Les longs déplacements accélèrent : on garde le rythme sans sacrifier la lisibilité.
@@ -156,7 +168,7 @@ export const useCinematic = () => {
         break;
       case 'LANDED':
         audio.land();
-        setCinema((c) => ({ ...c, highlight: ev.tile }));
+        setCinema((c) => ({ ...c, highlight: ev.tile, destination: null }));
         dur = 200;
         break;
       case 'PROPERTY_OFFERED':
@@ -261,8 +273,8 @@ export const useCinematic = () => {
           changed = true;
         }
       }
-      if (!changed && !c.playing && !c.banner) return c;
-      return { ...c, tokenTile, playing: false, banner: null };
+      if (!changed && !c.playing && !c.banner && c.follow === null) return c;
+      return { ...c, tokenTile, playing: false, banner: null, follow: null, destination: null };
     });
   }, [queue.length, state]);
 

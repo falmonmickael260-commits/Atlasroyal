@@ -6,7 +6,7 @@ import { Icon } from './Icon';
 import './Home.css';
 
 const FACTS = [
-  { icon: 'globe' as const, label: '24 villes, 8 continents' },
+  { icon: 'globe' as const, label: '22 villes, 8 groupes' },
   { icon: 'users' as const, label: '2 à 6 joueurs en temps réel' },
   { icon: 'building' as const, label: 'Maison → Villa → Grand Hôtel' },
   { icon: 'card' as const, label: '49 cartes évènement' },

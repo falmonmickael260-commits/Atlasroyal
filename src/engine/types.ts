@@ -6,9 +6,14 @@
 export type PlayerId = string;
 export type TileIndex = number;
 
+/**
+ * Les huit familles de villes, de la moins chère à la plus chère.
+ * `terre` et `nuit` n'en comptent que deux : ce sont les extrémités du
+ * plateau, plus faciles à réunir, comme dans les jeux du genre.
+ */
 export type GroupId =
-  | 'sable' | 'jade' | 'corail' | 'ambre'
-  | 'cobalt' | 'pourpre' | 'argent' | 'or';
+  | 'terre' | 'azur' | 'fuchsia' | 'orange'
+  | 'rubis' | 'safran' | 'emeraude' | 'nuit';
 
 export type TileKind =
   | 'depart' | 'city' | 'hub' | 'reseau' | 'card'

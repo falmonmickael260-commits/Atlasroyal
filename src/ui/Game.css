@@ -17,6 +17,12 @@
   z-index: 10;
 }
 .hud-top > * { pointer-events: auto; }
+/* Rien ne doit se replier dans cette barre : un retour à la ligne la fait
+   grandir et elle recouvre le rail des joueurs juste en dessous. */
+.hud-top,
+.hud-top > div { flex-wrap: nowrap; }
+.brand { flex: none; }
+.pot { flex: none; }
 
 .brand {
   display: flex; align-items: center; gap: var(--sp-3);
@@ -28,17 +34,23 @@
   font-weight: 700; letter-spacing: .22em; font-size: 13px;
   color: var(--gold);
 }
-.brand__round { font-size: 12px; color: var(--fg-muted); }
+.brand__round { font-size: 12px; color: var(--fg-muted); font-weight: 600; }
 
 .pot {
   display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--r-pill);
-  border: 1px solid rgba(234, 179, 8, .35);
-  background: rgba(234, 179, 8, .1);
+  border: 1px solid rgba(234, 179, 8, .45);
+  background: rgba(11, 15, 23, .72);
 }
-.pot__label { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--fg-muted); }
-.pot__value { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--gold); }
+.pot__label {
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--fg-muted); white-space: nowrap;
+}
+.pot__value {
+  font-family: var(--font-display); font-weight: 700; font-size: 18px;
+  color: var(--gold); white-space: nowrap;
+}
 
 .icon-btn {
   width: 44px; height: 44px;
@@ -96,6 +108,7 @@
 }
 .pcard__cash { font-size: 15px; font-weight: 700; color: var(--fg); }
 .pcard__meta { display: flex; gap: 8px; font-size: 11px; color: var(--fg-muted); }
+.pcard__cash { letter-spacing: -.01em; }
 .pcard__tag {
   position: absolute; right: 8px; top: 8px;
   font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
@@ -109,6 +122,11 @@
   position: absolute;
   left: 50%; bottom: var(--sp-5);
   transform: translateX(-50%);
+  /* Un élément absolu posé à `left: 50%` n'a, pour se dimensionner, que la
+     moitié droite de l'écran : sans largeur explicite il se comprime et son
+     texte se replie en colonne. `max-content` le laisse prendre la largeur
+     de son contenu, le plafond gérant les petits écrans. */
+  width: max-content;
   display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--r-xl);
@@ -125,13 +143,19 @@
 }
 .actions__turn {
   font-family: var(--font-display); font-weight: 700; font-size: 14px;
+  white-space: nowrap;
 }
+/* Le bloc de texte ne doit jamais se replier lettre par lettre : sans
+   largeur minimale, les boutons voisins l'écrasent jusqu'à une colonne. */
+.actions > div:first-child { flex: 0 0 auto; }
 
 /* ---------------- bannière évènement ---------------- */
 .banner {
   position: absolute;
   left: 50%; top: 22%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 48px);
   text-align: center;
   z-index: 14;
   pointer-events: none;
@@ -308,8 +332,26 @@
 
 /* ---------------- responsive ---------------- */
 @media (max-width: 860px) {
+  /* Barre supérieure resserrée : à 390 px, la version large débordait. */
+  .hud-top { padding: var(--sp-2); gap: var(--sp-2); }
+  .brand { padding: 6px 10px; gap: 6px; }
+  .brand__mark { font-size: 11px; letter-spacing: .14em; }
+  .brand__round { font-size: 11px; }
+  .pot { padding: 5px 10px; gap: 8px; }
+  .pot__value { font-size: 15px; }
+  .pot__label { font-size: 9px; letter-spacing: .1em; }
+  .icon-btn { width: 32px; height: 32px; }
+  .hud-top > div { gap: 6px !important; }
+  .actions .btn { font-size: 13px; padding: 0 var(--sp-3); }
+  .actions .btn--lg { font-size: 15px; padding: 0 var(--sp-4); }
+
+  /* Panneau de décision : plus dense, pour laisser voir le plateau. */
+  .sheet--center { padding: var(--sp-4); }
+  .sheet--center .sheet__title { font-size: 17px; }
+  .rents__row { padding: 5px 8px; font-size: 12px; }
+
   .rail {
-    left: var(--sp-2); right: var(--sp-2); top: 76px; width: auto;
+    left: var(--sp-2); right: var(--sp-2); top: 62px; width: auto;
     flex-direction: row; overflow-x: auto; padding-bottom: 4px;
     scrollbar-width: none;
   }
@@ -323,6 +365,7 @@
     padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
   }
   .actions__hint { display: none; }
+  .actions > div:first-child { flex: 0 0 auto; }
   .sheet--center { bottom: 132px; width: calc(100vw - 16px); }
   .sheet--right { top: auto; bottom: 0; left: 0; right: 0; width: 100%; max-height: 72vh; border-radius: var(--r-lg) var(--r-lg) 0 0; }
   .banner { top: 30%; }
@@ -342,6 +385,7 @@
   left: 50%;
   top: 84px;
   transform: translateX(-50%);
+  width: max-content;
   z-index: 11;
   padding: 10px 18px;
   display: flex;
@@ -384,7 +428,7 @@
   /* En compact, le bas de l'écran est pris par la barre d'action et les
      panneaux de décision : le rappel se loge juste sous le rail des joueurs,
      dans la bande libre au-dessus du plateau. */
-  .rollout { top: 166px; bottom: auto; padding: 7px 13px; }
+  .rollout { top: 152px; bottom: auto; padding: 6px 12px; }
   .rollout__total { font-size: 21px; }
   .rollout__who { font-size: 10px; }
 }

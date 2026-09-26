@@ -5,7 +5,7 @@ import { liquidationValue, netWorth, ownedBy } from '../engine/rules';
 import { Scene } from '../board3d/Scene';
 import { audio } from '../audio/audio';
 import { useCinematic } from './cinema';
-import { useCompact, useQuality } from './useCompact';
+import { useCompact } from './useCompact';
 import { Icon } from './Icon';
 import { euro } from './format';
 import { BannerLayer } from './panels/BannerLayer';
@@ -26,7 +26,6 @@ export const Game = () => {
   const { state, identity, send, leaveRoom } = useRoom();
   const cinema = useCinematic();
   const compact = useCompact();
-  const quality = useQuality();
   const [drawer, setDrawer] = useState<Drawer>('none');
   const [glLost, setGlLost] = useState(false);
   // Pont entre les étiquettes DOM et la scène, qui les positionne.
@@ -189,7 +188,6 @@ export const Game = () => {
           state={state}
           cinema={cinema}
           compact={compact}
-          quality={quality}
           activePlayer={state.order[state.currentIndex]}
           onContextLost={() => setGlLost(true)}
           labels={labels}

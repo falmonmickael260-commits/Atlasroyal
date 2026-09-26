@@ -190,6 +190,11 @@ const Plot = ({ tile, level }: { tile: CityTile; level: number }) => {
 
   useFrame((_, dt) => {
     if (!group.current) return;
+    // Vingt-quatre parcelles tournent ce rappel à chaque image. Quand la
+    // parcelle est nue et stable, il n'y a rien à interpoler : on sort tout
+    // de suite plutôt que de recalculer une échelle inchangée soixante fois
+    // par seconde.
+    if (target.current === grow.current && spin.current <= 0) return;
     const k = Math.min(1, dt * 3.4);
     grow.current += (target.current - grow.current) * k;
     const g = grow.current;

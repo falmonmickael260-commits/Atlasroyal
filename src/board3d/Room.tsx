@@ -29,10 +29,18 @@ const Table = () => {
         <circleGeometry args={[TABLE_R, 80]} />
         <meshStandardMaterial map={wood} roughness={0.62} metalness={0.05} />
       </mesh>
-      {/* Chant : la table a une épaisseur, donc une ombre franche */}
-      <mesh position={[0, TABLE_Y - 0.19, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[TABLE_R, TABLE_R * 0.995, 0.38, 80]} />
-        <meshStandardMaterial color="#4A2F1D" roughness={0.75} metalness={0.04} />
+      {/*
+        Chant de la table.
+
+        Ouvert en haut : sans cela, le couvercle du cylindre se retrouve
+        exactement à la même hauteur et au même rayon que le disque du dessus.
+        Deux surfaces coplanaires se disputent alors chaque pixel, et le
+        résultat est un moirage de taches claires qui se déplacent avec la
+        caméra — les « lumières bizarres » constatées sur le bois.
+      */}
+      <mesh position={[0, TABLE_Y - 0.2, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[TABLE_R, TABLE_R * 0.995, 0.38, 80, 1, true]} />
+        <meshStandardMaterial color="#4A2F1D" roughness={0.75} metalness={0.04} side={THREE.DoubleSide} />
       </mesh>
       {/* Ceinture sous le plateau */}
       <mesh position={[0, TABLE_Y - 0.62, 0]}>
@@ -204,7 +212,9 @@ const SideLamp = () => (
         roughness={0.85}
       />
     </mesh>
-    <pointLight position={[0, 7, 0]} intensity={40} distance={30} decay={1.8} color="#FFD9A0" />
+    {/* Lueur locale, volontairement faible : la lampe doit se voir sans
+        projeter de tache sur la table, qui est loin. */}
+    <pointLight position={[0, 7, 0]} intensity={14} distance={16} decay={2} color="#FFD9A0" />
   </group>
 );
 

@@ -1,62 +1,41 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { setMaxAnisotropy, setTextureDensity } from './textures';
 import { Board } from './Board';
 import { Buildings } from './Buildings';
 import { Tokens } from './Tokens';
 import { Dice } from './Dice';
-import { FixedCamera } from './FixedCamera';
+import { FollowCamera } from './FollowCamera';
 import { Room } from './Room';
-import { AdaptiveQuality } from './AdaptiveQuality';
+import { fontsReady } from './fonts';
+import { RENDER_DPR, RENDER_SHADOWS, SHADOW_MAP, TEXTURE_DPI } from './renderProfile';
+import { setMaxAnisotropy, setTextureDensity } from './textures';
 import type { Cinema } from '../ui/cinema';
 import type { GameState, PlayerId } from '../engine/types';
 
+/* La densité doit être fixée avant la création de la moindre texture. */
+setTextureDensity(TEXTURE_DPI);
+
 /**
- * Mesure du conteneur avant d'instancier le rendu.
+ * Props du Canvas, figées au niveau du module.
  *
- * La mesure interne de `<Canvas>` peut rapporter 0×0 au montage (la feuille de
- * style du jeu n'est pas toujours appliquée quand l'observateur s'attache) :
- * le contexte WebGL est alors créé pour une surface vide et la scène n'est
- * jamais rendue, jusqu'à un redimensionnement. On attend donc une taille
- * réelle, et le conteneur porte ses dimensions en style en ligne pour ne
- * dépendre d'aucune CSS externe.
+ * Elles ne doivent JAMAIS changer d'identité : R3F compare `dpr` et `camera`
+ * par référence et réapplique la taille du tampon à chaque changement. Des
+ * littéraux écrits dans le JSX en créaient de nouveaux à chaque rendu — donc
+ * un redimensionnement à chaque pas de pion, visible sous forme de
+ * clignotement. C'est la cause principale du défaut observé sur téléphone.
  */
-const useReadySize = () => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const read = () => {
-      const r = el.getBoundingClientRect();
-      setSize((s) =>
-        Math.abs(s.w - r.width) < 1 && Math.abs(s.h - r.height) < 1
-          ? s
-          : { w: r.width, h: r.height },
-      );
-    };
-    read();
-    const ro = new ResizeObserver(read);
-    ro.observe(el);
-    // Les rappels de ResizeObserver ne sont pas délivrés tant que le document
-    // est masqué : un onglet ouvert en arrière-plan mesurerait 0×0 et n'en
-    // sortirait jamais. Ces deux évènements-là, eux, arrivent.
-    window.addEventListener('resize', read);
-    document.addEventListener('visibilitychange', read);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', read);
-      document.removeEventListener('visibilitychange', read);
-    };
-  }, []);
-  return { ref, size };
+const GL_PROPS = {
+  antialias: true,
+  powerPreference: 'high-performance' as const,
+  alpha: false,
+  stencil: false,
 };
+const CANVAS_STYLE = { position: 'absolute', inset: 0 } as const;
 
 /**
  * Accroche de développement : expose l'état R3F pour inspecter la scène et
- * forcer des images depuis la console (utile quand l'onglet est en arrière-plan
- * et que requestAnimationFrame est suspendu).
+ * mesurer la caméra depuis la console. Absente du build de production.
  */
 const DevHandle = () => {
   const st = useThree();
@@ -66,48 +45,116 @@ const DevHandle = () => {
   return null;
 };
 
-const Lights = () => (
+/**
+ * Éclairage de la pièce.
+ *
+ * Volontairement réduit à trois sources douces et **fixes**. La version
+ * précédente en comptait sept, dont trois ponctuelles — une au plafond, une
+ * sur la lampe, et une attachée aux dés, donc mobile. Leurs halos se
+ * superposaient sur le bois et produisaient des taches claires mouvantes que
+ * rien ne justifiait dans la scène.
+ *
+ * Ici la lumière est directionnelle et constante : elle éclaire la table de
+ * façon uniforme, et la seule ombre portée est celle du plateau.
+ */
+const Lights = memo(() => (
   <>
-    {/* Pièce éclairée : la lumière vient du plafond et rebondit sur la table,
-        au lieu du contre-jour froid d'une scène flottant dans le vide. */}
-    <hemisphereLight args={['#FFF3DC', '#4A3A2A', 1.15]} />
-    <ambientLight intensity={0.85} color="#FFF6E6" />
+    <hemisphereLight args={['#FFF3DC', '#5A4632', 1.25]} />
+    <ambientLight intensity={1} color="#FFF6E6" />
+    {/* Source proche de la verticale : l'ombre du plateau reste ramassée
+        sous lui au lieu de s'étaler en large tache sur la moitié de la table. */}
     <directionalLight
-      position={[12, 26, 14]}
-      intensity={2.6}
+      position={[6, 38, 8]}
+      intensity={2}
       color="#FFF4DE"
       castShadow
-      shadow-mapSize={[2048, 2048]}
-      shadow-camera-left={-26}
-      shadow-camera-right={26}
-      shadow-camera-top={26}
-      shadow-camera-bottom={-26}
+      shadow-mapSize={[SHADOW_MAP, SHADOW_MAP]}
+      shadow-camera-left={-22}
+      shadow-camera-right={22}
+      shadow-camera-top={22}
+      shadow-camera-bottom={-22}
       shadow-bias={-0.0006}
     />
-    {/* Lumière d'appoint, côté opposé : adoucit les ombres sans les effacer. */}
-    <directionalLight position={[-16, 14, -12]} intensity={0.9} color="#CFE0FF" />
-    {/* Suspension au-dessus de la table : le halo chaud qui centre le regard. */}
-    <pointLight position={[0, 13, 2]} intensity={90} distance={46} decay={1.6} color="#FFE2A8" />
+    {/* Appoint froid côté opposé : adoucit l'ombre sans créer de halo. */}
+    <directionalLight position={[-16, 14, -12]} intensity={0.75} color="#CFE0FF" />
   </>
-);
+));
+Lights.displayName = 'Lights';
 
 /**
- * La densité doit être fixée avant que le moindre `useMemo` de texture ne
- * s'exécute : on la règle au chargement du module, pas dans un effet.
+ * Tout ce qui ne bouge jamais : la pièce et la lumière.
+ * Mémoïsé sans propriété, donc traversé une seule fois par React.
  */
-/** Densité d'affichage plafonnée : au-delà de 2, le coût dépasse le gain. */
-const MAX_DPR = Math.min(2, typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1);
+const StaticWorld = memo(() => (
+  <>
+    <Lights />
+    <Room />
+  </>
+));
+StaticWorld.displayName = 'StaticWorld';
 
-setTextureDensity(
-  typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches ? 160 : 256,
+/** Signature du plateau : ne change qu'à un achat, une construction, une hypothèque. */
+const boardSignature = (state: GameState) => {
+  let sig = '';
+  for (const i of Object.keys(state.tiles)) {
+    const t = state.tiles[Number(i)];
+    sig += `${t.owner ?? '-'}${t.level}${t.mortgaged ? 'h' : ''}|`;
+  }
+  return sig;
+};
+
+/**
+ * Le plateau lui-même : quarante cases texturées.
+ *
+ * Mémoïsé sur une signature de propriété. Sans cela, les quarante composants
+ * se réconciliaient à chaque pas de pion — soit toutes les 138 ms pendant un
+ * déplacement.
+ */
+const BoardLayer = memo(
+  ({ state }: { state: GameState; signature: string }) => <Board state={state} />,
+  (a, b) => a.signature === b.signature,
 );
+BoardLayer.displayName = 'BoardLayer';
+
+/**
+ * Mesure du conteneur avant d'instancier le rendu.
+ *
+ * On ne s'en sert que comme verrou booléen : la taille en pixels n'est plus
+ * imposée au Canvas, qui se mesure lui-même. Imposer une taille suivie par un
+ * observateur provoquait un redimensionnement à chaque variation de hauteur —
+ * or sur mobile la barre d'URL en fait varier en permanence.
+ */
+const useHasSize = () => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pret, setPret] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const lire = () => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) setPret(true);
+    };
+    lire();
+    const ro = new ResizeObserver(lire);
+    ro.observe(el);
+    // Les rappels de ResizeObserver ne sont pas délivrés tant que le document
+    // est masqué : ces deux évènements, eux, arrivent.
+    window.addEventListener('resize', lire);
+    document.addEventListener('visibilitychange', lire);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', lire);
+      document.removeEventListener('visibilitychange', lire);
+    };
+  }, []);
+  return { ref, pret };
+};
 
 export const Scene = ({
   state,
   cinema,
   compact,
   activePlayer,
-  quality,
   onContextLost,
   labels,
 }: {
@@ -115,52 +162,43 @@ export const Scene = ({
   cinema: Cinema;
   compact: boolean;
   activePlayer: PlayerId | null;
-  quality: 'high' | 'low';
   onContextLost?: () => void;
-  /** Étiquettes DOM des prénoms, positionnées par la scène. */
   labels: React.RefObject<Map<PlayerId, HTMLElement | null>>;
 }) => {
-    const fog = useMemo(() => new THREE.FogExp2('#241B14', 0.006), []);
-  const { ref, size } = useReadySize();
-  // Les dés roulent au centre du plateau, comme sur une vraie table : un
-  // emplacement fixe, toujours dégagé, que toute la tablée regarde.
-  const diceAt = useMemo<[number, number, number]>(() => [0, 0, 4.2], []);
-  const ready = size.w > 0 && size.h > 0;
+  const fog = useMemo(() => new THREE.FogExp2('#241B14', 0.006), []);
+  const { ref, pret } = useHasSize();
+  const [polices, setPolices] = useState(false);
+  const signature = boardSignature(state);
+
+  useEffect(() => {
+    let vivant = true;
+    void fontsReady().then(() => {
+      if (vivant) setPolices(true);
+    });
+    return () => {
+      vivant = false;
+    };
+  }, []);
+
+  // Position de repos de la caméra, recalculée uniquement au redimensionnement.
+  const camera = useMemo(
+    () => ({ position: [0, 30, 26] as [number, number, number], fov: compact ? 46 : 32, near: 5, far: 200 }),
+    [compact],
+  );
 
   return (
-    <div ref={ref} style={{ position: 'absolute', inset: 0, background: '#050A14' }}>
-      {ready && (
+    <div ref={ref} style={{ position: 'absolute', inset: 0, background: '#1C1611' }}>
+      {pret && polices && (
         <Canvas
-          shadows={quality === 'high' ? 'soft' : false}
-          // On suit la densité réelle de l'écran : c'est ce qui sépare un
-          // rendu net d'un rendu qui « bave » sur un affichage haute densité.
-          dpr={quality === 'high' ? [1, MAX_DPR] : [1, 1.25]}
-          gl={{
-            antialias: true,
-            powerPreference: 'high-performance',
-            alpha: false,
-            stencil: false,
-          }}
-          camera={{
-            position: [0, 28, 26],
-            fov: compact ? 52 : 34,
-            near: 0.5,
-            far: 220,
-          }}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: size.w,
-            height: size.h,
-          }}
+          shadows={RENDER_SHADOWS}
+          dpr={RENDER_DPR}
+          gl={GL_PROPS}
+          camera={camera}
+          style={CANVAS_STYLE}
           onCreated={({ gl }) => {
-        // L'anisotropie maximale du contexte : indispensable pour des cases
-        // lisibles quand le plateau est vu de biais.
-        setMaxAnisotropy(gl.capabilities.getMaxAnisotropy());
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = 1.05;
-            // Une perte de contexte WebGL (veille, bascule de GPU, onglets multiples)
-            // est récupérable : sans preventDefault le navigateur ne le restaure pas.
+            setMaxAnisotropy(gl.capabilities.getMaxAnisotropy());
+            gl.toneMapping = THREE.ACESFilmicToneMapping;
+            gl.toneMappingExposure = 1.08;
             gl.domElement.addEventListener('webglcontextlost', (e) => {
               e.preventDefault();
               onContextLost?.();
@@ -169,11 +207,12 @@ export const Scene = ({
         >
           <color attach="background" args={['#1C1611']} />
           <primitive attach="fog" object={fog} />
+
           {import.meta.env.DEV && <DevHandle />}
-          <AdaptiveQuality />
-          <Lights />
+          <StaticWorld />
+
           <Suspense fallback={null}>
-            <Board state={state} highlight={cinema.highlight} purchase={cinema.purchase} />
+            <BoardLayer state={state} signature={signature} />
             <Buildings state={state} />
             <Tokens
               state={state}
@@ -181,12 +220,20 @@ export const Scene = ({
               activePlayer={activePlayer}
               labels={labels}
             />
-            <Dice dice={cinema.dice} at={diceAt} />
+            <Dice dice={cinema.dice} at={DICE_AT} />
           </Suspense>
-          <Room full />
-          <FixedCamera compact={compact} />
+
+          <Board.Overlays
+            highlight={cinema.highlight}
+            destination={cinema.destination}
+            purchase={cinema.purchase}
+          />
+          <FollowCamera compact={compact} follow={cinema.follow} />
         </Canvas>
       )}
     </div>
   );
 };
+
+/** Les dés roulent au centre du plateau, emplacement fixe et dégagé. */
+const DICE_AT: [number, number, number] = [0, 0, 4.2];

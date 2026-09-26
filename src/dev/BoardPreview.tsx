@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { createGame } from '../engine/engine';
 import { BOARD, GROUP_INDEX } from '../engine/board';
 import { Scene } from '../board3d/Scene';
-import { useCompact, useQuality } from '../ui/useCompact';
+import { useCompact } from '../ui/useCompact';
 import type { BuildLevel, GameState } from '../engine/types';
 import type { Cinema } from '../ui/cinema';
 
@@ -47,13 +47,14 @@ const EMPTY_CINEMA = (state: GameState): Cinema => ({
   build: null,
   cashFly: null,
   purchase: null,
+  follow: null,
+  destination: null,
   playing: false,
 });
 
 export const BoardPreview = () => {
   const [level, setLevel] = useState<BuildLevel>(3);
   const compact = useCompact();
-  const quality = useQuality();
   const state = build(level);
   const labels = useRef(new Map<string, HTMLElement | null>());
 
@@ -63,7 +64,6 @@ export const BoardPreview = () => {
         state={state}
         cinema={EMPTY_CINEMA(state)}
         compact={compact}
-        quality={quality}
         activePlayer={state.order[0]}
         labels={labels}
       />

@@ -14,22 +14,3 @@ export const useCompact = () => {
   return compact;
 };
 
-/**
- * Niveau de rendu initial.
- *
- * On vise délibérément la qualité maximale : le nombre de cœurs est un
- * mauvais indicateur de puissance graphique (un navigateur intégré peut en
- * annoncer quatre sur une machine qui en a huit), et s'y fier privait la
- * scène de ses ombres et de sa résolution sans raison. C'est `AdaptiveQuality`
- * qui allège, à partir de la cadence réellement mesurée.
- *
- * Seule exception : un utilisateur qui demande explicitement moins
- * d'animation démarre d'emblée en mode léger.
- */
-export const useQuality = (): 'high' | 'low' => {
-  const [q, setQ] = useState<'high' | 'low'>('high');
-  useEffect(() => {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) setQ('low');
-  }, []);
-  return q;
-};

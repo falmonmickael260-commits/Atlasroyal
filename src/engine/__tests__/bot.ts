@@ -21,12 +21,22 @@ export interface BotResult {
 const valueOf = (s: GameState, i: TileIndex): number =>
   priceOf(i) * (s.tiles[i].mortgaged ? 0.5 : 1);
 
-/** Groupes où le joueur possède exactement 2 villes sur 3. */
+/**
+ * Groupes auxquels il ne manque qu'une ville au joueur.
+ *
+ * Le seuil se calcule par rapport à la taille du groupe, et non sur un « deux
+ * sur trois » codé en dur : les groupes des deux extrémités du plateau n'en
+ * comptent que deux, et un joueur qui les possédait tous les deux passait
+ * alors pour être à une ville du compte.
+ */
 const nearGroups = (s: GameState, p: PlayerId) =>
   (Object.keys(GROUP_INDEX) as (keyof typeof GROUP_INDEX)[])
     .map((g) => ({ g, idx: GROUP_INDEX[g] }))
-    .filter(({ idx }) => idx.filter((i) => s.tiles[i].owner === p).length === 2)
-    .map(({ idx }) => ({ mine: idx.filter((i) => s.tiles[i].owner === p), missing: idx.find((i) => s.tiles[i].owner !== p)! }));
+    .filter(({ idx }) => idx.filter((i) => s.tiles[i].owner === p).length === idx.length - 1)
+    .map(({ idx }) => ({
+      mine: idx.filter((i) => s.tiles[i].owner === p),
+      missing: idx.find((i) => s.tiles[i].owner !== p)!,
+    }));
 
 const ownsFull = (s: GameState, p: PlayerId, i: TileIndex) => {
   const t = tileAt(i);

@@ -6,7 +6,7 @@ export const ownedBy = (s: GameState, p: PlayerId): TileIndex[] =>
     .filter(([, st]) => st.owner === p)
     .map(([i]) => Number(i));
 
-/** Le joueur détient-il les 3 villes du groupe (condition de construction) ? */
+/** Le joueur détient-il toutes les villes du groupe (condition de construction) ? */
 export const ownsFullGroup = (s: GameState, p: PlayerId, tile: TileIndex): boolean => {
   const t = tileAt(tile);
   if (t.kind !== 'city') return false;
@@ -64,7 +64,10 @@ export const canBuild = (s: GameState, p: PlayerId, tile: TileIndex): string | n
   if (st.owner !== p) return 'Cette ville ne vous appartient pas.';
   if (st.mortgaged) return 'Ville hypothéquée.';
   if (st.level >= 3) return 'Grand Hôtel déjà construit.';
-  if (!ownsFullGroup(s, p, tile)) return 'Il faut posséder les 3 villes du groupe.';
+  if (!ownsFullGroup(s, p, tile)) {
+    const n = GROUP_INDEX[t.group].length;
+    return `Il faut posséder les ${n} villes du groupe.`;
+  }
   if (GROUP_INDEX[t.group].some((i) => s.tiles[i].mortgaged)) {
     return 'Une ville du groupe est hypothéquée.';
   }

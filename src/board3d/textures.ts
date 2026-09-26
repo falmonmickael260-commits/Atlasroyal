@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GROUPS } from '../engine/board';
+import { DISPLAY_FONT } from './fonts';
 import type { Tile } from '../engine/types';
 
 /**
@@ -36,14 +37,51 @@ const roundRect = (c: CanvasRenderingContext2D, x: number, y: number, w: number,
   c.closePath();
 };
 
-const fitText = (c: CanvasRenderingContext2D, text: string, max: number, start: number, font: (s: number) => string) => {
-  let size = start;
-  do {
-    c.font = font(size);
-    if (c.measureText(text).width <= max) break;
-    size -= 1;
-  } while (size > 8);
-  return size;
+
+/** Découpe un titre en au plus `maxLignes`, en équilibrant les lignes. */
+const wrapWords = (text: string, maxLignes: number): string[] => {
+  const mots = text.split(' ');
+  if (mots.length === 1 || maxLignes === 1) return [text];
+  if (mots.length === 2) return mots;
+  const milieu = Math.ceil(mots.length / 2);
+  return [mots.slice(0, milieu).join(' '), mots.slice(milieu).join(' ')];
+};
+
+/**
+ * Titre d'une case : la plus grande taille qui tient dans la boîte donnée.
+ *
+ * Le nom de la ville est l'information que le joueur cherche en premier ;
+ * on lui donne donc toute la place disponible plutôt qu'une taille fixe
+ * choisie pour que le pire cas rentre.
+ */
+const fitBlock = (
+  c: CanvasRenderingContext2D,
+  text: string,
+  box: { x: number; y: number; w: number; h: number },
+  opts: { max: number; min: number; color: string; weight?: number; lignes?: number },
+) => {
+  const { max, min, color, weight = 700, lignes: maxLignes = 2 } = opts;
+  const font = (v: number) => `${weight} ${v / 100}px ${DISPLAY_FONT}`;
+
+  for (let size = max; size >= min; size -= 1) {
+    for (const n of [1, maxLignes]) {
+      const lignes = wrapWords(text, n);
+      if (lignes.length > n) continue;
+      c.font = font(size);
+      const large = lignes.every((l) => c.measureText(l).width <= box.w);
+      const interligne = (size / 100) * 1.06;
+      const haut = lignes.length * interligne;
+      if (large && haut <= box.h) {
+        c.fillStyle = color;
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        const y0 = box.y + box.h / 2 - ((lignes.length - 1) * interligne) / 2;
+        lignes.forEach((l, i) => c.fillText(l, box.x + box.w / 2, y0 + i * interligne));
+        return size;
+      }
+    }
+  }
+  return min;
 };
 
 const makeCanvas = (w: number, h: number) => {
@@ -82,51 +120,87 @@ export const tileTexture = (tile: Tile, w: number, d: number): THREE.CanvasTextu
   c.lineWidth = 0.02;
   c.strokeRect(0.01, 0.01, w - 0.02, d - 0.02);
 
-  const title = (text: string, y: number, size: number, color = '#F8FAFC', weight = 700) => {
-    const s = fitText(c, text, w - 0.28, size, (v) => `${weight} ${v / 100}px "Space Grotesk", sans-serif`);
-    c.fillStyle = color;
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.font = `${weight} ${s / 100}px "Space Grotesk", sans-serif`;
-    c.fillText(text, w / 2, y);
-  };
 
   if (tile.kind === 'city') {
     const grp = GROUPS[tile.group];
-    // Bande de groupe côté intérieur du plateau (haut de la texture).
-    const band = c.createLinearGradient(0, 0, 0, 0.5);
+
+    // Bande de groupe, côté intérieur du plateau. Plus haute qu'avant : c'est
+    // elle qu'on identifie de loin, avant même de lire le nom.
+    const band = c.createLinearGradient(0, 0.04, 0, 0.56);
     band.addColorStop(0, grp.glow);
     band.addColorStop(1, grp.color);
     c.fillStyle = band;
-    c.fillRect(0.04, 0.04, w - 0.08, 0.46);
-    c.fillStyle = 'rgba(0,0,0,0.25)';
-    c.fillRect(0.04, 0.44, w - 0.08, 0.06);
+    c.fillRect(0.05, 0.05, w - 0.1, 0.5);
+    // Ombre portée sous la bande : la case gagne une épaisseur.
+    const ombre = c.createLinearGradient(0, 0.55, 0, 0.72);
+    ombre.addColorStop(0, 'rgba(0,0,0,0.35)');
+    ombre.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = ombre;
+    c.fillRect(0.05, 0.55, w - 0.1, 0.17);
 
-    const name = tile.name.toUpperCase();
-    const words = name.split(' ');
-    if (words.length > 1 && name.length > 9) {
-      title(words[0], 0.86, 20);
-      title(words.slice(1).join(' '), 1.14, 20);
-      title(tile.country, 1.45, 13, '#94A3B8', 500);
-    } else {
-      title(name, 0.95, 24);
-      title(tile.country, 1.28, 13, '#94A3B8', 500);
-    }
-    title(`${tile.price.toLocaleString('fr-FR')} €`, d - 0.32, 17, '#EAB308');
+    // Le nom occupe tout l'espace disponible — c'est l'information
+    // principale. Le pays disparaît de la case : il encombrait sans servir,
+    // et reste consultable sur la fiche de propriété.
+    fitBlock(
+      c,
+      tile.name.toUpperCase(),
+      { x: 0.1, y: 0.66, w: w - 0.2, h: d - 1.28 },
+      { max: 40, min: 15, color: '#F8FAFC' },
+    );
+
+    // Prix, sur un bandeau sombre qui le détache du fond.
+    c.fillStyle = 'rgba(0,0,0,0.3)';
+    c.fillRect(0.05, d - 0.52, w - 0.1, 0.47);
+    fitBlock(
+      c,
+      `${tile.price.toLocaleString('fr-FR').replace(/ | /g, ' ')} €`,
+      { x: 0.1, y: d - 0.5, w: w - 0.2, h: 0.42 },
+      { max: 24, min: 12, color: '#F5D97B', lignes: 1 },
+    );
   } else if (tile.kind === 'hub' || tile.kind === 'reseau') {
-    c.fillStyle = tile.kind === 'hub' ? 'rgba(96,165,250,0.16)' : 'rgba(34,197,94,0.16)';
-    roundRect(c, 0.08, 0.08, w - 0.16, d - 0.16, 0.1);
+    const teinte = tile.kind === 'hub' ? '#60A5FA' : '#22C55E';
+    c.fillStyle = tile.kind === 'hub' ? 'rgba(96,165,250,0.2)' : 'rgba(34,197,94,0.2)';
+    roundRect(c, 0.07, 0.07, w - 0.14, d - 0.14, 0.1);
     c.fill();
-    const words = tile.name.split(' ');
-    title(words[0].toUpperCase(), d / 2 - 0.24, 18, '#CBD5E1');
-    title(words.slice(1).join(' ').toUpperCase(), d / 2 + 0.02, 18, '#CBD5E1');
-    title(`${tile.price.toLocaleString('fr-FR')} €`, d - 0.3, 15, '#EAB308');
+    c.strokeStyle = `${teinte}66`;
+    c.lineWidth = 0.03;
+    roundRect(c, 0.07, 0.07, w - 0.14, d - 0.14, 0.1);
+    c.stroke();
+
+    fitBlock(
+      c,
+      tile.name.toUpperCase(),
+      { x: 0.12, y: 0.4, w: w - 0.24, h: d - 1.1 },
+      { max: 32, min: 13, color: '#E8EEF7' },
+    );
+    c.fillStyle = 'rgba(0,0,0,0.28)';
+    c.fillRect(0.05, d - 0.5, w - 0.1, 0.45);
+    fitBlock(
+      c,
+      `${tile.price.toLocaleString('fr-FR').replace(/ | /g, ' ')} €`,
+      { x: 0.1, y: d - 0.48, w: w - 0.2, h: 0.4 },
+      { max: 22, min: 12, color: '#F5D97B', lignes: 1 },
+    );
   } else if (tile.kind === 'tax') {
-    c.fillStyle = 'rgba(220,38,38,0.14)';
-    roundRect(c, 0.08, 0.08, w - 0.16, d - 0.16, 0.1);
+    c.fillStyle = 'rgba(220,38,38,0.18)';
+    roundRect(c, 0.07, 0.07, w - 0.14, d - 0.14, 0.1);
     c.fill();
-    title(tile.name.toUpperCase(), d / 2 - 0.12, 17, '#FCA5A5');
-    title(`− ${tile.amount.toLocaleString('fr-FR')} €`, d / 2 + 0.22, 18, '#F8FAFC');
+    c.strokeStyle = 'rgba(248,113,113,0.42)';
+    c.lineWidth = 0.03;
+    roundRect(c, 0.07, 0.07, w - 0.14, d - 0.14, 0.1);
+    c.stroke();
+    fitBlock(
+      c,
+      tile.name.toUpperCase(),
+      { x: 0.12, y: 0.42, w: w - 0.24, h: d - 1.16 },
+      { max: 30, min: 13, color: '#FECACA' },
+    );
+    fitBlock(
+      c,
+      `− ${tile.amount.toLocaleString('fr-FR').replace(/ | /g, ' ')} €`,
+      { x: 0.1, y: d - 0.56, w: w - 0.2, h: 0.46 },
+      { max: 26, min: 13, color: '#F8FAFC', lignes: 1 },
+    );
   } else if (tile.kind === 'card') {
     // Une case carte doit s'expliquer sans ouvrir de menu : un dos de carte
     // dessiné, le nom de la pioche, et l'action écrite en toutes lettres.
@@ -136,7 +210,8 @@ export const tileTexture = (tile: Tile, w: number, d: number): THREE.CanvasTextu
     roundRect(c, 0.08, 0.08, w - 0.16, d - 0.16, 0.1);
     c.fill();
 
-    title(isDestin ? 'DESTIN' : 'MARCHÉ', 0.42, 19, tint);
+    fitBlock(c, isDestin ? 'DESTIN' : 'MARCHÉ', { x: 0.1, y: 0.16, w: w - 0.2, h: 0.46 },
+      { max: 30, min: 14, color: tint, lignes: 1 });
 
     // Deux cartes en éventail, dos visible.
     const cx = w / 2;
@@ -160,8 +235,8 @@ export const tileTexture = (tile: Tile, w: number, d: number): THREE.CanvasTextu
       c.restore();
     }
 
-    title('PIOCHE', d - 0.42, 14, '#F8FAFC');
-    title('UNE CARTE', d - 0.2, 14, '#F8FAFC');
+    fitBlock(c, 'PIOCHE UNE CARTE', { x: 0.08, y: d - 0.56, w: w - 0.16, h: 0.48 },
+      { max: 19, min: 10, color: '#E8EEF7', lignes: 2 });
   } else {
     // Coins
     const tones: Record<string, [string, string]> = {
@@ -174,8 +249,12 @@ export const tileTexture = (tile: Tile, w: number, d: number): THREE.CanvasTextu
     c.fillStyle = bg;
     roundRect(c, 0.1, 0.1, w - 0.2, d - 0.2, 0.14);
     c.fill();
-    const parts = tile.name.toUpperCase().split(' ');
-    parts.forEach((p, i) => title(p, d / 2 - (parts.length - 1) * 0.16 + i * 0.32, 22, fg));
+    fitBlock(
+      c,
+      tile.name.toUpperCase(),
+      { x: 0.18, y: 0.3, w: w - 0.36, h: d - 0.6 },
+      { max: 46, min: 16, color: fg, lignes: 2 },
+    );
   }
 
   return finish(cv);

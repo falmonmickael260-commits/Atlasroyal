@@ -22,13 +22,27 @@ const cash = (s: GameState, p: string, amount: number): GameState =>
 const atRound = (s: GameState, r: number): GameState => ({ ...s, round: r });
 
 describe('plateau', () => {
-  it('compte 40 cases dont 24 villes réparties en 8 groupes de 3', () => {
+  it('compte 40 cases dont 22 villes en 8 groupes de 2 ou 3', () => {
     expect(BOARD).toHaveLength(40);
     const cities = BOARD.filter((t) => t.kind === 'city');
-    expect(cities).toHaveLength(24);
-    for (const [g, idx] of Object.entries(GROUP_INDEX)) {
-      expect(idx, `groupe ${g}`).toHaveLength(3);
-    }
+    expect(cities).toHaveLength(22);
+    const tailles = Object.values(GROUP_INDEX).map((idx) => idx.length);
+    expect(tailles.reduce((a, b) => a + b, 0)).toBe(22);
+    // Deux groupes de deux — le moins cher et le plus cher — encadrent six
+    // groupes de trois, comme sur un plateau classique.
+    expect(tailles.filter((n) => n === 2)).toHaveLength(2);
+    expect(tailles.filter((n) => n === 3)).toHaveLength(6);
+  });
+
+  it('répartit les hubs régulièrement, un par côté', () => {
+    const hubs = BOARD.filter((t) => t.kind === 'hub').map((t) => t.i);
+    expect(hubs).toEqual([5, 15, 25, 35]);
+  });
+
+  it('propose trois cartes Destin et trois cartes Marché', () => {
+    const cartes = BOARD.filter((t) => t.kind === 'card');
+    expect(cartes.filter((t) => t.kind === 'card' && t.deck === 'destin')).toHaveLength(3);
+    expect(cartes.filter((t) => t.kind === 'card' && t.deck === 'marche')).toHaveLength(3);
   });
 
   it('a des index cohérents et des coins aux bons endroits', () => {
@@ -115,8 +129,8 @@ describe('dés et déplacement', () => {
   });
 
   it('verse 200 € au passage du Départ et 400 € sur le Départ exact', () => {
-    let s = put(newGame(2), 'p1', 36);
-    const passed = rollAs(s, 'p1', 3, 3).state; // 36 -> 2, passe le Départ
+    let s = put(newGame(2), 'p1', 35);
+    const passed = rollAs(s, 'p1', 3, 3).state; // 35 -> 1, passe le Départ
     expect(passed.players.p1.cash).toBe(RULES.startingCash + RULES.passGo);
 
     s = put(newGame(2), 'p1', 36);
@@ -129,18 +143,18 @@ describe('dés et déplacement', () => {
 describe('premier tour', () => {
   it('n’offre aucune acquisition au tour 1', () => {
     const s = newGame(2);
-    const { state, events } = rollAs(s, 'p1', 1, 1); // case 2 : Le Caire, libre
-    expect(tileAt(2).kind).toBe('city');
+    const { state, events } = rollAs(s, 'p1', 1, 2); // case 3 : Le Caire, libre
+    expect(tileAt(3).kind).toBe('city');
     expect(events.some((e) => e.e === 'PROPERTY_OFFERED')).toBe(false);
     expect(state.pending).toBeNull();
   });
 
   it('offre l’acquisition dès le tour 2', () => {
     const s = atRound(newGame(2), 2);
-    const { state, events } = rollAs(s, 'p1', 1, 1);
+    const { state, events } = rollAs(s, 'p1', 1, 2);
     expect(events.some((e) => e.e === 'PROPERTY_OFFERED')).toBe(true);
     expect(state.phase).toBe('PROPERTY_DECISION');
-    expect(state.pending).toMatchObject({ type: 'PROPERTY_DECISION', tile: 2 });
+    expect(state.pending).toMatchObject({ type: 'PROPERTY_DECISION', tile: 3 });
   });
 
   it('incrémente le tour quand la main revient au premier joueur', () => {
@@ -158,39 +172,39 @@ describe('premier tour', () => {
 describe('acquisition', () => {
   const setup = () => {
     const s = atRound(newGame(2), 2);
-    // 1+3 : ni double (sinon le joueur rejoue), arrivée sur Carthagène.
-    return rollAs(s, 'p1', 1, 3).state;
+    // 1+2 : ni double (sinon le joueur rejoue), arrivée sur Le Caire.
+    return rollAs(s, 'p1', 1, 2).state;
   };
 
   it('débite et attribue la propriété à l’achat', () => {
     const s = setup();
-    const price = (tileAt(4) as { price: number }).price;
+    const price = (tileAt(3) as { price: number }).price;
     const after = applyCommand(s, { t: 'BUY_PROPERTY', by: 'p1' }).state;
-    expect(after.tiles[4].owner).toBe('p1');
+    expect(after.tiles[3].owner).toBe('p1');
     expect(after.players.p1.cash).toBe(RULES.startingCash - price);
     expect(after.pending).toBeNull();
   });
 
   it('laisse la propriété libre en cas de refus', () => {
     const after = applyCommand(setup(), { t: 'DECLINE_PROPERTY', by: 'p1' }).state;
-    expect(after.tiles[4].owner).toBeNull();
+    expect(after.tiles[3].owner).toBeNull();
     expect(current(after)).toBe('p2');
   });
 
   it('refuse l’achat par un autre joueur', () => {
     const r = applyCommand(setup(), { t: 'BUY_PROPERTY', by: 'p2' });
     expect(r.rejected).toBeTruthy();
-    expect(r.state.tiles[4].owner).toBeNull();
+    expect(r.state.tiles[3].owner).toBeNull();
   });
 });
 
 describe('loyers', () => {
   it('prélève automatiquement le loyer du propriétaire', () => {
     let s = atRound(newGame(2), 2);
-    s = give(s, 'p2', [2]);
+    s = give(s, 'p2', [3]);
     const before = s.players.p2.cash;
-    const { state, events } = rollAs(s, 'p1', 1, 1);
-    const rent = (tileAt(2) as { rent: number[] }).rent[0];
+    const { state, events } = rollAs(s, 'p1', 1, 2);
+    const rent = (tileAt(3) as { rent: number[] }).rent[0];
     expect(events.some((e) => e.e === 'RENT_PAID')).toBe(true);
     expect(state.players.p1.cash).toBe(RULES.startingCash - rent);
     expect(state.players.p2.cash).toBe(before + rent);
@@ -198,18 +212,18 @@ describe('loyers', () => {
 
   it('double le loyer du terrain nu quand le groupe est complet', () => {
     const base = newGame(2);
-    const sable = GROUP_INDEX.sable;
-    const partial = give(base, 'p2', [sable[0]]);
-    const full = give(base, 'p2', sable);
-    expect(rentFor(full, sable[0], 0)).toBe(rentFor(partial, sable[0], 0) * 2);
-    expect(ownsFullGroup(full, 'p2', sable[0])).toBe(true);
+    const azur = GROUP_INDEX.azur;
+    const partial = give(base, 'p2', [azur[0]]);
+    const full = give(base, 'p2', azur);
+    expect(rentFor(full, azur[0], 0)).toBe(rentFor(partial, azur[0], 0) * 2);
+    expect(ownsFullGroup(full, 'p2', azur[0])).toBe(true);
   });
 
   it('ne prélève rien sur une propriété hypothéquée', () => {
     let s = atRound(newGame(2), 2);
-    s = give(s, 'p2', [2]);
-    s = { ...s, tiles: { ...s.tiles, 2: { ...s.tiles[2], mortgaged: true } } };
-    const { state } = rollAs(s, 'p1', 1, 1);
+    s = give(s, 'p2', [3]);
+    s = { ...s, tiles: { ...s.tiles, 3: { ...s.tiles[3], mortgaged: true } } };
+    const { state } = rollAs(s, 'p1', 1, 2);
     expect(state.players.p1.cash).toBe(RULES.startingCash);
   });
 
@@ -235,9 +249,9 @@ describe('loyers en toutes circonstances', () => {
     s = give(s, 'p2', res);
     // Carte « Fenêtre Orbitale » : envoie au réseau le plus proche.
     s = { ...s, decks: { ...s.decks, destin: ['d_orbital'] } };
-    s = put(s, 'p1', 1);
+    s = put(s, 'p1', 0);
     const before = s.players.p2.cash;
-    // 1+1 mène sur la case Destin (3), qui déclenche le déplacement.
+    // 1+1 mène sur la case Destin (2), qui déclenche le déplacement.
     const { state, events } = rollAs(s, 'p1', 1, 1);
     expect(state.players.p1.position).toBe(res[0]);
     const paid = events.find((e) => e.e === 'RENT_PAID');
@@ -247,7 +261,7 @@ describe('loyers en toutes circonstances', () => {
   });
 
   it('facture toujours le loyer d’une ville occupée', () => {
-    for (const tile of [2, 6, 11, 18, 23, 27, 32, 37]) {
+    for (const tile of [3, 6, 8, 11, 13, 16, 18, 21, 23, 26, 31, 34, 37]) {
       let s = atRound(newGame(2), 2);
       s = give(s, 'p2', [tile]);
       s = put(s, 'p1', tile - 1);
@@ -259,67 +273,67 @@ describe('loyers en toutes circonstances', () => {
 });
 
 describe('constructions', () => {
-  const sable = GROUP_INDEX.sable;
+  const azur = GROUP_INDEX.azur;
 
-  it('refuse de construire sans les 3 villes du groupe', () => {
-    const s = give(newGame(2), 'p1', [sable[0], sable[1]]);
-    const r = applyCommand(s, { t: 'BUILD', by: 'p1', tile: sable[0] });
-    expect(r.rejected).toMatch(/3 villes/);
+  it('refuse de construire sans toutes les villes du groupe', () => {
+    const s = give(newGame(2), 'p1', [azur[0], azur[1]]);
+    const r = applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] });
+    expect(r.rejected).toMatch(/villes du groupe/);
   });
 
   it('monte Terrain → Maison → Villa → Grand Hôtel', () => {
-    let s = give(newGame(2), 'p1', sable);
-    const cost = (tileAt(sable[0]) as { buildCost: number }).buildCost;
+    let s = give(newGame(2), 'p1', azur);
+    const cost = (tileAt(azur[0]) as { buildCost: number }).buildCost;
     for (let lvl = 1; lvl <= 3; lvl++) {
       // Construction homogène : il faut monter tout le groupe d'un cran.
-      for (const t of sable) {
+      for (const t of azur) {
         const r = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t });
         expect(r.rejected).toBeUndefined();
         s = r.state;
       }
-      expect(sable.map((t) => s.tiles[t].level)).toEqual([lvl, lvl, lvl]);
+      expect(azur.map((t) => s.tiles[t].level)).toEqual([lvl, lvl, lvl]);
     }
     expect(s.players.p1.cash).toBe(RULES.startingCash - cost * 9);
-    expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: sable[0] }).rejected).toMatch(/Hôtel/);
+    expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] }).rejected).toMatch(/Hôtel/);
   });
 
   it('impose une construction homogène dans le groupe', () => {
-    let s = give(newGame(2), 'p1', sable);
-    s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: sable[0] }).state;
-    const r = applyCommand(s, { t: 'BUILD', by: 'p1', tile: sable[0] });
+    let s = give(newGame(2), 'p1', azur);
+    s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] }).state;
+    const r = applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] });
     expect(r.rejected).toMatch(/d’abord/);
   });
 
   it('augmente le loyer à chaque niveau', () => {
-    let s = give(newGame(2), 'p1', sable);
-    const rents = [rentFor(s, sable[0], 0)];
+    let s = give(newGame(2), 'p1', azur);
+    const rents = [rentFor(s, azur[0], 0)];
     for (let lvl = 1; lvl <= 3; lvl++) {
-      for (const t of sable) s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t }).state;
-      rents.push(rentFor(s, sable[0], 0));
+      for (const t of azur) s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t }).state;
+      rents.push(rentFor(s, azur[0], 0));
     }
     for (let i = 1; i < rents.length; i++) expect(rents[i]).toBeGreaterThan(rents[i - 1]);
   });
 
   it('rembourse la moitié à la revente', () => {
-    let s = give(newGame(2), 'p1', sable);
-    for (const t of sable) s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t }).state;
+    let s = give(newGame(2), 'p1', azur);
+    for (const t of azur) s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t }).state;
     const before = s.players.p1.cash;
-    const cost = (tileAt(sable[0]) as { buildCost: number }).buildCost;
-    const r = applyCommand(s, { t: 'SELL_BUILDING', by: 'p1', tile: sable[0] });
-    expect(r.state.tiles[sable[0]].level).toBe(0);
+    const cost = (tileAt(azur[0]) as { buildCost: number }).buildCost;
+    const r = applyCommand(s, { t: 'SELL_BUILDING', by: 'p1', tile: azur[0] });
+    expect(r.state.tiles[azur[0]].level).toBe(0);
     expect(r.state.players.p1.cash).toBe(before + cost / 2);
   });
 
   it('interdit de construire sur un groupe partiellement hypothéqué', () => {
-    let s = give(newGame(2), 'p1', sable);
-    s = { ...s, tiles: { ...s.tiles, [sable[2]]: { ...s.tiles[sable[2]], mortgaged: true } } };
-    expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: sable[0] }).rejected).toMatch(/hypothéquée/);
+    let s = give(newGame(2), 'p1', azur);
+    s = { ...s, tiles: { ...s.tiles, [azur[2]]: { ...s.tiles[azur[2]], mortgaged: true } } };
+    expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] }).rejected).toMatch(/hypothéquée/);
   });
 });
 
 describe('hypothèques', () => {
   it('verse la moitié du prix puis coûte 10 % de plus à lever', () => {
-    const tile = GROUP_INDEX.sable[0];
+    const tile = GROUP_INDEX.azur[0];
     const price = (tileAt(tile) as { price: number }).price;
     let s = give(newGame(2), 'p1', [tile]);
     s = applyCommand(s, { t: 'MORTGAGE', by: 'p1', tile }).state;
@@ -331,10 +345,10 @@ describe('hypothèques', () => {
   });
 
   it('refuse d’hypothéquer une ville construite', () => {
-    const sable = GROUP_INDEX.sable;
-    let s = give(newGame(2), 'p1', sable);
-    for (const t of sable) s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t }).state;
-    expect(applyCommand(s, { t: 'MORTGAGE', by: 'p1', tile: sable[0] }).rejected).toMatch(/constructions/);
+    const azur = GROUP_INDEX.azur;
+    let s = give(newGame(2), 'p1', azur);
+    for (const t of azur) s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t }).state;
+    expect(applyCommand(s, { t: 'MORTGAGE', by: 'p1', tile: azur[0] }).rejected).toMatch(/constructions/);
   });
 });
 
@@ -395,7 +409,7 @@ describe('prison', () => {
 describe('taxes, cagnotte et Parc Gratuit', () => {
   it('verse les taxes dans la cagnotte', () => {
     const s = put(atRound(newGame(2), 2), 'p1', 0);
-    const { state } = rollAs(s, 'p1', 2, 3); // case 5 : Impôt Mondial
+    const { state } = rollAs(s, 'p1', 1, 3); // case 4 : Impôt Mondial
     expect(state.pot).toBe(1200);
     expect(state.players.p1.cash).toBe(RULES.startingCash - 1200);
   });
@@ -421,7 +435,7 @@ describe('cartes', () => {
 
   it('tire une carte et applique son effet en arrivant sur la case', () => {
     const s = put(atRound(newGame(2), 2), 'p1', 0);
-    const { state, events } = rollAs(s, 'p1', 1, 2); // case 3 : Destin
+    const { state, events } = rollAs(s, 'p1', 1, 1); // case 2 : Destin
     expect(events.some((e) => e.e === 'CARD_DRAWN')).toBe(true);
     expect(state.discard.destin).toHaveLength(1);
   });
@@ -429,18 +443,19 @@ describe('cartes', () => {
   it('remélange la défausse quand la pioche est vide', () => {
     let s = put(atRound(newGame(2), 2), 'p1', 0);
     s = { ...s, decks: { ...s.decks, destin: [] }, discard: { ...s.discard, destin: ['d_alizes', 'd_mecene'] } };
-    const { state } = rollAs(s, 'p1', 1, 2);
+    const { state } = rollAs(s, 'p1', 1, 1);
     expect(state.decks.destin.length + state.discard.destin.length).toBe(2);
   });
 
   it('applique chaque effet sans planter, quel que soit le contexte', () => {
     for (const card of CARDS) {
       let s = atRound(newGame(3), 3);
-      s = give(s, 'p1', [1, 2, 4, 7]);
+      s = give(s, 'p1', [1, 3, 6, 8]);
       s = { ...s, pot: 1000 };
       s = { ...s, decks: { ...s.decks, [card.deck]: [card.id] } };
-      s = put(s, 'p1', card.deck === 'destin' ? 2 : 16);
-      const r = rollAs(s, 'p1', 1, 0 + 1, 'ROLL_DICE');
+      // 1+1 depuis ces départs mène sur une case Destin (2) ou Marché (7).
+      s = put(s, 'p1', card.deck === 'destin' ? 0 : 5);
+      const r = rollAs(s, 'p1', 1, 1, 'ROLL_DICE');
       expect(r.state.version, card.id).toBeGreaterThan(s.version);
       for (const id of r.state.order) {
         expect(r.state.players[id].cash, `${card.id}/${id}`).toBeGreaterThanOrEqual(0);
@@ -503,9 +518,9 @@ describe('échanges', () => {
 describe('dettes et faillite', () => {
   const inDebt = () => {
     let s = atRound(newGame(2), 2);
-    s = give(s, 'p2', GROUP_INDEX.or);
+    s = give(s, 'p2', GROUP_INDEX.nuit);
     for (let i = 0; i < 3; i++) {
-      for (const t of GROUP_INDEX.or) s = applyCommand(s, { t: 'BUILD', by: 'p2', tile: t }).state;
+      for (const t of GROUP_INDEX.nuit) s = applyCommand(s, { t: 'BUILD', by: 'p2', tile: t }).state;
     }
     s = cash(s, 'p1', 100);
     s = put(s, 'p1', 35);
@@ -560,9 +575,9 @@ describe('dettes et faillite', () => {
 
   it('poursuit la partie à 3 joueurs après une élimination', () => {
     let s = atRound(newGame(3), 2);
-    s = give(s, 'p2', GROUP_INDEX.or);
+    s = give(s, 'p2', GROUP_INDEX.nuit);
     for (let i = 0; i < 3; i++) {
-      for (const t of GROUP_INDEX.or) s = applyCommand(s, { t: 'BUILD', by: 'p2', tile: t }).state;
+      for (const t of GROUP_INDEX.nuit) s = applyCommand(s, { t: 'BUILD', by: 'p2', tile: t }).state;
     }
     s = cash(s, 'p1', 10);
     s = put(s, 'p1', 35);
@@ -592,13 +607,13 @@ describe('anti-triche', () => {
   });
 
   it('refuse de construire sur la propriété d’autrui', () => {
-    const s = give(newGame(2), 'p2', GROUP_INDEX.sable);
-    expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: GROUP_INDEX.sable[0] }).rejected).toBeTruthy();
+    const s = give(newGame(2), 'p2', GROUP_INDEX.azur);
+    expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: GROUP_INDEX.azur[0] }).rejected).toBeTruthy();
   });
 
   it('refuse un lancer hors de la phase ROLL_DICE', () => {
     const s = atRound(newGame(2), 2);
-    const offered = rollAs(s, 'p1', 1, 1).state;
+    const offered = rollAs(s, 'p1', 1, 2).state;
     expect(offered.phase).toBe('PROPERTY_DECISION');
     expect(applyCommand(offered, { t: 'ROLL_DICE', by: 'p1' }).rejected).toBeTruthy();
   });
@@ -606,11 +621,11 @@ describe('anti-triche', () => {
 
 describe('patrimoine', () => {
   it('additionne liquidités, propriétés et constructions', () => {
-    const sable = GROUP_INDEX.sable;
-    let s = give(newGame(2), 'p1', sable);
-    const prices = sable.reduce((a, i) => a + (tileAt(i) as { price: number }).price, 0);
+    const azur = GROUP_INDEX.azur;
+    let s = give(newGame(2), 'p1', azur);
+    const prices = azur.reduce((a, i) => a + (tileAt(i) as { price: number }).price, 0);
     expect(netWorth(s, 'p1')).toBe(RULES.startingCash + prices);
-    s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: sable[0] }).state;
+    s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] }).state;
     expect(netWorth(s, 'p1')).toBe(RULES.startingCash + prices);
   });
 });

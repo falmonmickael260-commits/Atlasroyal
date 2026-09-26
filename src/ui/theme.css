@@ -12,8 +12,8 @@
   --surface:       #192134;
   --surface-2:     #202B42;
   --muted:         #0F1F2B;
-  --border:        rgba(255, 255, 255, 0.10);
-  --border-strong: rgba(255, 255, 255, 0.20);
+  --border:        rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.26);
 
   /* Marque */
   --primary:       #15803D;   /* feutre */
@@ -26,8 +26,8 @@
 
   /* Texte */
   --fg:            #F8FAFC;
-  --fg-muted:      #94A3B8;
-  --fg-dim:        #64748B;
+  --fg-muted:      #B6C2D2;
+  --fg-dim:        #8C9AAC;
 
   /* Sémantique */
   --danger:        #DC2626;
@@ -35,10 +35,14 @@
   --success:       #22C55E;
   --info:          #60A5FA;
 
-  /* Verre */
-  --glass:         rgba(255, 255, 255, 0.07);
-  --glass-strong:  rgba(255, 255, 255, 0.12);
-  --blur:          18px;
+  /* Verre.
+     Teinté sombre, et non blanc translucide : l'interface se superpose
+     désormais à une pièce éclairée aux murs clairs. Un voile blanc sur fond
+     clair ne laissait plus aucun contraste au texte. Un voile sombre tient
+     sur les deux, du feutre vert au mur beige. */
+  --glass:         rgba(11, 15, 23, 0.62);
+  --glass-strong:  rgba(11, 15, 23, 0.78);
+  --blur:          20px;
 
   /* Rythme */
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
@@ -133,6 +137,9 @@ button, input, select { font: inherit; color: inherit; }
   font-weight: 600;
   font-size: 15px;
   letter-spacing: .01em;
+  /* Un libellé qui se replie casse la hauteur du bouton et déséquilibre la
+     barre : on préfère réduire la taille du texte. */
+  white-space: nowrap;
   cursor: pointer;
   transition: transform var(--t-fast) var(--ease-out),
               background var(--t-base) var(--ease-out),

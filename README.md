@@ -20,8 +20,10 @@ la rejoignent avec le code à 5 caractères. Chaque onglet a sa propre identité
 
 ## 1. Le jeu
 
-Vingt-quatre métropoles réparties en **huit groupes de trois**. On achète des
-villes, on réunit un groupe complet, puis on bâtit :
+Vingt-deux métropoles en **huit groupes** : six de trois villes, encadrés par
+deux groupes de deux — le moins cher et le plus cher, qui se réunissent vite.
+Quatre hubs régulièrement répartis (cases 5, 15, 25, 35), six cases carte.
+On achète des villes, on réunit un groupe complet, puis on bâtit :
 
 ```
 Terrain nu  →  Maison  →  Villa  →  Grand Hôtel
@@ -43,7 +45,7 @@ Le dernier joueur financièrement viable gagne.
 | Après 3 tentatives ratées | caution de 50 € obligatoire, puis déplacement |
 | Taxes, impôts, cautions | versés à la cagnotte centrale |
 | Parc Gratuit | le joueur encaisse **100 %** de la cagnotte |
-| Construction | uniquement avec les 3 villes du groupe, et de façon homogène |
+| Construction | uniquement avec toutes les villes du groupe, et de façon homogène |
 | Hypothèque | 50 % du prix ; levée à 110 % de ce montant |
 | Revente d'un niveau | 50 % du coût de construction |
 | Échanges | propriétés et liquidités dans les deux sens, à accepter ou refuser |

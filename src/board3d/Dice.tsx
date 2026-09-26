@@ -112,12 +112,6 @@ export const Dice = ({
         seed={dice.key + 0.5}
         home={[0.75, 0.2, 0]}
       />
-      <pointLight
-        position={[0, 2, 0]}
-        intensity={dice.rolling ? 22 : 12}
-        distance={7}
-        color="#FDE68A"
-      />
     </group>
   );
 };
