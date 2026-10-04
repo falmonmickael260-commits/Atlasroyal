@@ -1,4 +1,6 @@
-import { BOARD, GROUP_INDEX, HUB_TILES, RESEAU_TILES, RULES, isOwnable, tileAt } from './board';
+import {
+  BOARD, GROUP_INDEX, HUB_TILES, LEVEL_NAMES, MAX_LEVEL, RESEAU_TILES, RULES, isOwnable, tileAt,
+} from './board';
 import type { BuildLevel, GameState, PlayerId, TileIndex, OwnableTile } from './types';
 
 export const ownedBy = (s: GameState, p: PlayerId): TileIndex[] =>
@@ -63,7 +65,7 @@ export const canBuild = (s: GameState, p: PlayerId, tile: TileIndex): string | n
   if (t.kind !== 'city') return 'Seules les villes se construisent.';
   if (st.owner !== p) return 'Cette ville ne vous appartient pas.';
   if (st.mortgaged) return 'Ville hypothéquée.';
-  if (st.level >= 3) return 'Grand Hôtel déjà construit.';
+  if (st.level >= MAX_LEVEL) return 'Hôtel déjà construit.';
   if (!ownsFullGroup(s, p, tile)) {
     const n = GROUP_INDEX[t.group].length;
     return `Il faut posséder les ${n} villes du groupe.`;
@@ -115,5 +117,4 @@ export const activePlayers = (s: GameState): PlayerId[] =>
 
 export const ownableTiles = (): OwnableTile[] => BOARD.filter(isOwnable);
 
-export const levelName = (l: BuildLevel): string =>
-  (['Terrain', 'Maison', 'Villa', 'Grand Hôtel'] as const)[l];
+export const levelName = (l: BuildLevel): string => LEVEL_NAMES[l];

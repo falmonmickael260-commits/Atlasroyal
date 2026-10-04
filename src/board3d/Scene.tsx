@@ -59,8 +59,8 @@ const DevHandle = () => {
  */
 const Lights = memo(() => (
   <>
-    <hemisphereLight args={['#FFF3DC', '#5A4632', 1.25]} />
-    <ambientLight intensity={1} color="#FFF6E6" />
+    <hemisphereLight args={['#FFF6E6', '#7A6448', 1.45]} />
+    <ambientLight intensity={1.15} color="#FFF9EE" />
     {/* Source proche de la verticale : l'ombre du plateau reste ramassée
         sous lui au lieu de s'étaler en large tache sur la moitié de la table. */}
     <directionalLight
@@ -165,7 +165,7 @@ export const Scene = ({
   onContextLost?: () => void;
   labels: React.RefObject<Map<PlayerId, HTMLElement | null>>;
 }) => {
-  const fog = useMemo(() => new THREE.FogExp2('#241B14', 0.006), []);
+  const fog = useMemo(() => new THREE.FogExp2('#3A2D22', 0.0035), []);
   const { ref, pret } = useHasSize();
   const [polices, setPolices] = useState(false);
   const signature = boardSignature(state);
@@ -187,7 +187,7 @@ export const Scene = ({
   );
 
   return (
-    <div ref={ref} style={{ position: 'absolute', inset: 0, background: '#1C1611' }}>
+    <div ref={ref} style={{ position: 'absolute', inset: 0, background: '#33271D' }}>
       {pret && polices && (
         <Canvas
           shadows={RENDER_SHADOWS}
@@ -198,14 +198,14 @@ export const Scene = ({
           onCreated={({ gl }) => {
             setMaxAnisotropy(gl.capabilities.getMaxAnisotropy());
             gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.08;
+            gl.toneMappingExposure = 1.24;
             gl.domElement.addEventListener('webglcontextlost', (e) => {
               e.preventDefault();
               onContextLost?.();
             });
           }}
         >
-          <color attach="background" args={['#1C1611']} />
+          <color attach="background" args={['#33271D']} />
           <primitive attach="fog" object={fog} />
 
           {import.meta.env.DEV && <DevHandle />}

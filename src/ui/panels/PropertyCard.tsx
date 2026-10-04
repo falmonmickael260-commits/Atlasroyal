@@ -1,10 +1,8 @@
-import { GROUPS, RULES, tileAt } from '../../engine/board';
+import { GROUPS, LEVEL_NAMES, RULES, tileAt } from '../../engine/board';
 import { countOwnedIn, rentFor } from '../../engine/rules';
 import { HUB_TILES, RESEAU_TILES } from '../../engine/board';
 import { euro } from '../format';
 import type { GameState } from '../../engine/types';
-
-const LEVELS = ['Terrain nu', 'Maison', 'Villa', 'Grand Hôtel'] as const;
 
 /** Fiche d'une case possédable : identité, barème, niveau actuel. */
 export const PropertyCard = ({ state, tile }: { state: GameState; tile: number }) => {
@@ -27,7 +25,7 @@ export const PropertyCard = ({ state, tile }: { state: GameState; tile: number }
         </div>
 
         <div className="rents">
-          {LEVELS.map((label, lvl) => (
+          {LEVEL_NAMES.map((label, lvl) => (
             <div key={label} className={`rents__row ${st.level === lvl ? 'rents__row--on' : 'rents__row--off'}`}>
               <span>{label}</span>
               <span className="mono-num">{euro(t.rent[lvl])}</span>

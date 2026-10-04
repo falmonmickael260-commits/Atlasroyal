@@ -2,21 +2,62 @@
  * Audio entièrement synthétisé (WebAudio) : aucun fichier à télécharger,
  * donc aucun coût de chargement et aucun asset tiers. Chaque effet est
  * une petite partition programmée.
+ *
+ * **Le parti pris : des matières, pas des notes.**
+ *
+ * Les deux versions précédentes jouaient des notes — arpège à l'achat,
+ * fanfare sur la cagnotte, bip au lancer. Adoucir les timbres n'y change
+ * rien : une mélodie de synthèse sur un jeu de plateau sonne « petit jeu
+ * mobile », et c'est la mélodie elle-même qui est en cause.
+ *
+ * Un jeu de plateau ne fait pas de musique, il fait du bruit : des dés qui
+ * s'entrechoquent, un pion qui tape le carton, une carte qui glisse de la
+ * pioche, des pièces qui tombent, une maison de bois qu'on pose. Ce sont des
+ * transitoires courts avec un corps résonant — jamais des notes tenues.
+ *
+ * D'où l'outil central, `bois()` : une impulsion de bruit très brève envoyée
+ * dans trois passe-bandes à fort facteur de qualité, légèrement inharmoniques.
+ * Le filtre continue de sonner après la fin de l'impulsion, et cette queue
+ * courte et bruitée est exactement ce qu'on entend quand on frappe un objet.
+ * Même principe pour le métal (fréquences hautes, Q serré) et le papier
+ * (bruit large, filtré haut).
+ *
+ * Reste un peu de réverbération pour poser le tout dans une pièce, et un
+ * limiteur en sortie : pendant un déplacement les effets se superposent, et
+ * la somme saturait.
  */
 type Voice = 'sine' | 'triangle' | 'square' | 'sawtooth';
 
-const LS_KEY = 'atlas-royale:audio';
+/*
+  Clé versionnée : elle change avec la palette sonore.
+
+  Les préférences sont persistées ; sans nouvelle clé, un joueur qui avait
+  déjà activé le son resterait sur son ancien réglage et n'entendrait jamais
+  le nouveau réglage par défaut.
+*/
+const LS_KEY = 'atlas-royale:audio:v3';
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
+  /** Entrée des effets : passe-bas d'adoucissement, puis départ réverbération. */
+  private sfxIn: BiquadFilterNode | null = null;
   private musicTimer: number | null = null;
   private musicStep = 0;
 
+  /*
+    Effets actifs, musique coupée.
+
+    Les bruitages font partie du jeu : c'est eux qui donnent le poids des dés
+    et du pion. La nappe musicale, elle, tourne en boucle pendant toute la
+    partie — c'est le genre de fond sonore dont on se lasse en trois minutes,
+    et il vaut mieux que le joueur décide de l'ouvrir. Les deux bascules sont
+    dans la barre du haut.
+  */
   sfxOn = true;
-  musicOn = true;
+  musicOn = false;
 
   constructor() {
     try {
@@ -24,7 +65,7 @@ class AudioEngine {
       if (raw) {
         const p = JSON.parse(raw) as { sfx?: boolean; music?: boolean };
         this.sfxOn = p.sfx ?? true;
-        this.musicOn = p.music ?? true;
+        this.musicOn = p.music ?? false;
       }
     } catch { /* préférences indisponibles */ }
   }
@@ -40,22 +81,57 @@ class AudioEngine {
     const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return;
     this.ctx = new Ctor();
+
+    // Limiteur de sortie : pendant un déplacement, pas, pièces et bannières
+    // se superposent — sans lui la somme écrête et ça devient agressif.
+    const limiteur = this.ctx.createDynamicsCompressor();
+    limiteur.threshold.value = -12;
+    limiteur.knee.value = 24;
+    limiteur.ratio.value = 6;
+    limiteur.attack.value = 0.004;
+    limiteur.release.value = 0.2;
+    limiteur.connect(this.ctx.destination);
+
     this.master = this.ctx.createGain();
     this.master.gain.value = 0.85;
-    this.master.connect(this.ctx.destination);
+    this.master.connect(limiteur);
+
+    // Réverbération commune : une queue courte, juste de quoi donner une pièce.
+    const reverb = this.ctx.createConvolver();
+    reverb.buffer = this.impulsion(1.15, 3.2);
+    const retour = this.ctx.createGain();
+    retour.gain.value = 0.26;
+    reverb.connect(retour);
+    retour.connect(this.master);
+
     this.musicGain = this.ctx.createGain();
     this.musicGain.gain.value = this.musicOn ? 0.16 : 0;
-    this.musicGain.connect(this.master);
+    // La nappe est volontairement feutrée : elle doit se tenir sous les effets.
+    const voileMusique = this.ctx.createBiquadFilter();
+    voileMusique.type = 'lowpass';
+    voileMusique.frequency.value = 1400;
+    voileMusique.Q.value = 0.5;
+    this.musicGain.connect(voileMusique);
+    voileMusique.connect(this.master);
+    voileMusique.connect(reverb);
+
     this.sfxGain = this.ctx.createGain();
-    this.sfxGain.gain.value = this.sfxOn ? 0.5 : 0;
-    this.sfxGain.connect(this.master);
+    this.sfxGain.gain.value = this.sfxOn ? 0.42 : 0;
+    this.sfxIn = this.ctx.createBiquadFilter();
+    this.sfxIn.type = 'lowpass';
+    this.sfxIn.frequency.value = 5200;
+    this.sfxIn.Q.value = 0.7;
+    this.sfxGain.connect(this.sfxIn);
+    this.sfxIn.connect(this.master);
+    this.sfxIn.connect(reverb);
+
     if (this.musicOn) this.startMusic();
   }
 
   setSfx(on: boolean) {
     this.sfxOn = on;
     if (this.sfxGain && this.ctx) {
-      this.sfxGain.gain.setTargetAtTime(on ? 0.5 : 0, this.ctx.currentTime, 0.05);
+      this.sfxGain.gain.setTargetAtTime(on ? 0.42 : 0, this.ctx.currentTime, 0.05);
     }
     this.persist();
   }
@@ -69,9 +145,22 @@ class AudioEngine {
     this.persist();
   }
 
+  /** Réponse impulsionnelle synthétique : bruit décroissant, stéréo. */
+  private impulsion(duree: number, pente: number): AudioBuffer {
+    const ctx = this.ctx!;
+    const n = Math.floor(ctx.sampleRate * duree);
+    const buf = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, pente);
+    }
+    return buf;
+  }
+
   private tone(
     freq: number, dur: number, type: Voice = 'sine',
-    { gain = 0.3, delay = 0, slideTo, dest }: { gain?: number; delay?: number; slideTo?: number; dest?: GainNode } = {},
+    { gain = 0.3, delay = 0, slideTo, dest, attack = 0.008 }:
+      { gain?: number; delay?: number; slideTo?: number; dest?: GainNode; attack?: number } = {},
   ) {
     if (!this.ctx) return;
     const target = dest ?? this.sfxGain;
@@ -82,8 +171,10 @@ class AudioEngine {
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t0);
     if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t0 + dur);
+    // Attaque douce plutôt qu'un saut : c'est le claquement du démarrage
+    // instantané qui donnait le côté « bip » aux effets courts.
     g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(gain, t0 + Math.min(0.02, dur * 0.2));
+    g.gain.exponentialRampToValueAtTime(gain, t0 + Math.max(0.004, Math.min(attack, dur * 0.4)));
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(g); g.connect(target);
     osc.start(t0); osc.stop(t0 + dur + 0.02);
@@ -109,56 +200,133 @@ class AudioEngine {
     src.start(t0);
   }
 
+  /**
+   * Corps résonant frappé.
+   *
+   * Une impulsion de bruit de 12 ms passe dans un passe-bande très sélectif :
+   * le filtre sonne encore après la fin de l'impulsion, et c'est cette queue
+   * qui fait entendre une matière plutôt qu'un clic.
+   */
+  private resonance(freq: number, dur: number, { gain = 0.2, q = 10, delay = 0 } = {}) {
+    if (!this.ctx || !this.sfxGain) return;
+    const t0 = this.ctx.currentTime + delay;
+    const frames = Math.max(8, Math.floor(this.ctx.sampleRate * 0.012));
+    const buf = this.ctx.createBuffer(1, frames, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < frames; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / frames);
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    const filtre = this.ctx.createBiquadFilter();
+    filtre.type = 'bandpass';
+    filtre.frequency.value = freq;
+    filtre.Q.value = q;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(Math.max(0.0001, gain), t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filtre); filtre.connect(g); g.connect(this.sfxGain);
+    src.start(t0);
+  }
+
+  /** Bois frappé : trois partiels légèrement inharmoniques, comme un objet réel. */
+  private bois(base: number, { gain = 0.2, dur = 0.26, delay = 0 } = {}) {
+    this.resonance(base, dur, { gain, q: 9, delay });
+    this.resonance(base * 2.21, dur * 0.6, { gain: gain * 0.5, q: 11, delay });
+    this.resonance(base * 4.6, dur * 0.28, { gain: gain * 0.26, q: 13, delay });
+  }
+
+  /** Pièce de monnaie : métal, donc partiels hauts et serrés. */
+  private piece(delay = 0, gain = 0.1) {
+    const f = 2200 + Math.random() * 2600;
+    this.resonance(f, 0.16 + Math.random() * 0.12, { gain, q: 22, delay });
+    this.resonance(f * 1.73, 0.1, { gain: gain * 0.5, q: 26, delay });
+  }
+
+  /** Papier : bruit large filtré haut, sans hauteur définie. */
+  private papier(dur = 0.22, gain = 0.09, delay = 0) {
+    this.noise(dur, { gain, delay, freq: 3000, q: 0.55 });
+  }
+
   /* ----------------------- effets de jeu ----------------------- */
 
   diceShake() {
-    for (let i = 0; i < 7; i++) this.noise(0.05, { gain: 0.1, delay: i * 0.055, freq: 900 + Math.random() * 700, q: 2 });
+    // Deux dés qui s'entrechoquent dans le creux de la main : du bois sec,
+    // à intervalles irréguliers — une cadence régulière sonne mécanique.
+    for (let i = 0; i < 6; i++) {
+      this.bois(430 + Math.random() * 420, {
+        gain: 0.05 + Math.random() * 0.04,
+        dur: 0.07,
+        delay: i * 0.065 + Math.random() * 0.03,
+      });
+    }
   }
   diceLand() {
-    this.noise(0.09, { gain: 0.26, freq: 500, q: 0.8 });
-    this.noise(0.07, { gain: 0.18, delay: 0.1, freq: 700, q: 1 });
-    this.tone(180, 0.1, 'triangle', { gain: 0.12, delay: 0.02 });
+    // Deux rebonds : le choc franc, puis le dé qui se couche.
+    this.bois(240, { gain: 0.26, dur: 0.3 });
+    this.bois(310, { gain: 0.12, dur: 0.18, delay: 0.1 });
   }
-  step() { this.tone(440, 0.05, 'triangle', { gain: 0.1, slideTo: 620 }); }
-  land() { this.tone(300, 0.14, 'sine', { gain: 0.2, slideTo: 420 }); }
+  /**
+   * Pas d'un pion. Joué jusqu'à douze fois de suite à 135 ms d'intervalle :
+   * volontairement effacé, et d'une hauteur légèrement différente à chaque
+   * fois — douze fois le même son devient un mitraillage.
+   */
+  step() {
+    this.bois(360 + (Math.random() - 0.5) * 110, { gain: 0.055, dur: 0.1 });
+  }
+  land() {
+    this.bois(185, { gain: 0.2, dur: 0.42 });
+  }
   buy() {
-    [523, 659, 784].forEach((f, i) => this.tone(f, 0.18, 'triangle', { gain: 0.22, delay: i * 0.07 }));
+    // L'acte d'achat : le titre de propriété qu'on détache, puis qu'on pose.
+    this.papier(0.18, 0.08);
+    this.bois(150, { gain: 0.2, dur: 0.45, delay: 0.09 });
   }
   coin() {
-    this.tone(1180, 0.08, 'square', { gain: 0.1 });
-    this.tone(1560, 0.12, 'square', { gain: 0.08, delay: 0.05 });
+    this.piece(0, 0.09);
+    this.piece(0.06, 0.06);
   }
-  pay() { this.tone(360, 0.22, 'sawtooth', { gain: 0.16, slideTo: 150 }); }
+  pay() {
+    // Quelques pièces qu'on fait glisser : pas de note descendante.
+    for (let i = 0; i < 4; i++) this.piece(i * 0.055 + Math.random() * 0.02, 0.075);
+  }
   build() {
-    this.noise(0.14, { gain: 0.16, freq: 300, q: 0.6 });
-    [330, 415, 523, 659].forEach((f, i) => this.tone(f, 0.22, 'triangle', { gain: 0.18, delay: 0.1 + i * 0.09 }));
+    // Une maison de bois posée franchement sur le carton.
+    this.bois(118, { gain: 0.28, dur: 0.5 });
+    this.bois(290, { gain: 0.14, dur: 0.22, delay: 0.085 });
   }
   card() {
-    this.noise(0.18, { gain: 0.12, freq: 2600, q: 0.7 });
-    this.tone(880, 0.16, 'sine', { gain: 0.14, delay: 0.12, slideTo: 1320 });
+    this.papier(0.24, 0.1);
+    this.bois(520, { gain: 0.07, dur: 0.12, delay: 0.16 });
   }
   jail() {
-    this.tone(220, 0.5, 'square', { gain: 0.14, slideTo: 90 });
-    this.noise(0.3, { gain: 0.18, delay: 0.05, freq: 220, q: 1.4 });
+    // Un volume lourd qui tombe, puis le claquement sec d'un verrou.
+    this.bois(78, { gain: 0.3, dur: 0.8 });
+    this.resonance(1750, 0.4, { gain: 0.1, q: 24, delay: 0.1 });
+    this.resonance(980, 0.3, { gain: 0.07, q: 18, delay: 0.14 });
   }
   jackpot() {
-    [523, 659, 784, 1047, 1319].forEach((f, i) =>
-      this.tone(f, 0.5, 'triangle', { gain: 0.2, delay: i * 0.08 }));
-    for (let i = 0; i < 10; i++) this.tone(1200 + Math.random() * 900, 0.1, 'square', { gain: 0.06, delay: 0.3 + i * 0.05 });
+    // La cagnotte : une averse de pièces, de plus en plus serrée.
+    for (let i = 0; i < 16; i++) {
+      this.piece(Math.pow(i / 16, 0.7) * 1.1 + Math.random() * 0.04, 0.085);
+    }
   }
   alarm() {
-    [0, 0.18, 0.36].forEach((d) => this.tone(740, 0.14, 'square', { gain: 0.14, delay: d }));
+    // Deux coups secs frappés sur la table.
+    this.bois(620, { gain: 0.17, dur: 0.13 });
+    this.bois(620, { gain: 0.14, dur: 0.13, delay: 0.17 });
   }
   victory() {
-    [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.7, 'triangle', { gain: 0.24, delay: i * 0.14 }));
-    [131, 165, 196, 262].forEach((f, i) => this.tone(f, 1.4, 'sine', { gain: 0.16, delay: i * 0.14 }));
+    // Seul moment où une note se justifie : la partie est finie, plus rien
+    // ne viendra se superposer. Un accord grave et tenu, sous la pluie de pièces.
+    for (let i = 0; i < 22; i++) this.piece(Math.random() * 1.4, 0.075);
+    [131, 196, 262].forEach((f, i) => this.tone(f, 2.6, 'sine', { gain: 0.11, delay: i * 0.12, attack: 0.08 }));
   }
   bankrupt() {
-    this.tone(330, 1.1, 'sawtooth', { gain: 0.18, slideTo: 60 });
-    this.noise(0.6, { gain: 0.12, freq: 180, q: 0.5 });
+    // L'effondrement : le bois le plus grave, prolongé, sans hauteur claire.
+    this.bois(64, { gain: 0.3, dur: 1.3 });
+    this.noise(0.7, { gain: 0.07, freq: 170, q: 0.5, delay: 0.05 });
   }
-  click() { this.tone(680, 0.04, 'sine', { gain: 0.1 }); }
-  hover() { this.tone(900, 0.03, 'sine', { gain: 0.04 }); }
+  click() { this.resonance(1150, 0.05, { gain: 0.05, q: 7 }); }
+  hover() { this.resonance(1500, 0.03, { gain: 0.02, q: 7 }); }
 
   /* --------- nappe musicale : arpège lent, non répétitif --------- */
 

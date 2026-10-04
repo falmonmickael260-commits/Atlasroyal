@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { createGame } from '../engine/engine';
-import { BOARD, GROUP_INDEX } from '../engine/board';
+import { BOARD, GROUP_INDEX, LEVEL_NAMES } from '../engine/board';
 import { Scene } from '../board3d/Scene';
 import { useCompact } from '../ui/useCompact';
 import type { BuildLevel, GameState } from '../engine/types';
@@ -68,7 +68,7 @@ export const BoardPreview = () => {
         labels={labels}
       />
       <div className="panel" style={{ position: 'absolute', left: 16, top: 16, padding: 16, display: 'flex', gap: 8 }}>
-        {(['Terrain', 'Maison', 'Villa', 'Grand Hôtel'] as const).map((label, i) => (
+        {LEVEL_NAMES.map((label, i) => (
           <button key={label} className="pill-opt" aria-pressed={level === i}
             onClick={() => setLevel(i as BuildLevel)}>
             {label}

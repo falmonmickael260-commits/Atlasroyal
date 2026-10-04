@@ -84,6 +84,17 @@ const Crown = ({ landmark, mat }: { landmark: CityTile['landmark']; mat: THREE.M
   }
 };
 
+/*
+  Facteur d'échelle des constructions.
+
+  À l'échelle d'origine, un hôtel mesurait une quinzaine de pixels à l'écran
+  dans la vue d'ensemble : on voyait une tache colorée, pas un bâtiment. Les
+  volumes sont dessinés en unités de case ; plutôt que de reprendre chaque
+  cote, on les agrandit d'un bloc. L'emprise reste très en deçà de la case
+  (0,99 × 0,83 pour une case de 2,05 × 2,9).
+*/
+const BUILD_SCALE = 1.34;
+
 const Structure = ({
   level, color, landmark,
 }: { level: number; color: string; landmark: CityTile['landmark'] }) => {
@@ -109,24 +120,44 @@ const Structure = ({
     </mesh>
   );
 
+  /** Pavillon : corps, toit à quatre pentes, fenêtre éclairée. */
+  const maison = (x: number, echelle = 1) => (
+    <group position={[x, 0, 0]} scale={echelle}>
+      <mesh castShadow material={mat} position={[0, 0.17, 0]}>
+        <boxGeometry args={[0.52, 0.34, 0.46]} />
+      </mesh>
+      <mesh castShadow position={[0, 0.42, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[0.42, 0.24, 4]} />
+        <meshStandardMaterial color="#0F172A" roughness={0.6} />
+      </mesh>
+      <mesh material={WINDOW_MAT} position={[0, 0.16, 0.235]}>
+        <planeGeometry args={[0.16, 0.12]} />
+      </mesh>
+    </group>
+  );
+
   if (level === 1) {
     return (
       <group>
         {socle}
-        <mesh castShadow material={mat} position={[0, 0.17, 0]}>
-          <boxGeometry args={[0.52, 0.34, 0.46]} />
-        </mesh>
-        <mesh castShadow position={[0, 0.42, 0]} rotation={[0, Math.PI / 4, 0]}>
-          <coneGeometry args={[0.42, 0.24, 4]} />
-          <meshStandardMaterial color="#0F172A" roughness={0.6} />
-        </mesh>
-        <mesh material={WINDOW_MAT} position={[0, 0.16, 0.235]}>
-          <planeGeometry args={[0.16, 0.12]} />
-        </mesh>
+        {maison(0)}
       </group>
     );
   }
+
+  // Deux pavillons côte à côte : le palier se lit d'un coup d'œil, sans avoir
+  // à comparer des hauteurs.
   if (level === 2) {
+    return (
+      <group>
+        {socle}
+        {maison(-0.17, 0.78)}
+        {maison(0.17, 0.78)}
+      </group>
+    );
+  }
+
+  if (level === 3) {
     return (
       <group>
         {socle}
@@ -148,7 +179,7 @@ const Structure = ({
       </group>
     );
   }
-  // Grand Hôtel : tour + enseigne + couronne lumineuse
+  // Hôtel : tour, enseigne et couronne lumineuse — le sommet du barème.
   return (
     <group>
       {socle}
@@ -234,7 +265,11 @@ const Plot = ({ tile, level }: { tile: CityTile; level: number }) => {
   if (level === 0) return null;
   return (
     <group ref={group} position={slot.pos} rotation={[0, slot.rot, 0]}>
-      <Structure level={level} color={GROUPS[tile.group].color} landmark={tile.landmark} />
+      {/* Groupe intermédiaire : l'échelle de la montée est animée sur le
+          groupe parent, elle ne peut pas porter aussi le facteur fixe. */}
+      <group scale={BUILD_SCALE}>
+        <Structure level={level} color={GROUPS[tile.group].color} landmark={tile.landmark} />
+      </group>
     </group>
   );
 };

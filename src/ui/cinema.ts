@@ -152,7 +152,6 @@ export const useCinematic = () => {
           follow: ev.to,
           dice: c.dice ? { ...c.dice, rolling: false } : null,
         }));
-        // Les longs déplacements accélèrent : on garde le rythme sans sacrifier la lisibilité.
         // Un déplacement long s'accélère : on garde le rythme sans perdre
         // la lecture case par case.
         dur = ev.total > 8 ? 135 : 175;
@@ -222,9 +221,8 @@ export const useCinematic = () => {
         break;
       case 'BUILT': {
         audio.build();
-        const names = ['', 'Maison', 'Villa', 'Grand Hôtel'];
         setCinema((c) => ({ ...c, build: { tile: ev.tile, level: ev.level, key: k } }));
-        banner({ kind: 'build', title: names[ev.level], detail: tileAt(ev.tile).name, amount: -ev.cost, color: '#EAB308' }, 2300);
+        banner({ kind: 'build', title: LEVEL_NAMES[ev.level], detail: tileAt(ev.tile).name, amount: -ev.cost, color: '#EAB308' }, 2300);
         break;
       }
       case 'THREE_DOUBLES':

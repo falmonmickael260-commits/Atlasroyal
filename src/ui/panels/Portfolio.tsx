@@ -1,4 +1,4 @@
-import { GROUPS, LEVEL_NAMES, RULES, tileAt } from '../../engine/board';
+import { GROUPS, LEVEL_NAMES, MAX_LEVEL, RULES, tileAt } from '../../engine/board';
 import { canBuild, canMortgage, buildCostFor, mortgageValue, ownedBy, unmortgageCost, rentFor } from '../../engine/rules';
 import { Icon } from '../Icon';
 import { euro } from '../format';
@@ -62,7 +62,7 @@ export const Portfolio = ({
                 </div>
               </div>
               <div className="holding__act">
-                {isCity && st.level < 3 && (
+                {isCity && st.level < MAX_LEVEL && (
                   <button
                     className="btn btn--sm btn--accent"
                     title={buildErr ?? `Construire pour ${euro(buildCostFor(i))}`}

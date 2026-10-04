@@ -40,12 +40,12 @@ const Table = () => {
       */}
       <mesh position={[0, TABLE_Y - 0.2, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[TABLE_R, TABLE_R * 0.995, 0.38, 80, 1, true]} />
-        <meshStandardMaterial color="#4A2F1D" roughness={0.75} metalness={0.04} side={THREE.DoubleSide} />
+        <meshStandardMaterial color="#8A6240" roughness={0.75} metalness={0.04} side={THREE.DoubleSide} />
       </mesh>
       {/* Ceinture sous le plateau */}
       <mesh position={[0, TABLE_Y - 0.62, 0]}>
         <cylinderGeometry args={[TABLE_R * 0.88, TABLE_R * 0.86, 0.5, 48]} />
-        <meshStandardMaterial color="#3B2517" roughness={0.85} />
+        <meshStandardMaterial color="#6E4A2E" roughness={0.85} />
       </mesh>
       {/* Quatre pieds tournés */}
       {[
@@ -57,7 +57,7 @@ const Table = () => {
           castShadow
         >
           <cylinderGeometry args={[0.34, 0.5, TABLE_Y - FLOOR_Y - 0.6, 16]} />
-          <meshStandardMaterial color="#3E2718" roughness={0.8} />
+          <meshStandardMaterial color="#73502F" roughness={0.8} />
         </mesh>
       ))}
     </group>
@@ -70,7 +70,7 @@ const Floor = () => {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, FLOOR_Y, 0]} receiveShadow>
         <planeGeometry args={[150, 150]} />
-        <meshStandardMaterial color="#6A4A32" roughness={0.9} />
+        <meshStandardMaterial color="#8B6845" roughness={0.9} />
       </mesh>
       {/* Tapis sous la table : ancre la scène et réchauffe le sol. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, FLOOR_Y + 0.02, 2]} receiveShadow>

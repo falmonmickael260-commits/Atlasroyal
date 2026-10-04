@@ -238,7 +238,7 @@ export const Game = () => {
                 <div className="pcard__name">{p.name}{id === me ? ' · vous' : ''}</div>
                 <div className="pcard__cash mono-num">{euro(p.cash)}</div>
                 <div className="pcard__meta">
-                  <span>{ownedBy(state, id).length} villes</span>
+                  <span>{ownedBy(state, id).length} ville{ownedBy(state, id).length > 1 ? 's' : ''}</span>
                   <span>{euro(netWorth(state, id))}</span>
                 </div>
               </div>

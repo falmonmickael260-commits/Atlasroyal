@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyCommand, createGame } from '../engine';
-import { BOARD, GROUP_INDEX, JAIL_TILE, RULES, tileAt } from '../board';
+import { BOARD, GROUP_INDEX, JAIL_TILE, MAX_LEVEL, RULES, tileAt } from '../board';
 import { netWorth, ownsFullGroup, rentFor } from '../rules';
 import { CARDS } from '../cards';
 import { current, newGame, rollAs, SEATS } from './helpers';
@@ -56,9 +56,10 @@ describe('plateau', () => {
   it('n’a aucune carte au barème incohérent', () => {
     for (const t of BOARD) {
       if (t.kind !== 'city') continue;
-      expect(t.rent[0]).toBeLessThan(t.rent[1]);
-      expect(t.rent[1]).toBeLessThan(t.rent[2]);
-      expect(t.rent[2]).toBeLessThan(t.rent[3]);
+      for (let l = 0; l < MAX_LEVEL; l++) expect(t.rent[l]).toBeLessThan(t.rent[l + 1]);
+      // Un hôtel doit rapporter au moins quatre fois le prix d'achat, sans quoi
+      // bâtir ne se rentabilise jamais sur la durée d'une partie.
+      expect(t.rent[MAX_LEVEL]).toBeGreaterThanOrEqual(t.price * 4);
     }
   });
 });
@@ -281,10 +282,10 @@ describe('constructions', () => {
     expect(r.rejected).toMatch(/villes du groupe/);
   });
 
-  it('monte Terrain → Maison → Villa → Grand Hôtel', () => {
+  it('monte Terrain → Maison → Deux maisons → Villa → Hôtel', () => {
     let s = give(newGame(2), 'p1', azur);
     const cost = (tileAt(azur[0]) as { buildCost: number }).buildCost;
-    for (let lvl = 1; lvl <= 3; lvl++) {
+    for (let lvl = 1; lvl <= 4; lvl++) {
       // Construction homogène : il faut monter tout le groupe d'un cran.
       for (const t of azur) {
         const r = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t });
@@ -293,7 +294,7 @@ describe('constructions', () => {
       }
       expect(azur.map((t) => s.tiles[t].level)).toEqual([lvl, lvl, lvl]);
     }
-    expect(s.players.p1.cash).toBe(RULES.startingCash - cost * 9);
+    expect(s.players.p1.cash).toBe(RULES.startingCash - cost * 12);
     expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] }).rejected).toMatch(/Hôtel/);
   });
 
@@ -307,7 +308,7 @@ describe('constructions', () => {
   it('augmente le loyer à chaque niveau', () => {
     let s = give(newGame(2), 'p1', azur);
     const rents = [rentFor(s, azur[0], 0)];
-    for (let lvl = 1; lvl <= 3; lvl++) {
+    for (let lvl = 1; lvl <= 4; lvl++) {
       for (const t of azur) s = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t }).state;
       rents.push(rentFor(s, azur[0], 0));
     }
@@ -536,14 +537,17 @@ describe('dettes et faillite', () => {
 
   it('permet d’hypothéquer puis de régler la dette', () => {
     let s = inDebt();
-    const aVendre = [1, 2, 4, 6, 8, 9, 11, 13, 14, 16, 18, 19, 21, 23];
+    // Uniquement des villes : depuis la refonte du plateau, les cases 2 et 4
+    // sont une carte et une taxe, qui ne rapportent rien à l'hypothèque.
+    const aVendre = [1, 3, 6, 8, 9, 11, 13, 14, 16, 18, 19, 21, 23, 24, 26, 27];
     s = give(s, 'p1', aVendre);
     // On hypothèque jusqu'à couvrir la dette, sans présumer de son montant :
     // il dépend du barème, qui peut évoluer.
     const du = (st: GameState) =>
       st.pending?.type === 'DEBT' ? st.pending.debt.amount : 0;
+    // On hypothèque tout ce qui peut l'être : le test porte sur la capacité à
+    // régler, pas sur la stratégie de levée de fonds.
     for (const t of aVendre) {
-      if (s.players.p1.cash >= du(s)) break;
       s = applyCommand(s, { t: 'MORTGAGE', by: 'p1', tile: t }).state;
     }
     expect(s.players.p1.cash, 'fonds réunis insuffisants').toBeGreaterThanOrEqual(du(s));

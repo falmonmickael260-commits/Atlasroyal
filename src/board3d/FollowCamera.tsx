@@ -56,7 +56,17 @@ export const FollowCamera = ({
     cam.near = 5;
     cam.far = 200;
 
-    const tilt = compact ? 0.98 : 0.88;
+    /*
+      Inclinaison : angle de la caméra au-dessus du plan de la table.
+
+      À 0,88 rad (50°) la vue était trop rasante. La perspective écrasait la
+      rangée du fond : ses cases faisaient 32 px de haut à l'écran contre 55
+      pour la rangée proche, et leurs noms devenaient illisibles alors que
+      ceux du bas se lisaient très bien. Plus près de la verticale, les quatre
+      rangées se projettent à des tailles comparables et le plateau se lit
+      d'un bloc, sans rien perdre du relief des bâtiments.
+    */
+    const tilt = compact ? 1.17 : 1.12;
     const aimY = compact ? 0 : -1.2;
 
     const h = GEO.half;

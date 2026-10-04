@@ -6,7 +6,7 @@ import { GEO, PLACEMENTS } from './layout';
 import { centerTexture, tileTexture } from './textures';
 import type { GameState } from '../engine/types';
 
-const SLAB = new THREE.MeshStandardMaterial({ color: '#223149', roughness: 0.8, metalness: 0.08 });
+const SLAB = new THREE.MeshStandardMaterial({ color: '#D9CFBA', roughness: 0.82, metalness: 0.04 });
 
 /** Une case : dalle en relief + face imprimée + liseré propriétaire. */
 const Tile = ({ index, owner }: { index: number; owner: string | null }) => {

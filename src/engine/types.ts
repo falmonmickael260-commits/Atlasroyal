@@ -19,8 +19,8 @@ export type TileKind =
   | 'depart' | 'city' | 'hub' | 'reseau' | 'card'
   | 'tax' | 'prison' | 'gotoprison' | 'parc';
 
-/** 0 = terrain nu, 1 = Maison, 2 = Villa, 3 = Grand Hôtel. */
-export type BuildLevel = 0 | 1 | 2 | 3;
+/** 0 terrain nu, 1 maison, 2 deux maisons, 3 villa, 4 hôtel. */
+export type BuildLevel = 0 | 1 | 2 | 3 | 4;
 
 export interface CityTile {
   i: TileIndex;
@@ -29,8 +29,8 @@ export interface CityTile {
   country: string;
   group: GroupId;
   price: number;
-  /** [terrain, maison, villa, grand hôtel] */
-  rent: [number, number, number, number];
+  /** [terrain, 1 maison, 2 maisons, villa, hôtel] */
+  rent: [number, number, number, number, number];
   buildCost: number;
   /** Repère visuel de la ville sur le plateau 3D. */
   landmark: 'tower' | 'dome' | 'spire' | 'arch' | 'pyramid' | 'bridge' | 'pagoda' | 'skyline';

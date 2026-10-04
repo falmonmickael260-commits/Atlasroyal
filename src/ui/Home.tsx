@@ -8,7 +8,7 @@ import './Home.css';
 const FACTS = [
   { icon: 'globe' as const, label: '22 villes, 8 groupes' },
   { icon: 'users' as const, label: '2 à 6 joueurs en temps réel' },
-  { icon: 'building' as const, label: 'Maison → Villa → Grand Hôtel' },
+  { icon: 'building' as const, label: 'Maison → villa → hôtel' },
   { icon: 'card' as const, label: '49 cartes évènement' },
 ];
 
@@ -36,8 +36,8 @@ export const Home = () => {
             <span>Bâtissez le monde</span>
           </h1>
           <p className="home__lead">
-            Parcourez un plateau vivant de vingt-quatre métropoles. Achetez des villes,
-            réunissez des groupes, faites monter vos quartiers de la maison au grand hôtel
+            Parcourez un plateau vivant de vingt-deux métropoles. Achetez des villes,
+            réunissez des groupes, faites monter vos quartiers de la maison à l’hôtel
             — et ruinez vos adversaires avant qu’ils ne vous ruinent.
           </p>
           <div className="home__facts">

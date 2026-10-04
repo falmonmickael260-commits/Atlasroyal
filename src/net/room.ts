@@ -174,11 +174,22 @@ export const useRoom = create<RoomStore>((set, get) => {
     if (!transport) return;
     if (isHost) unsubs.push(transport.onClientMsg(handleClientMsg));
     unsubs.push(transport.onServerMsg((msg) => {
+      /*
+        L'hôte diffuse à la cantonade : salon et instantanés partent vers tous
+        les abonnés du canal, y compris un arrivant qu'il vient de refuser
+        (partie déjà lancée, salon complet). Sans vérifier qu'on a bien un
+        siège, ce client basculait sur l'écran de jeu en spectateur fantôme —
+        il voyait la partie, ne pouvait rien faire et ne pouvait pas revenir.
+      */
+      const assis = (ids: string[]) => ids.includes(get().identity.id);
+
       switch (msg.k) {
         case 'LOBBY':
+          if (!assis(msg.lobby.seats.map((s) => s.id))) break;
           set({ lobby: msg.lobby, screen: msg.lobby.started ? 'game' : 'lobby' });
           break;
         case 'SNAPSHOT':
+          if (!assis(Object.keys(msg.state.players))) break;
           set((s) => ({
             state: msg.state,
             screen: 'game',
@@ -186,7 +197,19 @@ export const useRoom = create<RoomStore>((set, get) => {
           }));
           break;
         case 'REJECT':
-          if (msg.to === get().identity.id) set({ toast: msg.reason });
+          if (msg.to !== get().identity.id) break;
+          // Refus faute de siège : c'est la connexion qui échoue, pas une
+          // action de jeu. On repart à l'accueil au lieu d'afficher un salon
+          // dont on ne fait pas partie.
+          if (!assis((get().lobby?.seats ?? []).map((s) => s.id))) {
+            set({ error: msg.reason, screen: 'home', lobby: null, connecting: false });
+            // Sans cela, le prochain rafraîchissement tenterait de reprendre
+            // un salon qui vient justement de nous refuser.
+            forgetRoom();
+            teardown();
+            break;
+          }
+          set({ toast: msg.reason });
           break;
         case 'CLOSED':
           set({ error: msg.reason, screen: 'home' });

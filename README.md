@@ -26,7 +26,7 @@ Quatre hubs régulièrement répartis (cases 5, 15, 25, 35), six cases carte.
 On achète des villes, on réunit un groupe complet, puis on bâtit :
 
 ```
-Terrain nu  →  Maison  →  Villa  →  Grand Hôtel
+Terrain nu  →  Maison  →  Deux maisons  →  Villa  →  Hôtel
 ```
 
 Le dernier joueur financièrement viable gagne.
@@ -51,9 +51,13 @@ Le dernier joueur financièrement viable gagne.
 | Échanges | propriétés et liquidités dans les deux sens, à accepter ou refuser |
 | Faillite | patrimoine transféré au créancier, joueur éliminé |
 
-Prix des villes : 900 € (Marrakech) à 4 500 € (Monaco). Loyers indexés sur le
-prix, multipliés par 5 / 14 / 26 selon le niveau de construction. Un Grand Hôtel
-à Monaco coûte 7 800 € au visiteur.
+Prix des villes : 900 € (Marrakech) à 4 500 € (Monaco). Le loyer du terrain nu
+vaut environ 1/14 du prix d'achat ; les quatre paliers de construction le
+multiplient par 5 / 15 / 40 / 70. Un hôtel rapporte donc à peu près cinq fois le
+prix d'achat de la ville : 4 200 € à Marrakech, 22 400 € à Monaco. Le barème
+précédent plafonnait à 1,7 fois le prix, si bien que bâtir ne se rentabilisait
+jamais ; c'est la proportion, pas le niveau absolu, qui rend la construction
+décisive.
 
 **Choix assumés** — deux points s'écartent des habitudes du genre, à la demande
 du cahier des charges : une propriété refusée reste simplement disponible (pas

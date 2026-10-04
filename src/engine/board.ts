@@ -45,10 +45,13 @@ const city = (
   i: number, name: string, country: string, group: GroupId, price: number,
   buildCost: number, landmark: CityTile['landmark'], lat: number, lon: number,
 ): CityTile => {
-  const base = Math.round(price / 15 / 10) * 10;
+  const base = Math.round(price / 14 / 10) * 10;
   return {
     i, kind: 'city', name, country, group, price, buildCost, landmark, lat, lon,
-    rent: [base, base * 5, base * 14, base * 26],
+    // Progression calquée sur les proportions éprouvées du genre : un hôtel
+    // rapporte environ cinq fois le prix d'achat de la ville. L'ancien barème
+    // plafonnait à 1,7 fois, si bien que bâtir ne se rentabilisait jamais.
+    rent: [base, base * 5, base * 15, base * 40, base * 70],
   };
 };
 
@@ -126,4 +129,7 @@ export const GROUP_INDEX: Record<GroupId, TileIndex[]> = Object.fromEntries(
 export const HUB_TILES = BOARD.filter((t) => t.kind === 'hub').map((t) => t.i);
 export const RESEAU_TILES = BOARD.filter((t) => t.kind === 'reseau').map((t) => t.i);
 
-export const LEVEL_NAMES = ['Terrain', 'Maison', 'Villa', 'Grand Hôtel'] as const;
+export const LEVEL_NAMES = ['Terrain', 'Maison', 'Deux maisons', 'Villa', 'Hôtel'] as const;
+
+/** Dernier palier constructible. */
+export const MAX_LEVEL = 4;

@@ -257,7 +257,7 @@ const Masthead = () => {
           }),
         }}
       >
-        VINGT-QUATRE VILLES · UN SEUL EMPIRE
+        VINGT-DEUX VILLES · UN SEUL EMPIRE
       </Interactive.Div>
     </AbsoluteFill>
   );
