@@ -106,8 +106,21 @@ export const FollowCamera = ({
   useFrame((_, dt) => {
     const cam = camera as THREE.PerspectiveCamera;
 
+    /*
+      Le suivi est réservé au grand écran.
+
+      Sur téléphone, le plateau est contraint par la **largeur** : au repos il
+      occupe déjà 98,5 % de l'écran. Tout rapprochement — et même le simple
+      décalage latéral vers la case suivie — le fait alors déborder du cadre.
+      C'est ce qui donnait l'impression d'un zoom brutal à chaque déplacement,
+      avec une ou deux rangées coupées. En vue compacte, la caméra ne bouge
+      donc pas : le bond du pion et le halo de la case d'arrivée suffisent à
+      suivre le trajet.
+    */
+    const suit = follow !== null && !REDUCED_MOTION && !compact;
+
     // Point visé : centre du plateau au repos, case suivie pendant un trajet.
-    if (follow !== null && !REDUCED_MOTION) {
+    if (suit) {
       const p = PLACEMENTS[follow].pos;
       // On ne se déporte qu'à moitié vers la case : le plateau reste dans le
       // champ et le joueur ne perd jamais ses repères.
@@ -117,7 +130,7 @@ export const FollowCamera = ({
     }
 
     // Approche : un peu plus près pendant le suivi, pour lire la case.
-    const dist = follow !== null && !REDUCED_MOTION ? repos.dist * 0.82 : repos.dist;
+    const dist = suit ? repos.dist * 0.82 : repos.dist;
 
     desiree.set(
       cible.x,

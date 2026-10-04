@@ -40,7 +40,6 @@ const EMPTY_CINEMA = (state: GameState): Cinema => ({
   tokenTile: Object.fromEntries(state.order.map((id) => [id, state.players[id].position])),
   hop: {},
   dice: { values: [4, 2], rolling: false, key: 1 },
-  roll: { player: state.order[0], dice: [4, 2], total: 6, double: false },
   banner: null,
   card: null,
   highlight: null,

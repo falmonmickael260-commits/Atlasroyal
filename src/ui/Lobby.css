@@ -18,6 +18,11 @@
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5);
 }
+.lobby__title {
+  /* Fluide : jamais plus large que l'écran, quel que soit le téléphone. */
+  font-size: clamp(24px, 7.5vw, 40px);
+  margin-top: 12px;
+}
 .lobby__code {
   display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
@@ -114,7 +119,12 @@
   .lobby__code strong { font-size: 22px; letter-spacing: .22em; }
   .seats { grid-template-columns: 1fr; gap: var(--sp-3); }
   .seat { padding: var(--sp-3); }
-  .lobby__head h1 { font-size: 30px; }
+  .lobby__head h1 { font-size: clamp(22px, 7vw, 30px); }
+  /* Filet de sécurité : aucune colonne du salon ne doit pouvoir pousser la
+     page au-delà de l'écran — c'est ce débordement latéral qui donnait
+     l'impression que tout était décentré sur téléphone. */
+  .lobby__inner { min-width: 0; max-width: 100%; }
+  .lobby { overflow-x: hidden; }
   .lobby__head { gap: var(--sp-3); }
   /* Les sélecteurs défilent horizontalement plutôt que d'allonger la page. */
   .picker {

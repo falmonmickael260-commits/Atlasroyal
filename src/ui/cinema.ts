@@ -22,14 +22,6 @@ export interface CashFly {
   amount: number;
 }
 
-/** Dernier lancer, conservé à l'écran jusqu'au suivant. */
-export interface RollInfo {
-  player: PlayerId;
-  dice: [number, number];
-  total: number;
-  double: boolean;
-}
-
 export interface Cinema {
   /** Case occupée visuellement (peut être en retard sur l'état autoritaire). */
   tokenTile: Record<PlayerId, number>;
@@ -37,7 +29,6 @@ export interface Cinema {
   hop: Record<PlayerId, number>;
   dice: { values: [number, number]; rolling: boolean; key: number } | null;
   /** Résultat lisible en permanence, pour que toute la table le voie. */
-  roll: RollInfo | null;
   banner: Banner | null;
   card: string | null;
   highlight: number | null;
@@ -54,7 +45,7 @@ export interface Cinema {
 }
 
 const initial: Cinema = {
-  tokenTile: {}, hop: {}, dice: null, roll: null,
+  tokenTile: {}, hop: {}, dice: null,
   banner: null, card: null, highlight: null, build: null, cashFly: null, purchase: null,
   follow: null, destination: null,
   playing: false,
@@ -110,7 +101,6 @@ export const useCinematic = () => {
         setCinema((c) => ({
           ...c,
           dice: { values: ev.dice, rolling: true, key: k },
-          roll: { player: ev.player, dice: ev.dice, total: ev.dice[0] + ev.dice[1], double: ev.isDouble },
           // La case d'arrivée est connue dès le lancer : on l'annonce pour que
           // chacun puisse suivre le trajet en sachant où il finit.
           destination:
@@ -130,7 +120,6 @@ export const useCinematic = () => {
         setCinema((c) => ({
           ...c,
           dice: { values: ev.dice, rolling: true, key: k },
-          roll: { player: ev.player, dice: ev.dice, total: ev.dice[0] + ev.dice[1], double: ev.success },
         }));
         window.setTimeout(() => {
           audio.diceLand();

@@ -9,7 +9,6 @@ import { useCompact } from './useCompact';
 import { Icon } from './Icon';
 import { euro } from './format';
 import { BannerLayer } from './panels/BannerLayer';
-import { RollReadout } from './panels/RollReadout';
 import { TokenLabels } from './panels/TokenLabels';
 import { TradeTicker } from './panels/TradeTicker';
 import { CardOverlay } from './panels/CardOverlay';
@@ -250,7 +249,6 @@ export const Game = () => {
       </div>
 
       <TokenLabels state={state} register={registerLabels} />
-      <RollReadout roll={cinema.roll} state={state} />
       {!spectator && <TradeTicker state={state} me={me} onOpen={() => setDrawer('trade')} />}
       <BannerLayer banner={cinema.banner} />
       <CashFlight fly={cinema.cashFly} />

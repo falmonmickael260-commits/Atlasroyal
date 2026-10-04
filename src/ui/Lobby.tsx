@@ -37,7 +37,11 @@ export const Lobby = () => {
         <div className="lobby__head">
           <div>
             <span className="home__eyebrow"><Icon name="users" size={14} /> Salon</span>
-            <h1 style={{ fontSize: 40, marginTop: 12 }}>Préparez l’expédition</h1>
+            {/* Taille portée par la feuille de style : en ligne, elle écrasait la
+                règle mobile. À 40 px sur un écran de 375, ce seul titre
+                réclamait 393 px et faisait déborder toute la page vers la
+                droite — tout paraissait décentré et décalé. */}
+            <h1 className="lobby__title">Préparez l’expédition</h1>
           </div>
           <div className="lobby__code">
             <div>
