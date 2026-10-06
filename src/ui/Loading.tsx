@@ -45,8 +45,14 @@ export const Loading = ({ label }: { label: string }) => {
       <div className="attente__halo" aria-hidden="true" />
 
       <div className="attente__marque">
-        <img className="attente__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune City" />
-        <span className="attente__eclat" aria-hidden="true" />
+        <span className="attente__lueur" aria-hidden="true" />
+        {/* Deux niveaux : l'entrée est jouée une fois sur le conteneur, le
+            balancement tourne en boucle à l'intérieur. Les mettre sur le même
+            élément ferait se battre les deux transformations. */}
+        <div className="attente__pivot">
+          <img className="attente__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune City" />
+          <span className="attente__eclat" aria-hidden="true" />
+        </div>
       </div>
 
       <div className="attente__jauge" aria-hidden="true"><span /></div>
