@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BOARD, GROUPS } from '../engine/board';
 import { DISPLAY_FONT } from './fonts';
+import { logoPlateau } from './logoPlateau';
 import type { Tile } from '../engine/types';
 
 /**
@@ -459,23 +460,57 @@ export const centerTexture = (size: number): THREE.CanvasTexture => {
     c.stroke();
   }
 
-  // Titre au fond du tapis : la zone proche reste libre pour les dés.
+  /*
+    Marque, au fond du tapis — la zone proche reste libre pour les dés.
+
+    Le logo est posé tel quel quand il est décodé ; sinon on retombe sur le
+    titre dessiné. Les deux occupent la même bande, de sorte que le plateau
+    reste composé dans les deux cas.
+  */
   c.textAlign = 'center';
   c.textBaseline = 'middle';
-  const h = size * 0.062;
-  c.font = `700 ${h}px ${DISPLAY_FONT}`;
-  c.fillStyle = 'rgba(248, 243, 230, 0.92)';
-  c.fillText('FORTUNE CITY', size / 2, size * 0.135);
-  c.font = `600 ${h * 0.34}px ${DISPLAY_FONT}`;
-  c.fillStyle = 'rgba(250, 214, 110, 0.8)';
-  c.fillText('VINGT-DEUX MÉTROPOLES · UNE SEULE COURONNE', size / 2, size * 0.185);
-  c.strokeStyle = 'rgba(250, 214, 110, 0.45)';
-  c.lineWidth = size * 0.0016;
-  const demi = size * 0.2;
-  c.beginPath();
-  c.moveTo(size / 2 - demi, size * 0.165); c.lineTo(size / 2 - demi * 0.42, size * 0.165);
-  c.moveTo(size / 2 + demi * 0.42, size * 0.165); c.lineTo(size / 2 + demi, size * 0.165);
-  c.stroke();
+  const logo = logoPlateau();
+
+  if (logo && logo.naturalWidth > 0) {
+    // Au plus large que le permet la bande : le logo doit être le premier
+    // objet qu'on voit en se penchant sur le plateau, pas une vignette.
+    const large = size * 0.52;
+    const haut = large * (logo.naturalHeight / logo.naturalWidth);
+    const centre = size * 0.133;
+    // Ombre portée douce : sans elle, une image à fond transparent posée sur
+    // la feutrine paraît découpée et collée, pas imprimée dans le tapis.
+    c.save();
+    c.shadowColor = 'rgba(6, 30, 20, 0.5)';
+    c.shadowBlur = size * 0.016;
+    c.shadowOffsetY = size * 0.004;
+    c.drawImage(logo, (size - large) / 2, centre - haut / 2, large, haut);
+    c.restore();
+
+    /*
+      Pas de sous-titre sous le logo.
+
+      Essayé, retiré : le bas du logo n'est pas une ligne vide mais une bande
+      de plateau avec dés et piles de pièces. Toute ligne de texte posée là se
+      superpose à ce décor et devient illisible ; la décaler plus bas la fait
+      tomber sur la carte. Le logo porte déjà le nom — la redite ne valait pas
+      l'encombrement.
+    */
+  } else {
+    const h = size * 0.062;
+    c.font = `700 ${h}px ${DISPLAY_FONT}`;
+    c.fillStyle = 'rgba(248, 243, 230, 0.92)';
+    c.fillText('FORTUNE CITY', size / 2, size * 0.135);
+    c.font = `600 ${h * 0.34}px ${DISPLAY_FONT}`;
+    c.fillStyle = 'rgba(250, 214, 110, 0.8)';
+    c.fillText('VINGT-DEUX MÉTROPOLES · UNE SEULE COURONNE', size / 2, size * 0.185);
+    c.strokeStyle = 'rgba(250, 214, 110, 0.45)';
+    c.lineWidth = size * 0.0016;
+    const demi = size * 0.2;
+    c.beginPath();
+    c.moveTo(size / 2 - demi, size * 0.165); c.lineTo(size / 2 - demi * 0.42, size * 0.165);
+    c.moveTo(size / 2 + demi * 0.42, size * 0.165); c.lineTo(size / 2 + demi, size * 0.165);
+    c.stroke();
+  }
 
   return finish(cv);
 };

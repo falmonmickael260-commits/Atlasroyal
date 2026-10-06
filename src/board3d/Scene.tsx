@@ -9,6 +9,7 @@ import { FollowCamera } from './FollowCamera';
 import { Room } from './Room';
 import { fontsReady } from './fonts';
 import { prechargerEnvironnement } from './environnement';
+import { prechargerLogo } from './logoPlateau';
 import { RENDER_DPR, RENDER_SHADOWS, SHADOW_MAP, TEXTURE_DPI } from './renderProfile';
 import { setMaxAnisotropy, setTextureDensity } from './textures';
 import type { Cinema } from '../ui/cinema';
@@ -173,11 +174,12 @@ export const Scene = ({
 
   useEffect(() => {
     let vivant = true;
-    // Les polices ET la sonde d'environnement conditionnent la première image :
-    // peindre les textures sans police donne un plateau en police de repli,
-    // et monter sans sonde fige les pions sur un reflet de repli pour toute
-    // la partie — les deux sont irrattrapables ensuite.
-    void Promise.all([fontsReady(), prechargerEnvironnement()]).then(() => {
+    // Polices, sonde d'environnement et logo conditionnent la première image.
+    // Les textures ne sont peintes qu'une fois : sans police le plateau reste
+    // en fonte de repli, sans logo le tapis garde son titre dessiné, sans
+    // sonde les pions gardent un reflet de repli. Les trois sont
+    // irrattrapables une fois la scène montée.
+    void Promise.all([fontsReady(), prechargerEnvironnement(), prechargerLogo()]).then(() => {
       if (vivant) setPolices(true);
     });
     return () => {
