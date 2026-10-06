@@ -17,7 +17,7 @@ const { fontFamily: DISPLAY } = loadDisplay();
 const { fontFamily: BODY } = loadBody();
 
 /**
- * Générique d'ouverture d'ATLAS ROYALE.
+ * Générique d'ouverture d'FORTUNE CITY.
  *
  * Écrit selon les règles Remotion : toute l'animation est pilotée par
  * `useCurrentFrame()` + `interpolate()` (aucune transition CSS, qui ne serait
@@ -175,7 +175,7 @@ const CityStream = () => {
 const Masthead = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const letters = 'ATLAS'.split('');
+  const letters = 'FORTUNE'.split('');
 
   return (
     <AbsoluteFill
@@ -239,7 +239,7 @@ const Masthead = () => {
           }),
         }}
       >
-        ROYALE
+        CITY
       </Interactive.Div>
 
       <Interactive.Div
@@ -257,7 +257,7 @@ const Masthead = () => {
           }),
         }}
       >
-        VINGT-DEUX VILLES · UN SEUL EMPIRE
+        VINGT-DEUX VILLES · UNE SEULE COURONNE
       </Interactive.Div>
     </AbsoluteFill>
   );
@@ -283,7 +283,7 @@ const Sweep = () => {
   );
 };
 
-export const AtlasIntro = () => {
+export const FortuneIntro = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 

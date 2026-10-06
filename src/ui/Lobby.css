@@ -5,11 +5,21 @@
   display: grid;
   place-items: center;
 }
+/*
+  Fond du salon : le panorama, fortement assombri.
+
+  L'image n'est pas là pour être regardée — elle l'a déjà été sur l'accueil —
+  mais pour que le salon reste dans le même monde. Les deux voiles qui la
+  recouvrent sont donc volontairement opaques : les cartes de joueurs et le
+  code de partage doivent se lire sans effort, et c'est le texte qui compte
+  à cet écran.
+*/
 .lobby__bg {
   position: absolute; inset: 0;
   background:
-    radial-gradient(90% 70% at 50% 0%, rgba(21, 128, 61, .3), transparent 60%),
-    radial-gradient(70% 60% at 50% 100%, rgba(217, 119, 6, .16), transparent 60%),
+    linear-gradient(180deg, rgba(5, 9, 18, .9), rgba(5, 9, 18, .96)),
+    radial-gradient(90% 70% at 50% 0%, rgba(21, 128, 61, .22), transparent 60%),
+    url('/ui/fond-panorama.webp') center / cover no-repeat,
     var(--bg-deep);
 }
 .lobby__inner { position: relative; width: min(1060px, 100%); max-width: 100%; }

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Player, type PlayerRef } from '@remotion/player';
 import {
-  AtlasIntro, INTRO_FPS, INTRO_FRAMES, INTRO_HEIGHT, INTRO_WIDTH,
-} from '../cinematic/AtlasIntro';
+  FortuneIntro, INTRO_FPS, INTRO_FRAMES, INTRO_HEIGHT, INTRO_WIDTH,
+} from '../cinematic/FortuneIntro';
 import { audio } from '../audio/audio';
 import { Icon } from './Icon';
 
@@ -58,7 +58,7 @@ export const Intro = ({ onDone }: { onDone: () => void }) => {
     >
       <Player
         ref={ref}
-        component={AtlasIntro}
+        component={FortuneIntro}
         durationInFrames={INTRO_FRAMES}
         compositionWidth={INTRO_WIDTH}
         compositionHeight={INTRO_HEIGHT}

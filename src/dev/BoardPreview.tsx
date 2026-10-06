@@ -13,7 +13,8 @@ import type { Cinema } from '../ui/cinema';
  * dés — pour inspecter le plateau sans avoir à atteindre ces situations en
  * jouant. Sert à vérifier les silhouettes de bâtiments et le cadrage caméra.
  */
-const SEATS = ['#F5D97B', '#5FE3BC', '#FF9C86', '#7BA6FF'].map((color, i) => ({
+// Six sièges : un par silhouette de pion, pour pouvoir toutes les inspecter.
+const SEATS = ['#F5D97B', '#5FE3BC', '#FF9C86', '#7BA6FF', '#C792EA', '#FFB454'].map((color, i) => ({
   id: `p${i}`, name: `Joueur ${i + 1}`, avatar: 'a1', color, token: `t${i + 1}`,
 }));
 
@@ -31,7 +32,7 @@ const build = (level: BuildLevel): GameState => {
   }
   const players = { ...s.players };
   SEATS.forEach((seat, i) => {
-    players[seat.id] = { ...players[seat.id], position: [1, 12, 24, 33][i] };
+    players[seat.id] = { ...players[seat.id], position: [1, 12, 24, 33, 6, 29][i] };
   });
   return { ...s, tiles, players, phase: 'ROLL_DICE', pot: 4200 };
 };

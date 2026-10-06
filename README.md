@@ -1,4 +1,4 @@
-# ATLAS ROYALE
+# FORTUNE CITY
 
 Jeu de plateau multijoueur en ligne, 2 à 6 joueurs. Univers, plateau, villes,
 cartes, pions et identité visuelle originaux ; mécaniques d'acquisition, de
@@ -48,7 +48,7 @@ Le dernier joueur financièrement viable gagne.
 | Construction | uniquement avec toutes les villes du groupe, et de façon homogène |
 | Hypothèque | 50 % du prix ; levée à 110 % de ce montant |
 | Revente d'un niveau | 50 % du coût de construction |
-| Échanges | propriétés et liquidités dans les deux sens, à accepter ou refuser |
+| Échanges | propriétés et liquidités dans les deux sens, à accepter ou refuser ; une contrepartie est exigée de chaque côté — pas de don déguisé |
 | Faillite | patrimoine transféré au créancier, joueur éliminé |
 
 Prix des villes : 900 € (Marrakech) à 4 500 € (Monaco). Le loyer du terrain nu
@@ -182,13 +182,13 @@ côtés (`FixedCamera.tsx`).
 
 ## 5. Générique Remotion
 
-La composition `src/cinematic/AtlasIntro.tsx` sert **à la fois** de séquence
+La composition `src/cinematic/FortuneIntro.tsx` sert **à la fois** de séquence
 d'ouverture dans le jeu (via `@remotion/player`, passable par Échap) et de
 source d'export vidéo :
 
 ```bash
 npm run intro:studio     # Remotion Studio
-npm run intro:render     # -> out/atlas-intro.mp4
+npm run intro:render     # -> out/fortune-intro.mp4
 ```
 
 Elle charge ses propres polices (`@remotion/google-fonts`), donc le rendu MP4 ne

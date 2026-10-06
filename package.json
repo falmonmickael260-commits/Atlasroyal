@@ -1,5 +1,5 @@
 {
-  "name": "atlas-royale",
+  "name": "fortune-city",
   "version": "1.0.0",
   "private": true,
   "description": "Jeu de plateau multijoueur en ligne, 2 à 6 joueurs. Univers et plateau originaux.",
@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "check": "tsc --noEmit -p tsconfig.json",
     "intro:studio": "remotion studio remotion/index.ts",
-    "intro:render": "remotion render remotion/index.ts AtlasIntro out/atlas-intro.mp4"
+    "intro:render": "remotion render remotion/index.ts FortuneIntro out/fortune-intro.mp4"
   },
   "dependencies": {
     "@react-three/fiber": "9.8.0",

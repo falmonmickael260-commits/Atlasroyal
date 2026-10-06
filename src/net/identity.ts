@@ -1,8 +1,8 @@
 import { makePlayerId } from './protocol';
 
-const PROFILE_KEY = 'atlas-royale:profile';
-const ID_KEY = 'atlas-royale:id';
-const ROOM_KEY = 'atlas-royale:last-room';
+const PROFILE_KEY = 'fortune-city:profile';
+const ID_KEY = 'fortune-city:id';
+const ROOM_KEY = 'fortune-city:last-room';
 
 export interface Identity {
   id: string;

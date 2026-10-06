@@ -465,10 +465,10 @@ export const centerTexture = (size: number): THREE.CanvasTexture => {
   const h = size * 0.062;
   c.font = `700 ${h}px ${DISPLAY_FONT}`;
   c.fillStyle = 'rgba(248, 243, 230, 0.92)';
-  c.fillText('ATLAS ROYALE', size / 2, size * 0.135);
+  c.fillText('FORTUNE CITY', size / 2, size * 0.135);
   c.font = `600 ${h * 0.34}px ${DISPLAY_FONT}`;
   c.fillStyle = 'rgba(250, 214, 110, 0.8)';
-  c.fillText('VINGT-DEUX MÉTROPOLES · UN SEUL EMPIRE', size / 2, size * 0.185);
+  c.fillText('VINGT-DEUX MÉTROPOLES · UNE SEULE COURONNE', size / 2, size * 0.185);
   c.strokeStyle = 'rgba(250, 214, 110, 0.45)';
   c.lineWidth = size * 0.0016;
   const demi = size * 0.2;

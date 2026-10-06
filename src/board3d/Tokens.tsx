@@ -1,73 +1,149 @@
-import { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useLayoutEffect, useMemo, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { GEO, tokenSlot } from './layout';
+import { envMapPartagee } from './environnement';
 import type { GameState, PlayerId } from '../engine/types';
 
-/** Silhouettes de pions : chacune doit être reconnaissable en vue d'ensemble. */
+/*
+  Profil du socle, en coupe (rayon × hauteur), revolu autour de l'axe.
+
+  Un pion de jeu n'est pas posé sur un disque : il repose sur un pied tourné,
+  avec une gorge et un congé. C'est ce profil qui fait la différence entre une
+  pièce de jeu et un cylindre, et il se lit même à vingt pixels parce qu'il
+  accroche la lumière sur trois arêtes au lieu d'une.
+*/
+const PROFIL_SOCLE: THREE.Vector2[] = (
+  [
+    [0, 0], [0.205, 0], [0.222, 0.016], [0.216, 0.040], [0.176, 0.056],
+    [0.150, 0.072], [0.144, 0.096], [0.116, 0.110], [0.108, 0.124], [0, 0.124],
+  ] as [number, number][]
+).map(([x, y]) => new THREE.Vector2(x, y));
+
+/** Hauteur du socle : toutes les silhouettes s'y posent. */
+const H_SOCLE = 0.124;
+
+/** Lanterne du phare : la seule source lumineuse portée par un pion. */
+const MAT_LANTERNE = new THREE.MeshStandardMaterial({
+  color: '#FFF4D0', emissive: '#FFD38A', emissiveIntensity: 2.4, roughness: 0.3,
+});
+
+/**
+ * Silhouettes de pions.
+ *
+ * Contrainte directrice : la caméra regarde la table de haut. Une pièce
+ * purement tournée — un pion d'échecs — ne se distingue plus d'une autre vue
+ * du dessus, où toutes se résument à un cercle. Chaque silhouette garde donc
+ * un couronnement **non symétrique**, qui reste identifiable à la verticale,
+ * posé sur un pied tourné commun qui, lui, donne la matière.
+ */
 const Shape = ({ token, mat }: { token: string; mat: THREE.Material }) => {
   switch (token) {
-    case 't2': // Dirigeable
+    case 't2': // Dirigeable : coque fuselée, empennage, nacelle
       return (
-        <group>
-          <mesh castShadow material={mat} position={[0, 0.3, 0]} rotation={[0, 0, Math.PI / 2]} scale={[1, 1.5, 1]}>
-            <capsuleGeometry args={[0.13, 0.16, 6, 12]} />
+        <group position={[0, 0.42, 0]}>
+          <mesh castShadow material={mat} rotation={[0, 0, Math.PI / 2]} scale={[1, 1.55, 1]}>
+            <capsuleGeometry args={[0.125, 0.14, 8, 16]} />
           </mesh>
-          <mesh material={mat} position={[0, 0.12, 0]}>
-            <boxGeometry args={[0.12, 0.08, 0.08]} />
+          {/*
+            Empennage en croix, posé au-delà de la coque.
+
+            La coque mesure ±0,30 le long de son axe une fois étirée : des
+            ailerons placés plus près disparaissaient purement et simplement
+            à l'intérieur du volume. C'est pourtant eux qui signent la
+            silhouette vue de haut, là où la coque seule n'est qu'un ovale.
+          */}
+          {[0, Math.PI / 2].map((r) => (
+            <mesh key={r} castShadow material={mat} position={[-0.35, 0, 0]} rotation={[r, 0, 0]}>
+              <boxGeometry args={[0.11, 0.2, 0.018]} />
+            </mesh>
+          ))}
+          {/* Nacelle, dégagée sous la coque plutôt qu'enfouie dedans. */}
+          <mesh castShadow material={mat} position={[0.03, -0.195, 0]}>
+            <boxGeometry args={[0.18, 0.085, 0.095]} />
+          </mesh>
+          <mesh material={mat} position={[0.03, -0.145, 0]}>
+            <boxGeometry args={[0.03, 0.06, 0.03]} />
           </mesh>
         </group>
       );
-    case 't3': // Cargo
+    case 't3': // Cargo : coque, superstructure, cheminée
       return (
-        <group>
-          <mesh castShadow material={mat} position={[0, 0.12, 0]}>
-            <boxGeometry args={[0.38, 0.14, 0.2]} />
+        <group position={[0, 0.1, 0]}>
+          <mesh castShadow material={mat} position={[0, 0.07, 0]}>
+            <boxGeometry args={[0.42, 0.11, 0.2]} />
           </mesh>
-          <mesh castShadow material={mat} position={[-0.06, 0.26, 0]}>
-            <boxGeometry args={[0.16, 0.16, 0.16]} />
+          {/* Étrave inclinée : le volume cesse d'être une simple boîte. */}
+          <mesh castShadow material={mat} position={[0.23, 0.08, 0]} rotation={[0, 0, -0.35]}>
+            <boxGeometry args={[0.1, 0.12, 0.19]} />
+          </mesh>
+          <mesh castShadow material={mat} position={[-0.08, 0.2, 0]}>
+            <boxGeometry args={[0.15, 0.16, 0.16]} />
+          </mesh>
+          <mesh castShadow material={mat} position={[-0.08, 0.33, 0]}>
+            <cylinderGeometry args={[0.035, 0.045, 0.1, 10]} />
           </mesh>
         </group>
       );
-    case 't4': // Monolithe
+    case 't4': // Monolithe : dalle écartée de la verticale, biseau en tête
       return (
-        <mesh castShadow material={mat} position={[0, 0.26, 0]}>
-          <boxGeometry args={[0.2, 0.52, 0.12]} />
-        </mesh>
-      );
-    case 't5': // Satellite
-      return (
-        <group>
-          <mesh castShadow material={mat} position={[0, 0.3, 0]}>
-            <icosahedronGeometry args={[0.14, 0]} />
+        <group position={[0, 0.06, 0]} rotation={[0, 0.3, 0]}>
+          <mesh castShadow material={mat} position={[0, 0.3, 0]} rotation={[0.07, 0, 0]}>
+            <boxGeometry args={[0.24, 0.56, 0.1]} />
           </mesh>
-          <mesh material={mat} position={[0, 0.3, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <torusGeometry args={[0.24, 0.018, 6, 24]} />
-          </mesh>
-          <mesh material={mat} position={[0, 0.1, 0]}>
-            <cylinderGeometry args={[0.03, 0.06, 0.2, 8]} />
+          <mesh castShadow material={mat} position={[0, 0.585, 0.012]} rotation={[0.07, 0, 0]}>
+            <boxGeometry args={[0.24, 0.07, 0.1]} />
           </mesh>
         </group>
       );
-    case 't6': // Phare
+    case 't5': // Satellite : corps facetté, anneau, panneaux déployés
       return (
-        <group>
-          <mesh castShadow material={mat} position={[0, 0.22, 0]}>
-            <cylinderGeometry args={[0.09, 0.16, 0.44, 10]} />
+        <group position={[0, 0.36, 0]}>
+          <mesh castShadow material={mat}>
+            <icosahedronGeometry args={[0.135, 0]} />
           </mesh>
-          <mesh material={mat} position={[0, 0.5, 0]}>
-            <sphereGeometry args={[0.08, 10, 10]} />
+          {[-1, 1].map((c) => (
+            <mesh key={c} castShadow material={mat} position={[c * 0.25, 0, 0]} rotation={[0, 0, 0.18 * c]}>
+              <boxGeometry args={[0.22, 0.012, 0.12]} />
+            </mesh>
+          ))}
+          <mesh material={mat} rotation={[Math.PI / 2.6, 0, 0]}>
+            <torusGeometry args={[0.2, 0.015, 8, 28]} />
+          </mesh>
+          <mesh castShadow material={mat} position={[0, -0.21, 0]}>
+            <cylinderGeometry args={[0.028, 0.055, 0.16, 10]} />
           </mesh>
         </group>
       );
-    default: // Obélisque
+    case 't6': // Phare : fût tronconique, galerie, lanterne allumée
       return (
-        <group>
-          <mesh castShadow material={mat} position={[0, 0.26, 0]}>
-            <cylinderGeometry args={[0.03, 0.14, 0.52, 4]} />
+        <group position={[0, H_SOCLE, 0]}>
+          <mesh castShadow material={mat} position={[0, 0.2, 0]}>
+            <cylinderGeometry args={[0.082, 0.135, 0.4, 16]} />
           </mesh>
-          <mesh material={mat} position={[0, 0.06, 0]}>
-            <boxGeometry args={[0.3, 0.1, 0.3]} />
+          {/* Galerie en débord : l'ombre qu'elle porte sur le fût fait le phare. */}
+          <mesh castShadow material={mat} position={[0, 0.41, 0]}>
+            <cylinderGeometry args={[0.112, 0.112, 0.026, 16]} />
+          </mesh>
+          <mesh material={MAT_LANTERNE} position={[0, 0.455, 0]}>
+            <cylinderGeometry args={[0.062, 0.062, 0.07, 12]} />
+          </mesh>
+          <mesh castShadow material={mat} position={[0, 0.515, 0]}>
+            <coneGeometry args={[0.078, 0.08, 12]} />
+          </mesh>
+        </group>
+      );
+    default: // Obélisque : fût effilé à quatre pans, pyramidion
+      return (
+        <group position={[0, H_SOCLE, 0]} rotation={[0, Math.PI / 4, 0]}>
+          <mesh castShadow material={mat} position={[0, 0.045, 0]}>
+            <boxGeometry args={[0.24, 0.09, 0.24]} />
+          </mesh>
+          <mesh castShadow material={mat} position={[0, 0.31, 0]}>
+            <cylinderGeometry args={[0.072, 0.115, 0.44, 4]} />
+          </mesh>
+          <mesh castShadow material={mat} position={[0, 0.565, 0]}>
+            <coneGeometry args={[0.102, 0.11, 4]} />
           </mesh>
         </group>
       );
@@ -126,6 +202,7 @@ const Pawn = ({
   const g = useRef<THREE.Group>(null);
   const pos = useRef(new THREE.Vector3(...target));
   const vec = useMemo(() => new THREE.Vector3(), []);
+  const gl = useThree((s) => s.gl);
   /** Extrémités et avancement du bond en cours (1 = posé). */
   const depart = useRef(new THREE.Vector3(...target));
   const arrivee = useRef(new THREE.Vector3(...target));
@@ -140,15 +217,31 @@ const Pawn = ({
   const onde = useRef<THREE.Mesh>(null);
   const mat = useMemo(
     () =>
+      /*
+        Métal laqué, et non plastique coloré.
+
+        Un diélectrique — plastique, résine — tient sa couleur de sa diffusion :
+        sous un éclairage fort il blanchit, et six pions finissent indiscernables.
+        Un métal, lui, n'a presque pas de diffusion : sa couleur **teinte son
+        reflet**. Il reste donc saturé quelle que soit la lumière, et il tire
+        du décor les traînées claires qui dessinent ses arêtes. C'est ce qui
+        sépare une pièce moulée d'un volume coloré, et ça ne coûte rien de plus
+        à dessiner — seulement un environnement à réfléchir.
+
+        La couleur n'est plus assombrie : sans diffusion à saturer, elle peut
+        rester celle du siège, donc reconnaissable d'un coup d'œil.
+      */
       new THREE.MeshPhysicalMaterial({
         color,
-        roughness: 0.3,
-        metalness: 0.15,
-        clearcoat: 0.7,
-        clearcoatRoughness: 0.2,
-        emissive: new THREE.Color(color).multiplyScalar(0.12),
+        metalness: 0.94,
+        roughness: 0.26,
+        // Vernis par-dessus le métal : le liseré blanc des pièces laquées.
+        clearcoat: 0.85,
+        clearcoatRoughness: 0.12,
+        envMap: envMapPartagee(gl),
+        envMapIntensity: 1.15,
       }),
-    [color],
+    [color, gl],
   );
   const matOnde = useMemo(
     () =>
@@ -162,6 +255,23 @@ const Pawn = ({
       }),
     [color],
   );
+
+  /*
+    Transform posée dès le montage.
+
+    La position et l'échelle sont calculées dans la boucle d'animation : un
+    pion monté entre deux images restait donc une image entière à l'origine
+    du plateau, au centre de la carte, avant d'être replacé. Invisible au
+    lancement, où tout démarre ensemble — mais bien visible quand un pion
+    apparaît en cours de partie.
+  */
+  useLayoutEffect(() => {
+    if (!g.current) return;
+    g.current.position.set(...target);
+    const s = bankrupt ? 0.001 : PAWN_SCALE;
+    g.current.scale.setScalar(s);
+    echelle.current = s;
+  }, []);
 
   useFrame((st, dt) => {
     if (!g.current) return;
@@ -261,17 +371,11 @@ const Pawn = ({
 
   return (
     <group ref={g} name={`pion-${id}`}>
-      {/* Socle commun à toutes les silhouettes : un pion de jeu repose sur
-          une base tournée, c'est elle qui lui donne son assise. */}
-      <mesh castShadow receiveShadow material={mat} position={[0, 0.028, 0]}>
-        <cylinderGeometry args={[0.2, 0.23, 0.056, 24]} />
+      {/* Socle tourné, commun à toutes les silhouettes. */}
+      <mesh castShadow receiveShadow material={mat}>
+        <latheGeometry args={[PROFIL_SOCLE, 32]} />
       </mesh>
-      <mesh material={mat} position={[0, 0.07, 0]}>
-        <cylinderGeometry args={[0.14, 0.2, 0.04, 24]} />
-      </mesh>
-      <group position={[0, 0.06, 0]}>
-        <Shape token={token} mat={mat} />
-      </group>
+      <Shape token={token} mat={mat} />
       {active && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
           <ringGeometry args={[0.3, 0.38, 28]} />

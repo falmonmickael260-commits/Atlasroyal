@@ -26,7 +26,7 @@ export class SupabaseTransport extends BaseTransport {
   constructor(private roomCode: string, private selfId: string) { super(); }
 
   async connect() {
-    const ch = getClient().channel(`atlas:${this.roomCode}`, {
+    const ch = getClient().channel(`fortune:${this.roomCode}`, {
       config: { broadcast: { self: false, ack: false } },
     });
     ch.on('broadcast', { event: 'to_host' }, ({ payload }) => {

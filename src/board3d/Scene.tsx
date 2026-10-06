@@ -8,6 +8,7 @@ import { Dice } from './Dice';
 import { FollowCamera } from './FollowCamera';
 import { Room } from './Room';
 import { fontsReady } from './fonts';
+import { prechargerEnvironnement } from './environnement';
 import { RENDER_DPR, RENDER_SHADOWS, SHADOW_MAP, TEXTURE_DPI } from './renderProfile';
 import { setMaxAnisotropy, setTextureDensity } from './textures';
 import type { Cinema } from '../ui/cinema';
@@ -172,7 +173,11 @@ export const Scene = ({
 
   useEffect(() => {
     let vivant = true;
-    void fontsReady().then(() => {
+    // Les polices ET la sonde d'environnement conditionnent la première image :
+    // peindre les textures sans police donne un plateau en police de repli,
+    // et monter sans sonde fige les pions sur un reflet de repli pour toute
+    // la partie — les deux sont irrattrapables ensuite.
+    void Promise.all([fontsReady(), prechargerEnvironnement()]).then(() => {
       if (vivant) setPolices(true);
     });
     return () => {

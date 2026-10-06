@@ -195,7 +195,7 @@ export const Game = () => {
 
       <div className="hud-top">
         <div className="brand glass">
-          <span className="brand__mark">ATLAS ROYALE</span>
+          <span className="brand__mark">FORTUNE CITY</span>
           <span className="brand__round">Tour {state.round}</span>
         </div>
 

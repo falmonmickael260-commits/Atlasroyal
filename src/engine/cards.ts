@@ -1,7 +1,7 @@
 import type { CardDef, CardEffect } from './types';
 
 /**
- * Cartes originales ATLAS ROYALE.
+ * Cartes originales FORTUNE CITY.
  *
  * Ajouter une carte = ajouter un objet ici. Rien d'autre à modifier :
  * `effect` est de la donnée, interprétée par `applyEffect()` dans engine.ts,

@@ -1,7 +1,7 @@
 import { Composition } from 'remotion';
 import {
-  AtlasIntro, INTRO_FPS, INTRO_FRAMES, INTRO_HEIGHT, INTRO_WIDTH,
-} from '../src/cinematic/AtlasIntro';
+  FortuneIntro, INTRO_FPS, INTRO_FRAMES, INTRO_HEIGHT, INTRO_WIDTH,
+} from '../src/cinematic/FortuneIntro';
 
 /**
  * Racine Remotion propre au jeu : elle n'interfère pas avec le projet vidéo
@@ -9,8 +9,8 @@ import {
  */
 export const RemotionRoot = () => (
   <Composition
-    id="AtlasIntro"
-    component={AtlasIntro}
+    id="FortuneIntro"
+    component={FortuneIntro}
     durationInFrames={INTRO_FRAMES}
     fps={INTRO_FPS}
     width={INTRO_WIDTH}

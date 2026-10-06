@@ -35,7 +35,7 @@ type Voice = 'sine' | 'triangle' | 'square' | 'sawtooth';
   déjà activé le son resterait sur son ancien réglage et n'entendrait jamais
   le nouveau réglage par défaut.
 */
-const LS_KEY = 'atlas-royale:audio:v3';
+const LS_KEY = 'fortune-city:audio:v3';
 
 class AudioEngine {
   private ctx: AudioContext | null = null;

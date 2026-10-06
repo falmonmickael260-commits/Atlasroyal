@@ -498,6 +498,40 @@ describe('échanges', () => {
     expect(after.tiles[1].owner).toBe('p1');
   });
 
+  it('refuse un échange sans contrepartie, dans les deux sens', () => {
+    const s = setup();
+    // On donne sans rien demander : c'est un don, pas un échange.
+    expect(applyCommand(s, {
+      t: 'PROPOSE_TRADE', by: 'p1',
+      offer: { to: 'p2', giveTiles: [1], giveCash: 0, getTiles: [], getCash: 0 },
+    }).rejected).toBeTruthy();
+    // On demande sans rien donner.
+    expect(applyCommand(s, {
+      t: 'PROPOSE_TRADE', by: 'p1',
+      offer: { to: 'p2', giveTiles: [], giveCash: 0, getTiles: [2], getCash: 0 },
+    }).rejected).toBeTruthy();
+    // Offre entièrement vide.
+    expect(applyCommand(s, {
+      t: 'PROPOSE_TRADE', by: 'p1',
+      offer: { to: 'p2', giveTiles: [], giveCash: 0, getTiles: [], getCash: 0 },
+    }).rejected).toBeTruthy();
+    // De l'argent des deux côtés suffit : la contrepartie n'a pas à être un bien.
+    expect(applyCommand(s, {
+      t: 'PROPOSE_TRADE', by: 'p1',
+      offer: { to: 'p2', giveTiles: [], giveCash: 300, getTiles: [], getCash: 100 },
+    }).rejected).toBeFalsy();
+  });
+
+  it('refuse un montant d’échange négatif', () => {
+    const s = setup();
+    // Un client modifié pourrait l'envoyer : le négatif passait le test de
+    // solvabilité et créditait le proposant à l'acceptation.
+    expect(applyCommand(s, {
+      t: 'PROPOSE_TRADE', by: 'p1',
+      offer: { to: 'p2', giveTiles: [], giveCash: -5000, getTiles: [2], getCash: 0 },
+    }).rejected).toBeTruthy();
+  });
+
   it('refuse d’échanger une propriété construite ou non possédée', () => {
     const s = setup();
     expect(applyCommand(s, {

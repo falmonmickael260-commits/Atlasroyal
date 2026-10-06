@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { BOARD, GROUPS } from '../engine/board';
 import { buildSlot } from './layout';
+import { envMapPartagee } from './environnement';
 import type { CityTile, GameState } from '../engine/types';
 
 /**
@@ -98,6 +99,7 @@ const BUILD_SCALE = 1.34;
 const Structure = ({
   level, color, landmark,
 }: { level: number; color: string; landmark: CityTile['landmark'] }) => {
+  const gl = useThree((s) => s.gl);
   const mat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
@@ -106,8 +108,10 @@ const Structure = ({
         metalness: 0.08,
         clearcoat: 0.6,
         clearcoatRoughness: 0.25,
+        envMap: envMapPartagee(gl),
+        envMapIntensity: 0.85,
       }),
-    [color],
+    [color, gl],
   );
 
   // Embase commune : un liseré sombre au pied de chaque construction. Elle

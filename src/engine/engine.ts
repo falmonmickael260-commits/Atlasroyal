@@ -657,6 +657,26 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       if ([...o.giveTiles, ...o.getTiles].some((i) => s.tiles[i].level > 0)) {
         return reject(prev, 'Revendez les constructions avant d’échanger.');
       }
+      // Les montants arrivent du réseau : un client modifié pourrait envoyer
+      // un négatif, qui passerait le test de solvabilité ci-dessous et
+      // *crediterait* le proposant à l'acceptation.
+      const montantValide = (v: number) => Number.isInteger(v) && v >= 0;
+      if (!montantValide(o.giveCash) || !montantValide(o.getCash)) {
+        return reject(prev, 'Montant d’échange invalide.');
+      }
+      /*
+        Pas d'échange à vide : il faut une contrepartie de chaque côté.
+
+        Sans cette règle, une offre peut n'avoir qu'un seul côté rempli. Ce
+        n'est alors plus un échange mais un don, et deux joueurs peuvent s'en
+        servir pour transférer tout un patrimoine sans contrepartie — de quoi
+        fausser une fin de partie à plusieurs.
+      */
+      const donne = o.giveTiles.length > 0 || o.giveCash > 0;
+      const recoit = o.getTiles.length > 0 || o.getCash > 0;
+      if (!donne || !recoit) {
+        return reject(prev, 'Un échange doit comporter une contrepartie de chaque côté.');
+      }
       if (o.giveCash > actor.cash) return reject(prev, 'Fonds insuffisants.');
       const offer: TradeOffer = { ...o, id: `t${s.version}_${s.trades.length}`, from: cmd.by };
       s.trades.push(offer);

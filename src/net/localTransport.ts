@@ -14,7 +14,7 @@ export class LocalTransport extends BaseTransport {
   constructor(private roomCode: string) { super(); }
 
   async connect() {
-    this.ch = new BroadcastChannel(`atlas-royale:${this.roomCode}`);
+    this.ch = new BroadcastChannel(`fortune-city:${this.roomCode}`);
     this.ch.onmessage = (ev: MessageEvent) => {
       const msg = ev.data as ClientMsg | ServerMsg;
       if ('k' in msg && (msg.k === 'LOBBY' || msg.k === 'SNAPSHOT' || msg.k === 'REJECT' || msg.k === 'CLOSED')) {

@@ -54,8 +54,20 @@ export const TradePanel = ({
   const flip = (list: TileIndex[], set: (v: TileIndex[]) => void, i: TileIndex) =>
     set(list.includes(i) ? list.filter((x) => x !== i) : [...list, i]);
 
-  const valid = to && (give.length || get.length || giveCash || getCash)
-    && giveCash <= state.players[me].cash;
+  // Une contrepartie est exigée de chaque côté : un échange à sens unique est
+  // un don, et le moteur le refuse de toute façon.
+  const donne = give.length > 0 || giveCash > 0;
+  const recoit = get.length > 0 || getCash > 0;
+  const valid = Boolean(to) && donne && recoit && giveCash <= state.players[me].cash;
+  const motif = !to
+    ? 'Choisissez un joueur.'
+    : !donne
+      ? 'Ajoutez ce que vous donnez.'
+      : !recoit
+        ? 'Ajoutez ce que vous demandez en retour.'
+        : giveCash > state.players[me].cash
+          ? 'Fonds insuffisants.'
+          : null;
 
   return (
     <div className="sheet sheet--right" role="dialog" aria-label="Échanges">
@@ -157,6 +169,9 @@ export const TradePanel = ({
         >
           <Icon name="swap" size={16} /> Proposer l’échange
         </button>
+        {motif && (
+          <div style={{ fontSize: 12, color: 'var(--fg-muted)', textAlign: 'center' }}>{motif}</div>
+        )}
       </div>
     </div>
   );

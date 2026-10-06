@@ -37,7 +37,7 @@ export const App = () => {
   }, [resume]);
 
   useEffect(() => {
-    document.title = screen === 'game' ? 'ATLAS ROYALE — en partie' : 'ATLAS ROYALE';
+    document.title = screen === 'game' ? 'FORTUNE CITY — en partie' : 'FORTUNE CITY';
   }, [screen]);
 
   return (
