@@ -1,50 +1,107 @@
-.lobby {
-  position: relative;
-  min-height: 100dvh;
-  padding: var(--sp-5);
-  display: grid;
-  place-items: center;
-}
 /*
-  Fond du salon : le panorama, fortement assombri.
+  Salon d'avant-partie.
 
-  L'image n'est pas là pour être regardée — elle l'a déjà été sur l'accueil —
-  mais pour que le salon reste dans le même monde. Les deux voiles qui la
-  recouvrent sont donc volontairement opaques : les cartes de joueurs et le
-  code de partage doivent se lire sans effort, et c'est le texte qui compte
-  à cet écran.
+  Même langage visuel que le menu : le panorama reste visible sous un voile
+  gradué, et tout ce qui est cliquable est dessiné en relief — biseau clair en
+  haut, ombre interne en bas. C'est ce relief, et non une couleur de fond, qui
+  fait tenir l'interface par-dessus une photographie.
+
+  La version précédente noyait l'image sous deux voiles presque opaques : on
+  retrouvait l'écran sombre générique d'avant, sans rapport avec l'accueil que
+  le joueur venait de quitter.
 */
+
+.lobby {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  padding: var(--sp-5);
+}
+
 .lobby__bg {
-  position: absolute; inset: 0;
+  position: fixed;
+  inset: 0;
   background:
-    linear-gradient(180deg, rgba(5, 9, 18, .9), rgba(5, 9, 18, .96)),
-    radial-gradient(90% 70% at 50% 0%, rgba(21, 128, 61, .22), transparent 60%),
+    /* Plus opaque que sur l'accueil : ici l'écran porte du texte à lire et des
+       cartes à comparer, pas un logo. Le panorama doit rester reconnaissable
+       sans disputer la lecture — c'est un décor, plus un sujet. */
+    linear-gradient(180deg, rgba(5, 9, 18, .88) 0%, rgba(5, 9, 18, .74) 34%,
+                    rgba(5, 9, 18, .8) 70%, rgba(5, 9, 18, .94) 100%),
     url('/ui/fond-panorama.webp') center / cover no-repeat,
     var(--bg-deep);
 }
-.lobby__inner { position: relative; width: min(1060px, 100%); max-width: 100%; }
+
+.lobby__inner {
+  position: relative;
+  width: min(1060px, 100%);
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ---------------- en-tête ---------------- */
 
 .lobby__head {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-5);
 }
+.lobby__intro { min-width: 0; }
 .lobby__title {
   /* Fluide : jamais plus large que l'écran, quel que soit le téléphone. */
   font-size: clamp(24px, 7.5vw, 40px);
-  margin-top: 12px;
+  margin-top: 10px;
 }
+.lobby__compte {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.chip--or {
+  border-color: rgba(234, 179, 8, .5);
+  color: var(--gold);
+  background: rgba(234, 179, 8, .1);
+}
+
+/* La plaque du code : l'objet le plus important de l'écran. */
 .lobby__code {
-  display: flex; align-items: center; gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  border-radius: var(--r-md);
-  background: rgba(0, 0, 0, .3);
-  border: 1px dashed var(--border-strong);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(234, 179, 8, .45);
+  background: linear-gradient(165deg, rgba(20, 27, 42, .94), rgba(8, 12, 22, .94));
+  box-shadow: var(--shadow-2), inset 0 1px 0 rgba(255, 255, 255, .08);
 }
-.lobby__code strong {
+.lobby__code .label { margin: 0; }
+
+.plaque { display: flex; gap: 6px; }
+.plaque span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 48px;
+  border-radius: 8px;
+  border: 1px solid rgba(234, 179, 8, .35);
+  background: linear-gradient(180deg, rgba(0, 0, 0, .5), rgba(0, 0, 0, .28));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07);
   font-family: var(--font-display);
-  font-size: 30px; letter-spacing: .3em; color: var(--gold);
-  text-shadow: 0 0 24px rgba(234, 179, 8, .35);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(234, 179, 8, .45);
 }
+
+/* ---------------- sièges ---------------- */
 
 .seats {
   display: grid;
@@ -58,38 +115,54 @@
   min-width: 0;
   padding: var(--sp-4);
   border-radius: var(--r-lg);
-  background: var(--glass);
+  background: linear-gradient(165deg, rgba(22, 30, 46, .9), rgba(9, 14, 24, .92));
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-1), inset 0 1px 0 rgba(255, 255, 255, .06);
+  overflow: hidden;
   transition: border-color var(--t-base) var(--ease-out), transform var(--t-base) var(--ease-out);
+}
+/* Bandeau de couleur : on repère son siège à la teinte, pas au texte. */
+.seat::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--seat-color, transparent);
 }
 .seat--me { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(217, 119, 6, .3), var(--shadow-2); }
 .seat--ready::after {
   content: '';
-  position: absolute; inset: 0;
-  border-radius: var(--r-lg);
-  border: 1px solid rgba(34, 197, 94, .5);
-  pointer-events: none;
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--success), transparent);
 }
 .seat--empty {
+  display: grid;
+  place-items: center;
+  min-height: 132px;
+  backdrop-filter: blur(2px);
   border-style: dashed;
-  display: grid; place-items: center;
-  min-height: 150px; color: var(--fg-dim);
+  border-color: rgba(234, 179, 8, .28);
+  background: rgba(255, 255, 255, .02);
+  color: var(--fg-dim);
 }
 .seat__top { display: flex; align-items: center; gap: var(--sp-3); }
 .seat__badge {
-  width: 46px; height: 46px; border-radius: 14px;
   display: grid; place-items: center;
+  width: 44px; height: 44px; flex: none;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--seat-color) 22%, transparent);
   border: 1px solid color-mix(in srgb, var(--seat-color) 55%, transparent);
   color: var(--seat-color);
-  flex: none;
 }
 .seat__name { font-family: var(--font-display); font-weight: 600; font-size: 16px; }
 .seat__meta { font-size: 12px; color: var(--fg-muted); }
 .seat__status {
-  margin-top: var(--sp-3);
   display: flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  margin-top: var(--sp-3);
+  font-size: 12px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
 }
 .seat__status--ready { color: var(--success); }
 .seat__status--wait { color: var(--fg-dim); }
@@ -97,45 +170,58 @@
 
 .picker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--sp-3); min-width: 0; }
 .swatch {
-  width: 30px; height: 30px; border-radius: 50%;
-  border: 2px solid transparent; cursor: pointer;
-  transition: transform var(--t-fast) var(--ease-spring);
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease-out);
 }
 .swatch:hover { transform: scale(1.12); }
 .swatch[aria-pressed='true'] { border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .15); }
+.swatch:disabled { opacity: .25; cursor: not-allowed; transform: none; }
 
 .pill-opt {
-  padding: 7px 12px; border-radius: var(--r-pill);
-  border: 1px solid var(--border); background: transparent;
-  font-size: 12px; cursor: pointer; color: var(--fg-muted);
-  transition: all var(--t-fast) var(--ease-out);
-  min-height: 34px;
+  /* Quatorze pions et six avatars : à pleine taille, la carte de l'hôte
+     devenait deux fois plus haute que les sièges libres. */
+  padding: 4px 9px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, .25);
+  color: var(--fg-muted);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--t-base) var(--ease-out), color var(--t-base) var(--ease-out);
 }
-.pill-opt:hover { color: var(--fg); border-color: var(--border-strong); }
-.pill-opt[aria-pressed='true'] {
-  background: var(--glass-strong); color: var(--fg); border-color: var(--accent);
-}
+.pill-opt:hover:not(:disabled) { color: var(--fg); border-color: var(--border-strong); }
+.pill-opt[aria-pressed='true'] { border-color: var(--accent); color: var(--gold); background: rgba(234, 179, 8, .1); }
 .pill-opt:disabled { opacity: .3; cursor: not-allowed; }
 
+/* ---------------- pied ---------------- */
+
 .lobby__foot {
-  margin-top: var(--sp-6);
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--sp-4); flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-top: var(--sp-5);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: linear-gradient(165deg, rgba(20, 27, 42, .88), rgba(8, 12, 22, .9));
+  box-shadow: var(--shadow-2);
 }
-.lobby__hint { color: var(--fg-muted); font-size: 13px; max-width: 48ch; }
+.lobby__hint { color: var(--fg-muted); font-size: 13px; max-width: 48ch; margin: 0; }
 
 @media (max-width: 640px) {
-  .lobby { padding: var(--sp-3); align-items: start; }
-  .lobby__code strong { font-size: 22px; letter-spacing: .22em; }
+  .lobby { padding: var(--sp-3); }
   .seats { grid-template-columns: 1fr; gap: var(--sp-3); }
   .seat { padding: var(--sp-3); }
-  .lobby__head h1 { font-size: clamp(22px, 7vw, 30px); }
-  /* Filet de sécurité : aucune colonne du salon ne doit pouvoir pousser la
-     page au-delà de l'écran — c'est ce débordement latéral qui donnait
-     l'impression que tout était décentré sur téléphone. */
-  .lobby__inner { min-width: 0; max-width: 100%; }
-  .lobby { overflow-x: hidden; }
-  .lobby__head { gap: var(--sp-3); }
+  .lobby__head { gap: var(--sp-3); margin-bottom: var(--sp-4); }
+  .lobby__code { width: 100%; }
+  .plaque { justify-content: space-between; }
+  .plaque span { width: auto; flex: 1; height: 44px; font-size: 21px; }
   /* Les sélecteurs défilent horizontalement plutôt que d'allonger la page. */
   .picker {
     flex-wrap: nowrap;
@@ -146,6 +232,11 @@
   }
   .picker::-webkit-scrollbar { display: none; }
   .pill-opt, .swatch { flex: none; }
+  /* Filet de sécurité : aucune colonne du salon ne doit pouvoir pousser la
+     page au-delà de l'écran — c'est ce débordement latéral qui donnait
+     l'impression que tout était décentré sur téléphone. */
+  .lobby__inner { min-width: 0; max-width: 100%; }
+  .lobby { overflow-x: hidden; }
   .lobby__foot { flex-direction: column; align-items: stretch; }
   .lobby__foot > div { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
   .lobby__foot .btn--lg { grid-column: 1 / -1; }

@@ -256,48 +256,99 @@ button, input, select { font: inherit; color: inherit; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--sp-5);
+  gap: var(--sp-4);
   padding: var(--sp-5);
-  background:
-    radial-gradient(70% 55% at 50% 42%, rgba(234, 179, 8, .1), transparent 70%),
-    var(--bg-deep);
+  overflow: hidden;
+  background: var(--bg-deep);
 }
 
-.attente__logo {
-  width: min(420px, 78vw);
-  height: auto;
-  filter: drop-shadow(0 16px 36px rgba(0, 0, 0, .6));
-  /* Respiration lente : à l'arrêt complet, un écran d'attente laisse croire
-     que l'application est figée. */
-  animation: attente-souffle 2.8s var(--ease-out) infinite;
+/* Le panorama, flouté et assombri : on reste dans le même monde que
+   l'accueil sans qu'aucun détail ne vienne disputer la lecture. */
+.attente__decor {
+  position: absolute;
+  inset: -4%;
+  background: url('/ui/fond-panorama.webp') center / cover no-repeat;
+  filter: blur(26px) brightness(.34) saturate(.85);
 }
-@keyframes attente-souffle {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.028); }
+.attente__halo {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(58% 46% at 50% 44%, rgba(234, 179, 8, .16), transparent 70%),
+    linear-gradient(180deg, rgba(4, 7, 14, .65), rgba(4, 7, 14, .88));
+}
+
+.attente__marque {
+  position: relative;
+  z-index: 1;
+  width: min(460px, 80vw);
+  animation: attente-entree 700ms var(--ease-spring) both;
+}
+@keyframes attente-entree {
+  from { opacity: 0; transform: translateY(14px) scale(.94); }
+  to   { opacity: 1; transform: none; }
+}
+.attente__logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 18px 40px rgba(0, 0, 0, .65));
+}
+
+/*
+  Reflet qui balaie le logo.
+
+  Le masque reprend le logo lui-même : la bande lumineuse est donc découpée
+  à la forme exacte des lettres et ne déborde jamais sur le fond. C'est ce
+  qui donne l'impression d'un métal qui accroche la lumière, plutôt que d'un
+  rectangle blanc qui passe par-dessus.
+*/
+.attente__eclat {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(104deg,
+    transparent 40%, rgba(255, 255, 255, .72) 50%, transparent 60%);
+  background-size: 280% 100%;
+  background-repeat: no-repeat;
+  -webkit-mask-image: url('/ui/logo.webp');
+  mask-image: url('/ui/logo.webp');
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: attente-eclat 2.9s cubic-bezier(.5, 0, .5, 1) infinite;
+}
+@keyframes attente-eclat {
+  0%        { background-position: 190% 0; }
+  58%, 100% { background-position: -90% 0; }
 }
 
 /*
   Jauge indéterminée.
 
-  On ne connaît pas l'avancement réel — le navigateur ne le donne pas pour un
-  module importé à la demande. Afficher une barre qui se remplirait de 0 à
-  100 % serait un mensonge : celle-ci balaie, ce qui dit « ça travaille »
-  sans prétendre savoir combien il reste.
+  On ne connaît pas l'avancement réel : le navigateur ne le donne pas pour un
+  module importé à la demande. Une barre qui se remplirait de 0 à 100 % serait
+  une invention. Celle-ci balaie — elle dit « ça travaille » sans prétendre
+  savoir combien il reste.
 */
 .attente__jauge {
-  width: min(280px, 70vw);
+  position: relative;
+  z-index: 1;
+  width: min(300px, 72vw);
   height: 4px;
   border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .09);
   overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, .12);
 }
 .attente__jauge span {
   display: block;
-  width: 38%;
+  width: 36%;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, transparent, var(--accent-lift), var(--gold), transparent);
-  animation: attente-balai 1.4s var(--ease-out) infinite;
+  box-shadow: 0 0 14px rgba(234, 179, 8, .55);
+  animation: attente-balai 1.5s var(--ease-out) infinite;
 }
 @keyframes attente-balai {
   from { transform: translateX(-110%); }
@@ -305,16 +356,55 @@ button, input, select { font: inherit; color: inherit; }
 }
 
 .attente__texte {
+  position: relative;
+  z-index: 1;
   margin: 0;
   font-family: var(--font-display);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: .2em;
+  letter-spacing: .22em;
   text-transform: uppercase;
   color: var(--fg-muted);
 }
 
+.attente__astuce {
+  position: relative;
+  z-index: 1;
+  max-width: 44ch;
+  margin: var(--sp-3) 0 0;
+  padding: 12px 18px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(234, 179, 8, .22);
+  background: rgba(8, 12, 22, .6);
+  color: var(--fg-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+  /* La clé React change à chaque astuce : l'animation rejoue, et le
+     changement se remarque sans qu'on ait à surveiller la ligne. */
+  animation: attente-astuce 520ms var(--ease-out) both;
+}
+@keyframes attente-astuce {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.attente__astuce-titre {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .attente__logo { animation: none; }
+  .attente__marque, .attente__astuce { animation: none; }
+  .attente__eclat { display: none; }
   .attente__jauge span { width: 100%; animation: none; opacity: .5; }
+}
+
+@media (max-width: 640px) {
+  .attente__astuce { font-size: 12px; padding: 10px 14px; }
 }

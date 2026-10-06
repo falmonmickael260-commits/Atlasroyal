@@ -35,21 +35,31 @@ export const Lobby = () => {
       <div className="lobby__bg" aria-hidden="true" />
       <div className="lobby__inner">
         <div className="lobby__head">
-          <div>
-            <span className="home__eyebrow"><Icon name="users" size={14} /> Salon</span>
+          <div className="lobby__intro">
+            <span className="chip chip--or"><Icon name="users" size={14} /> Salon</span>
             {/* Taille portée par la feuille de style : en ligne, elle écrasait la
                 règle mobile. À 40 px sur un écran de 375, ce seul titre
                 réclamait 393 px et faisait déborder toute la page vers la
                 droite — tout paraissait décentré et décalé. */}
             <h1 className="lobby__title">Préparez l’expédition</h1>
+            <p className="lobby__compte">
+              {lobby.seats.length} joueur{lobby.seats.length > 1 ? 's' : ''} sur {RULES.maxPlayers}
+            </p>
           </div>
+
+          {/*
+            Le code est l'objet le plus important de cet écran : c'est la seule
+            chose que l'hôte doit transmettre, souvent à voix haute ou par
+            message. Une lettre par case, largement espacée — on la lit sans
+            hésiter entre O et 0, et on la recopie sans se perdre.
+          */}
           <div className="lobby__code">
-            <div>
-              <div className="label" style={{ marginBottom: 2 }}>Code à partager</div>
-              <strong>{lobby.roomCode}</strong>
+            <div className="label">Code à partager</div>
+            <div className="plaque" aria-label={`Code du salon : ${lobby.roomCode.split('').join(' ')}`}>
+              {lobby.roomCode.split('').map((ch, i) => <span key={i}>{ch}</span>)}
             </div>
-            <button className="btn btn--ghost btn--sm" onClick={copy} aria-label="Copier le code">
-              <Icon name={copied ? 'check' : 'copy'} size={16} /> {copied ? 'Copié' : 'Copier'}
+            <button className="btn btn--sm btn--block" onClick={copy} aria-label="Copier le code">
+              <Icon name={copied ? 'check' : 'copy'} size={16} /> {copied ? 'Copié' : 'Copier le code'}
             </button>
           </div>
         </div>
@@ -128,7 +138,9 @@ export const Lobby = () => {
         <div className="lobby__foot">
           <p className="lobby__hint">
             {isHost
-              ? 'Partagez le code : les joueurs vous rejoignent depuis l’écran d’accueil. La partie démarre quand tout le monde est prêt.'
+              ? allReady
+                ? 'Tout le monde est prêt. À vous de lancer.'
+                : `Partagez le code. Il faut au moins ${RULES.minPlayers} joueurs, tous prêts.`
               : 'Signalez-vous prêt. L’hôte lancera la partie.'}
           </p>
           <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
@@ -142,7 +154,16 @@ export const Lobby = () => {
               <Icon name="check" size={16} /> {me?.ready ? 'Annuler' : 'Je suis prêt'}
             </button>
             {isHost && (
-              <button className="btn btn--accent btn--lg" disabled={!allReady} onClick={() => { audio.click(); startGame(); }}>
+              <button
+                className="btn btn--accent btn--lg"
+                disabled={!allReady}
+                /*
+                  Le bouton était désactivé sans un mot d'explication : l'hôte
+                  cliquait dans le vide sans savoir ce qui manquait.
+                */
+                title={allReady ? 'Lancer la partie' : `Il faut ${RULES.minPlayers} joueurs, tous prêts.`}
+                onClick={() => { audio.click(); startGame(); }}
+              >
                 <Icon name="dice" size={18} /> Lancer la partie
               </button>
             )}
