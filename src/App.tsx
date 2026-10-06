@@ -4,6 +4,7 @@ import { Home } from './ui/Home';
 import { Lobby } from './ui/Lobby';
 import { Toast } from './ui/Toast';
 import { introAlreadySeen } from './ui/introSeen';
+import { Loading } from './ui/Loading';
 
 /**
  * Le moteur 3D (three.js) et le lecteur Remotion pèsent l'essentiel du poids
@@ -12,18 +13,6 @@ import { introAlreadySeen } from './ui/introSeen';
  */
 const Game = lazy(() => import('./ui/Game').then((m) => ({ default: m.Game })));
 const Intro = lazy(() => import('./ui/Intro').then((m) => ({ default: m.Intro })));
-
-const Loading = ({ label }: { label: string }) => (
-  <div
-    style={{
-      position: 'fixed', inset: 0, display: 'grid', placeItems: 'center',
-      background: '#04070E', color: 'var(--fg-muted)', fontSize: 14, letterSpacing: '.16em',
-      textTransform: 'uppercase',
-    }}
-  >
-    {label}
-  </div>
-);
 
 export const App = () => {
   const screen = useRoom((s) => s.screen);

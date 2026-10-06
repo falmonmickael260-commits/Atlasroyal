@@ -243,3 +243,78 @@ button, input, select { font: inherit; color: inherit; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Écran d'attente                                                     */
+/* ------------------------------------------------------------------ */
+
+.attente {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
+  background:
+    radial-gradient(70% 55% at 50% 42%, rgba(234, 179, 8, .1), transparent 70%),
+    var(--bg-deep);
+}
+
+.attente__logo {
+  width: min(420px, 78vw);
+  height: auto;
+  filter: drop-shadow(0 16px 36px rgba(0, 0, 0, .6));
+  /* Respiration lente : à l'arrêt complet, un écran d'attente laisse croire
+     que l'application est figée. */
+  animation: attente-souffle 2.8s var(--ease-out) infinite;
+}
+@keyframes attente-souffle {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.028); }
+}
+
+/*
+  Jauge indéterminée.
+
+  On ne connaît pas l'avancement réel — le navigateur ne le donne pas pour un
+  module importé à la demande. Afficher une barre qui se remplirait de 0 à
+  100 % serait un mensonge : celle-ci balaie, ce qui dit « ça travaille »
+  sans prétendre savoir combien il reste.
+*/
+.attente__jauge {
+  width: min(280px, 70vw);
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, .1);
+  overflow: hidden;
+}
+.attente__jauge span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--accent-lift), var(--gold), transparent);
+  animation: attente-balai 1.4s var(--ease-out) infinite;
+}
+@keyframes attente-balai {
+  from { transform: translateX(-110%); }
+  to   { transform: translateX(300%); }
+}
+
+.attente__texte {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attente__logo { animation: none; }
+  .attente__jauge span { width: 100%; animation: none; opacity: .5; }
+}
