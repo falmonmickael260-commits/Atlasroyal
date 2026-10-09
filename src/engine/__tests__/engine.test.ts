@@ -411,8 +411,12 @@ describe('taxes, cagnotte et Parc Gratuit', () => {
   it('verse les taxes dans la cagnotte', () => {
     const s = put(atRound(newGame(2), 2), 'p1', 0);
     const { state } = rollAs(s, 'p1', 1, 3); // case 4 : Impôt Mondial
-    expect(state.pot).toBe(1200);
-    expect(state.players.p1.cash).toBe(RULES.startingCash - 1200);
+    // Montant lu sur la case : un nombre recopié ici se désynchronise au
+    // premier rééquilibrage et le test cesse alors de vérifier la règle.
+    const impot = BOARD[4].kind === 'tax' ? BOARD[4].amount : 0;
+    expect(impot).toBeGreaterThan(0);
+    expect(state.pot).toBe(impot);
+    expect(state.players.p1.cash).toBe(RULES.startingCash - impot);
   });
 
   it('reverse 100 % de la cagnotte au joueur qui atteint le Parc', () => {

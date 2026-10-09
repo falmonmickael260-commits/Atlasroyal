@@ -2,7 +2,23 @@ import type { Tile, GroupId, CityTile, OwnableTile, TileIndex } from './types';
 
 /** Règles économiques — une seule source de vérité. */
 export const RULES = {
-  startingCash: 35_000,
+  /*
+    Échelle monétaire.
+
+    L'ancienne échelle était incohérente avec elle-même : on démarrait à
+    35 000 €, une ville en coûtait 900 à 4 500 — mais le passage au Départ
+    rapportait 200 € et la caution de prison en coûtait 50. Autrement dit,
+    deux valeurs étaient restées sur l'échelle classique du genre pendant que
+    tout le reste était multiplié par vingt-trois. Résultat : le tour de
+    plateau ne rapportait rien, la prison ne coûtait rien, et l'argent n'avait
+    plus de sens relatif.
+
+    Tout est désormais ramené sur la même base, celle qui a été éprouvée par
+    des décennies de parties : fortune de départ de 1 500, terrains de 60 à
+    400, maisons de 50 à 200. Les proportions entre loyer, prix d'achat et
+    revenu de tour sont celles qui font fonctionner ce type de jeu.
+  */
+  startingCash: 1_500,
   passGo: 200,
   exactGo: 400,
   jailFine: 50,
@@ -15,9 +31,9 @@ export const RULES = {
   /** Remboursement à la revente d'un niveau de construction. */
   sellBuildingRate: 0.5,
   /** Loyer d'un hub selon le nombre possédé, de 1 à 4. */
-  hubRent: [250, 500, 1000, 2000] as const,
-  /** Multiplicateur appliqué à la somme des dés. */
-  reseauRent: [120, 300] as const,
+  hubRent: [25, 50, 100, 200] as const,
+  /** Multiplicateur appliqué à la somme des dés, selon le nombre de réseaux. */
+  reseauRent: [4, 10] as const,
   maxPlayers: 6,
   minPlayers: 2,
 } as const;
@@ -43,17 +59,9 @@ export const GROUPS: Record<GroupId, { name: string; color: string; glow: string
 
 const city = (
   i: number, name: string, country: string, group: GroupId, price: number,
-  buildCost: number, landmark: CityTile['landmark'], lat: number, lon: number,
-): CityTile => {
-  const base = Math.round(price / 14 / 10) * 10;
-  return {
-    i, kind: 'city', name, country, group, price, buildCost, landmark, lat, lon,
-    // Progression calquée sur les proportions éprouvées du genre : un hôtel
-    // rapporte environ cinq fois le prix d'achat de la ville. L'ancien barème
-    // plafonnait à 1,7 fois, si bien que bâtir ne se rentabilisait jamais.
-    rent: [base, base * 5, base * 15, base * 40, base * 70],
-  };
-};
+  buildCost: number, rent: CityTile['rent'],
+  landmark: CityTile['landmark'], lat: number, lon: number,
+): CityTile => ({ i, kind: 'city', name, country, group, price, buildCost, rent, landmark, lat, lon });
 
 /**
  * 40 cases : 22 villes, 4 coins, 4 hubs, 2 réseaux, 6 cases carte, 2 taxes.
@@ -68,46 +76,47 @@ const city = (
  */
 export const BOARD: Tile[] = [
   { i: 0, kind: 'depart', name: 'Départ' },
-  city(1, 'Marrakech', 'Maroc', 'terre', 900, 550, 'arch', 31.63, -7.99),
+  city(1, 'Marrakech', 'Maroc', 'terre', 60, 50, [2, 10, 30, 90, 250], 'arch', 31.63, -7.99),
   { i: 2, kind: 'card', deck: 'destin', name: 'Destin' },
-  city(3, 'Le Caire', 'Égypte', 'terre', 950, 550, 'pyramid', 30.04, 31.24),
-  { i: 4, kind: 'tax', name: 'Impôt Mondial', amount: 1200 },
-  { i: 5, kind: 'hub', name: 'Hub Atlantique', price: 2000 },
-  city(6, 'Bangkok', 'Thaïlande', 'azur', 1200, 750, 'pagoda', 13.76, 100.5),
+  city(3, 'Le Caire', 'Égypte', 'terre', 60, 50, [4, 20, 60, 180, 450], 'pyramid', 30.04, 31.24),
+  { i: 4, kind: 'tax', name: 'Impôt Mondial', amount: 200 },
+  { i: 5, kind: 'hub', name: 'Hub Atlantique', price: 200 },
+  city(6, 'Bangkok', 'Thaïlande', 'azur', 100, 50, [6, 30, 90, 270, 550], 'pagoda', 13.76, 100.5),
   { i: 7, kind: 'card', deck: 'marche', name: 'Marché' },
-  city(8, 'Hanoï', 'Viêt Nam', 'azur', 1250, 750, 'pagoda', 21.03, 105.85),
-  city(9, 'Bali', 'Indonésie', 'azur', 1350, 750, 'arch', -8.41, 115.19),
+  city(8, 'Hanoï', 'Viêt Nam', 'azur', 100, 50, [6, 30, 90, 270, 550], 'pagoda', 21.03, 105.85),
+  city(9, 'Bali', 'Indonésie', 'azur', 120, 50, [8, 40, 100, 300, 600], 'arch', -8.41, 115.19),
   { i: 10, kind: 'prison', name: 'Prison' },
-  city(11, 'Lisbonne', 'Portugal', 'fuchsia', 1500, 900, 'bridge', 38.72, -9.14),
-  { i: 12, kind: 'reseau', name: 'Réseau Solaire', price: 1800 },
-  city(13, 'Le Cap', 'Afrique du Sud', 'fuchsia', 1550, 900, 'skyline', -33.92, 18.42),
-  city(14, 'Rio de Janeiro', 'Brésil', 'fuchsia', 1650, 900, 'spire', -22.91, -43.17),
-  { i: 15, kind: 'hub', name: 'Hub Pacifique', price: 2000 },
-  city(16, 'Barcelone', 'Espagne', 'orange', 1800, 1100, 'spire', 41.39, 2.17),
+  city(11, 'Lisbonne', 'Portugal', 'fuchsia', 140, 100, [10, 50, 150, 450, 750], 'bridge', 38.72, -9.14),
+  { i: 12, kind: 'reseau', name: 'Réseau Solaire', price: 150 },
+  city(13, 'Le Cap', 'Afrique du Sud', 'fuchsia', 140, 100, [10, 50, 150, 450, 750], 'skyline', -33.92, 18.42),
+  city(14, 'Rio de Janeiro', 'Brésil', 'fuchsia', 160, 100, [12, 60, 180, 500, 900], 'spire', -22.91, -43.17),
+  { i: 15, kind: 'hub', name: 'Hub Pacifique', price: 200 },
+  city(16, 'Barcelone', 'Espagne', 'orange', 180, 100, [14, 70, 200, 550, 950], 'spire', 41.39, 2.17),
   { i: 17, kind: 'card', deck: 'marche', name: 'Marché' },
-  city(18, 'Rome', 'Italie', 'orange', 1850, 1100, 'dome', 41.9, 12.5),
-  city(19, 'Istanbul', 'Turquie', 'orange', 1950, 1100, 'dome', 41.01, 28.98),
+  city(18, 'Rome', 'Italie', 'orange', 180, 100, [14, 70, 200, 550, 950], 'dome', 41.9, 12.5),
+  city(19, 'Istanbul', 'Turquie', 'orange', 200, 100, [16, 80, 220, 600, 1000], 'dome', 41.01, 28.98),
   { i: 20, kind: 'parc', name: 'Parc Gratuit' },
-  city(21, 'Berlin', 'Allemagne', 'rubis', 2200, 1300, 'arch', 52.52, 13.4),
+  city(21, 'Berlin', 'Allemagne', 'rubis', 220, 150, [18, 90, 250, 700, 1050], 'arch', 52.52, 13.4),
   { i: 22, kind: 'card', deck: 'destin', name: 'Destin' },
-  city(23, 'Amsterdam', 'Pays-Bas', 'rubis', 2250, 1300, 'bridge', 52.37, 4.9),
-  city(24, 'Séoul', 'Corée du Sud', 'rubis', 2350, 1300, 'tower', 37.57, 126.98),
-  { i: 25, kind: 'hub', name: 'Hub Méditerranée', price: 2000 },
-  city(26, 'Londres', 'Royaume-Uni', 'safran', 2600, 1600, 'tower', 51.51, -0.13),
-  city(27, 'Sydney', 'Australie', 'safran', 2650, 1600, 'bridge', -33.87, 151.21),
-  { i: 28, kind: 'reseau', name: 'Réseau Orbital', price: 1800 },
-  city(29, 'Los Angeles', 'États-Unis', 'safran', 2750, 1600, 'skyline', 34.05, -118.24),
+  city(23, 'Amsterdam', 'Pays-Bas', 'rubis', 220, 150, [18, 90, 250, 700, 1050], 'bridge', 52.37, 4.9),
+  city(24, 'Séoul', 'Corée du Sud', 'rubis', 240, 150, [20, 100, 300, 750, 1100], 'tower', 37.57, 126.98),
+  { i: 25, kind: 'hub', name: 'Hub Méditerranée', price: 200 },
+  city(26, 'Londres', 'Royaume-Uni', 'safran', 260, 150, [22, 110, 330, 800, 1150], 'tower', 51.51, -0.13),
+  city(27, 'Sydney', 'Australie', 'safran', 260, 150, [22, 110, 330, 800, 1150], 'bridge', -33.87, 151.21),
+  { i: 28, kind: 'reseau', name: 'Réseau Orbital', price: 150 },
+  city(29, 'Los Angeles', 'États-Unis', 'safran', 280, 150, [24, 120, 360, 850, 1200], 'skyline', 34.05, -118.24),
   { i: 30, kind: 'gotoprison', name: 'Allez en Prison' },
-  city(31, 'Tokyo', 'Japon', 'emeraude', 3100, 1900, 'tower', 35.68, 139.69),
-  city(32, 'New York', 'États-Unis', 'emeraude', 3200, 1900, 'skyline', 40.71, -74.01),
+  city(31, 'Tokyo', 'Japon', 'emeraude', 300, 200, [26, 130, 390, 900, 1275], 'tower', 35.68, 139.69),
+  city(32, 'New York', 'États-Unis', 'emeraude', 300, 200, [26, 130, 390, 900, 1275], 'skyline', 40.71, -74.01),
   { i: 33, kind: 'card', deck: 'marche', name: 'Marché' },
-  city(34, 'Singapour', 'Singapour', 'emeraude', 3300, 1900, 'spire', 1.35, 103.82),
-  { i: 35, kind: 'hub', name: 'Hub Orient', price: 2000 },
+  city(34, 'Singapour', 'Singapour', 'emeraude', 320, 200, [28, 150, 450, 1000, 1400], 'spire', 1.35, 103.82),
+  { i: 35, kind: 'hub', name: 'Hub Orient', price: 200 },
   { i: 36, kind: 'card', deck: 'destin', name: 'Destin' },
-  city(37, 'Dubaï', 'É.A.U.', 'nuit', 4000, 2400, 'spire', 25.2, 55.27),
-  { i: 38, kind: 'tax', name: 'Taxe de Luxe', amount: 700 },
-  city(39, 'Monaco', 'Monaco', 'nuit', 4500, 2400, 'dome', 43.73, 7.42),
+  city(37, 'Dubaï', 'É.A.U.', 'nuit', 350, 200, [35, 175, 500, 1100, 1500], 'spire', 25.2, 55.27),
+  { i: 38, kind: 'tax', name: 'Taxe de Luxe', amount: 100 },
+  city(39, 'Monaco', 'Monaco', 'nuit', 400, 200, [50, 200, 600, 1400, 2000], 'dome', 43.73, 7.42),
 ];
+
 
 export const BOARD_SIZE = BOARD.length;
 export const JAIL_TILE = 10;

@@ -35,7 +35,7 @@ Le dernier joueur financièrement viable gagne.
 
 | Règle | Valeur |
 |---|---|
-| Fortune de départ | 35 000 € |
+| Fortune de départ | 1 500 € |
 | Passage par le Départ | +200 € |
 | Arrivée exacte sur le Départ | +400 € (animation distincte) |
 | Premier tour de table | aucun achat possible |
@@ -51,19 +51,34 @@ Le dernier joueur financièrement viable gagne.
 | Échanges | propriétés et liquidités dans les deux sens, à accepter ou refuser ; une contrepartie est exigée de chaque côté — pas de don déguisé |
 | Faillite | patrimoine transféré au créancier, joueur éliminé |
 
-Prix des villes : 900 € (Marrakech) à 4 500 € (Monaco). Le loyer du terrain nu
-vaut environ 1/14 du prix d'achat ; les quatre paliers de construction le
-multiplient par 5 / 15 / 40 / 70. Un hôtel rapporte donc à peu près cinq fois le
-prix d'achat de la ville : 4 200 € à Marrakech, 22 400 € à Monaco. Le barème
-précédent plafonnait à 1,7 fois le prix, si bien que bâtir ne se rentabilisait
-jamais ; c'est la proportion, pas le niveau absolu, qui rend la construction
-décisive.
+### Échelle monétaire
 
-**Choix assumés** — deux points s'écartent des habitudes du genre, à la demande
-du cahier des charges : une propriété refusée reste simplement disponible (pas
-d'enchère), et la caution de sortie de prison reste à 50 € alors que l'échelle
-monétaire du reste du jeu est dix fois supérieure. Les deux sont regroupés dans
-`RULES` (`src/engine/board.ts`) et se changent en une ligne.
+| | |
+|---|---|
+| Fortune de départ | 1 500 € |
+| Terrains | 60 € (Marrakech, Le Caire) à 400 € (Monaco) |
+| Construction | 50 € à 200 € le palier, selon le groupe |
+| Hubs | 200 € — loyer 25 / 50 / 100 / 200 selon le nombre possédé |
+| Réseaux | 150 € — loyer de 4 × ou 10 × la somme des dés |
+| Loyers | de 2 € (terrain nu le moins cher) à 2 000 € (hôtel à Monaco) |
+
+L'échelle précédente était **incohérente avec elle-même** : on démarrait à
+35 000 €, une ville en coûtait 900 à 4 500 — mais le passage par le Départ
+rapportait 200 € et la caution de prison 50 €. Deux valeurs étaient restées sur
+l'échelle classique du genre pendant que tout le reste était multiplié par
+vingt-trois. Conséquence : faire le tour du plateau ne rapportait rien, la
+prison ne coûtait rien, et l'argent n'avait plus de sens relatif.
+
+Tout est désormais ramené sur la même base — celle, éprouvée, où un tour de
+plateau paie environ un huitième d'une rue moyenne. Les montants des cartes
+suivent la même échelle (10 € à 85 €) : une carte pèse sur un tour sans jamais
+régler la partie.
+
+**Choix assumés** — un point s'écarte des habitudes du genre, à la demande du
+cahier des charges : une propriété refusée reste simplement disponible, sans
+enchère. Arriver pile sur le Départ double la prime (+400 € au lieu de +200 €)
+est l'autre écart, celui-là volontaire. Les deux sont dans `RULES`
+(`src/engine/board.ts`) et se changent en une ligne.
 
 ---
 
