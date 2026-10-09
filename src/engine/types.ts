@@ -19,8 +19,15 @@ export type TileKind =
   | 'depart' | 'city' | 'hub' | 'reseau' | 'card'
   | 'tax' | 'prison' | 'gotoprison' | 'parc';
 
-/** 0 terrain nu, 1 maison, 2 deux maisons, 3 villa, 4 hôtel. */
-export type BuildLevel = 0 | 1 | 2 | 3 | 4;
+/**
+ * 0 terrain nu, puis une à quatre maisons, puis l'hôtel.
+ *
+ * Cinq paliers et non quatre : la marche à quatre maisons existe dans le
+ * barème de référence, et c'est elle qui rend l'hôtel coûteux — on y arrive
+ * en cinq paiements, pas en quatre. La supprimer dérèglait à la fois le prix
+ * de l'hôtel et un loyer intermédiaire sur chacune des vingt-deux villes.
+ */
+export type BuildLevel = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface CityTile {
   i: TileIndex;
@@ -29,8 +36,8 @@ export interface CityTile {
   country: string;
   group: GroupId;
   price: number;
-  /** [terrain, 1 maison, 2 maisons, villa, hôtel] */
-  rent: [number, number, number, number, number];
+  /** [terrain, 1 maison, 2 maisons, 3 maisons, 4 maisons, hôtel] */
+  rent: [number, number, number, number, number, number];
   buildCost: number;
   /** Repère visuel de la ville sur le plateau 3D. */
   landmark: 'tower' | 'dome' | 'spire' | 'arch' | 'pyramid' | 'bridge' | 'pagoda' | 'skyline';

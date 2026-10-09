@@ -282,10 +282,10 @@ describe('constructions', () => {
     expect(r.rejected).toMatch(/villes du groupe/);
   });
 
-  it('monte Terrain → Maison → Deux maisons → Villa → Hôtel', () => {
+  it('monte le groupe d’un cran à la fois, du terrain nu à l’hôtel', () => {
     let s = give(newGame(2), 'p1', azur);
     const cost = (tileAt(azur[0]) as { buildCost: number }).buildCost;
-    for (let lvl = 1; lvl <= 4; lvl++) {
+    for (let lvl = 1; lvl <= MAX_LEVEL; lvl++) {
       // Construction homogène : il faut monter tout le groupe d'un cran.
       for (const t of azur) {
         const r = applyCommand(s, { t: 'BUILD', by: 'p1', tile: t });
@@ -294,7 +294,9 @@ describe('constructions', () => {
       }
       expect(azur.map((t) => s.tiles[t].level)).toEqual([lvl, lvl, lvl]);
     }
-    expect(s.players.p1.cash).toBe(RULES.startingCash - cost * 12);
+    // Trois villes montées de cinq paliers : l'hôtel se paie au même prix
+    // qu'une maison, mais il faut les cinq marches pour l'atteindre.
+    expect(s.players.p1.cash).toBe(RULES.startingCash - cost * MAX_LEVEL * azur.length);
     expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] }).rejected).toMatch(/Hôtel/);
   });
 

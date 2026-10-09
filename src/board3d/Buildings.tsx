@@ -125,8 +125,8 @@ const Structure = ({
   );
 
   /** Pavillon : corps, toit à quatre pentes, fenêtre éclairée. */
-  const maison = (x: number, echelle = 1) => (
-    <group position={[x, 0, 0]} scale={echelle}>
+  const maison = (x: number, z = 0, echelle = 1) => (
+    <group key={`${x}:${z}`} position={[x, 0, z]} scale={echelle}>
       <mesh castShadow material={mat} position={[0, 0.17, 0]}>
         <boxGeometry args={[0.52, 0.34, 0.46]} />
       </mesh>
@@ -140,49 +140,32 @@ const Structure = ({
     </group>
   );
 
-  if (level === 1) {
+  /*
+    Un palier, un pavillon de plus.
+
+    On pourrait grossir un seul bâtiment à chaque palier ; compter des
+    maisons est plus sûr. Une hauteur ne se compare qu'en regardant la case
+    voisine, alors qu'un nombre se lit sur la case elle-même — et c'est ce
+    qu'on veut savoir en arrivant dessus : combien de maisons, donc quel
+    loyer. Les pavillons rétrécissent à mesure qu'ils se multiplient, pour
+    tenir dans l'emprise sans jamais déborder sur le nom de la ville.
+  */
+  if (level >= 1 && level <= 4) {
+    const plans: [number, number][][] = [
+      [[0, 0]],
+      [[-0.17, 0], [0.17, 0]],
+      [[-0.25, 0], [0, 0], [0.25, 0]],
+      [[-0.17, -0.15], [0.17, -0.15], [-0.17, 0.15], [0.17, 0.15]],
+    ];
+    const echelles = [1, 0.78, 0.62, 0.58];
     return (
       <group>
         {socle}
-        {maison(0)}
+        {plans[level - 1].map(([x, z]) => maison(x, z, echelles[level - 1]))}
       </group>
     );
   }
 
-  // Deux pavillons côte à côte : le palier se lit d'un coup d'œil, sans avoir
-  // à comparer des hauteurs.
-  if (level === 2) {
-    return (
-      <group>
-        {socle}
-        {maison(-0.17, 0.78)}
-        {maison(0.17, 0.78)}
-      </group>
-    );
-  }
-
-  if (level === 3) {
-    return (
-      <group>
-        {socle}
-        <mesh castShadow material={mat} position={[0, 0.24, 0]}>
-          <boxGeometry args={[0.66, 0.48, 0.5]} />
-        </mesh>
-        <mesh castShadow material={mat} position={[0.16, 0.62, 0]}>
-          <boxGeometry args={[0.34, 0.3, 0.42]} />
-        </mesh>
-        <mesh castShadow position={[0, 0.5, 0.3]}>
-          <boxGeometry args={[0.7, 0.03, 0.12]} />
-          <meshStandardMaterial color="#EAB308" emissive="#D97706" emissiveIntensity={0.6} />
-        </mesh>
-        {[-0.18, 0.02].map((x) => (
-          <mesh key={x} material={WINDOW_MAT} position={[x, 0.25, 0.252]}>
-            <planeGeometry args={[0.13, 0.16]} />
-          </mesh>
-        ))}
-      </group>
-    );
-  }
   // Hôtel : tour, enseigne et couronne lumineuse — le sommet du barème.
   return (
     <group>

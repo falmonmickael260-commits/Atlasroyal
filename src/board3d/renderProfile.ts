@@ -32,7 +32,26 @@ const dpr = typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1;
  */
 const surfaceCss =
   typeof window !== 'undefined' ? Math.max(1, window.innerWidth * window.innerHeight) : 1e6;
-const BUDGET_PIXELS = coarse ? 2_000_000 : 2_400_000;
+/*
+  Budget relevé de 2,4 à 6 mégapixels sur pointeur fin.
+
+  L'ancien plafond était l'unique cause du manque de netteté, et elle se
+  mesure : sur un écran de portable courant — 1 512 × 945 points, densité 2 —
+  2,4 Mpx imposaient un rendu à 1,30×, soit **65 %** de la définition réelle
+  de la dalle. En 1 920 × 1 080 on tombait à 1,08×, soit 54 %. Tout était
+  donc dessiné à moitié de résolution puis agrandi : noms des cases, arêtes
+  des pions, logo du tapis. Aucune densité de texture ne rattrape ça, puisque
+  les textures sont déjà trois fois plus fines que ce que l'écran affiche.
+
+  À 6 Mpx, une fenêtre jusqu'à ~1 550 × 970 points est rendue à la pleine
+  densité de l'écran, et les plus grandes se dégradent progressivement au
+  lieu d'être écrasées d'emblée.
+
+  Le plafond matériel reste 2× : au-delà, on paierait du remplissage qu'aucun
+  écran ne sait montrer. Le budget tactile ne change pas — un téléphone de
+  375 × 812 atteignait déjà le plafond de 2×.
+*/
+const BUDGET_PIXELS = coarse ? 2_000_000 : 6_000_000;
 export const RENDER_DPR = Math.max(
   1,
   Math.min(dpr, 2, Math.sqrt(BUDGET_PIXELS / surfaceCss)),

@@ -76,45 +76,45 @@ const city = (
  */
 export const BOARD: Tile[] = [
   { i: 0, kind: 'depart', name: 'Départ' },
-  city(1, 'Marrakech', 'Maroc', 'terre', 60, 50, [2, 10, 30, 90, 250], 'arch', 31.63, -7.99),
+  city(1, 'Marrakech', 'Maroc', 'terre', 60, 50, [2, 10, 30, 90, 160, 250], 'arch', 31.63, -7.99),
   { i: 2, kind: 'card', deck: 'destin', name: 'Destin' },
-  city(3, 'Le Caire', 'Égypte', 'terre', 60, 50, [4, 20, 60, 180, 450], 'pyramid', 30.04, 31.24),
+  city(3, 'Le Caire', 'Égypte', 'terre', 60, 50, [4, 20, 60, 180, 320, 450], 'pyramid', 30.04, 31.24),
   { i: 4, kind: 'tax', name: 'Impôt Mondial', amount: 200 },
   { i: 5, kind: 'hub', name: 'Hub Atlantique', price: 200 },
-  city(6, 'Bangkok', 'Thaïlande', 'azur', 100, 50, [6, 30, 90, 270, 550], 'pagoda', 13.76, 100.5),
+  city(6, 'Bangkok', 'Thaïlande', 'azur', 100, 50, [6, 30, 90, 270, 400, 550], 'pagoda', 13.76, 100.5),
   { i: 7, kind: 'card', deck: 'marche', name: 'Marché' },
-  city(8, 'Hanoï', 'Viêt Nam', 'azur', 100, 50, [6, 30, 90, 270, 550], 'pagoda', 21.03, 105.85),
-  city(9, 'Bali', 'Indonésie', 'azur', 120, 50, [8, 40, 100, 300, 600], 'arch', -8.41, 115.19),
+  city(8, 'Hanoï', 'Viêt Nam', 'azur', 100, 50, [6, 30, 90, 270, 400, 550], 'pagoda', 21.03, 105.85),
+  city(9, 'Bali', 'Indonésie', 'azur', 120, 50, [8, 40, 100, 300, 450, 600], 'arch', -8.41, 115.19),
   { i: 10, kind: 'prison', name: 'Prison' },
-  city(11, 'Lisbonne', 'Portugal', 'fuchsia', 140, 100, [10, 50, 150, 450, 750], 'bridge', 38.72, -9.14),
+  city(11, 'Lisbonne', 'Portugal', 'fuchsia', 140, 100, [10, 50, 150, 450, 625, 750], 'bridge', 38.72, -9.14),
   { i: 12, kind: 'reseau', name: 'Réseau Solaire', price: 150 },
-  city(13, 'Le Cap', 'Afrique du Sud', 'fuchsia', 140, 100, [10, 50, 150, 450, 750], 'skyline', -33.92, 18.42),
-  city(14, 'Rio de Janeiro', 'Brésil', 'fuchsia', 160, 100, [12, 60, 180, 500, 900], 'spire', -22.91, -43.17),
+  city(13, 'Le Cap', 'Afrique du Sud', 'fuchsia', 140, 100, [10, 50, 150, 450, 625, 750], 'skyline', -33.92, 18.42),
+  city(14, 'Rio de Janeiro', 'Brésil', 'fuchsia', 160, 100, [12, 60, 180, 500, 700, 900], 'spire', -22.91, -43.17),
   { i: 15, kind: 'hub', name: 'Hub Pacifique', price: 200 },
-  city(16, 'Barcelone', 'Espagne', 'orange', 180, 100, [14, 70, 200, 550, 950], 'spire', 41.39, 2.17),
+  city(16, 'Barcelone', 'Espagne', 'orange', 180, 100, [14, 70, 200, 550, 750, 950], 'spire', 41.39, 2.17),
   { i: 17, kind: 'card', deck: 'marche', name: 'Marché' },
-  city(18, 'Rome', 'Italie', 'orange', 180, 100, [14, 70, 200, 550, 950], 'dome', 41.9, 12.5),
-  city(19, 'Istanbul', 'Turquie', 'orange', 200, 100, [16, 80, 220, 600, 1000], 'dome', 41.01, 28.98),
+  city(18, 'Rome', 'Italie', 'orange', 180, 100, [14, 70, 200, 550, 750, 950], 'dome', 41.9, 12.5),
+  city(19, 'Istanbul', 'Turquie', 'orange', 200, 100, [16, 80, 220, 600, 800, 1000], 'dome', 41.01, 28.98),
   { i: 20, kind: 'parc', name: 'Parc Gratuit' },
-  city(21, 'Berlin', 'Allemagne', 'rubis', 220, 150, [18, 90, 250, 700, 1050], 'arch', 52.52, 13.4),
+  city(21, 'Berlin', 'Allemagne', 'rubis', 220, 150, [18, 90, 250, 700, 875, 1050], 'arch', 52.52, 13.4),
   { i: 22, kind: 'card', deck: 'destin', name: 'Destin' },
-  city(23, 'Amsterdam', 'Pays-Bas', 'rubis', 220, 150, [18, 90, 250, 700, 1050], 'bridge', 52.37, 4.9),
-  city(24, 'Séoul', 'Corée du Sud', 'rubis', 240, 150, [20, 100, 300, 750, 1100], 'tower', 37.57, 126.98),
+  city(23, 'Amsterdam', 'Pays-Bas', 'rubis', 220, 150, [18, 90, 250, 700, 875, 1050], 'bridge', 52.37, 4.9),
+  city(24, 'Séoul', 'Corée du Sud', 'rubis', 240, 150, [20, 100, 300, 750, 925, 1100], 'tower', 37.57, 126.98),
   { i: 25, kind: 'hub', name: 'Hub Méditerranée', price: 200 },
-  city(26, 'Londres', 'Royaume-Uni', 'safran', 260, 150, [22, 110, 330, 800, 1150], 'tower', 51.51, -0.13),
-  city(27, 'Sydney', 'Australie', 'safran', 260, 150, [22, 110, 330, 800, 1150], 'bridge', -33.87, 151.21),
+  city(26, 'Londres', 'Royaume-Uni', 'safran', 260, 150, [22, 110, 330, 800, 975, 1150], 'tower', 51.51, -0.13),
+  city(27, 'Sydney', 'Australie', 'safran', 260, 150, [22, 110, 330, 800, 975, 1150], 'bridge', -33.87, 151.21),
   { i: 28, kind: 'reseau', name: 'Réseau Orbital', price: 150 },
-  city(29, 'Los Angeles', 'États-Unis', 'safran', 280, 150, [24, 120, 360, 850, 1200], 'skyline', 34.05, -118.24),
+  city(29, 'Los Angeles', 'États-Unis', 'safran', 280, 150, [24, 120, 360, 850, 1025, 1200], 'skyline', 34.05, -118.24),
   { i: 30, kind: 'gotoprison', name: 'Allez en Prison' },
-  city(31, 'Tokyo', 'Japon', 'emeraude', 300, 200, [26, 130, 390, 900, 1275], 'tower', 35.68, 139.69),
-  city(32, 'New York', 'États-Unis', 'emeraude', 300, 200, [26, 130, 390, 900, 1275], 'skyline', 40.71, -74.01),
+  city(31, 'Tokyo', 'Japon', 'emeraude', 300, 200, [26, 130, 390, 900, 1100, 1275], 'tower', 35.68, 139.69),
+  city(32, 'New York', 'États-Unis', 'emeraude', 300, 200, [26, 130, 390, 900, 1100, 1275], 'skyline', 40.71, -74.01),
   { i: 33, kind: 'card', deck: 'marche', name: 'Marché' },
-  city(34, 'Singapour', 'Singapour', 'emeraude', 320, 200, [28, 150, 450, 1000, 1400], 'spire', 1.35, 103.82),
+  city(34, 'Singapour', 'Singapour', 'emeraude', 320, 200, [28, 150, 450, 1000, 1200, 1400], 'spire', 1.35, 103.82),
   { i: 35, kind: 'hub', name: 'Hub Orient', price: 200 },
   { i: 36, kind: 'card', deck: 'destin', name: 'Destin' },
-  city(37, 'Dubaï', 'É.A.U.', 'nuit', 350, 200, [35, 175, 500, 1100, 1500], 'spire', 25.2, 55.27),
+  city(37, 'Dubaï', 'É.A.U.', 'nuit', 350, 200, [35, 175, 500, 1100, 1300, 1500], 'spire', 25.2, 55.27),
   { i: 38, kind: 'tax', name: 'Taxe de Luxe', amount: 100 },
-  city(39, 'Monaco', 'Monaco', 'nuit', 400, 200, [50, 200, 600, 1400, 2000], 'dome', 43.73, 7.42),
+  city(39, 'Monaco', 'Monaco', 'nuit', 400, 200, [50, 200, 600, 1400, 1700, 2000], 'dome', 43.73, 7.42),
 ];
 
 
@@ -138,7 +138,7 @@ export const GROUP_INDEX: Record<GroupId, TileIndex[]> = Object.fromEntries(
 export const HUB_TILES = BOARD.filter((t) => t.kind === 'hub').map((t) => t.i);
 export const RESEAU_TILES = BOARD.filter((t) => t.kind === 'reseau').map((t) => t.i);
 
-export const LEVEL_NAMES = ['Terrain', 'Maison', 'Deux maisons', 'Villa', 'Hôtel'] as const;
+export const LEVEL_NAMES = ['Terrain', 'Maison', 'Deux maisons', 'Trois maisons', 'Quatre maisons', 'Hôtel'] as const;
 
 /** Dernier palier constructible. */
-export const MAX_LEVEL = 4;
+export const MAX_LEVEL = 5;

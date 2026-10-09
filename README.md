@@ -26,7 +26,7 @@ Quatre hubs régulièrement répartis (cases 5, 15, 25, 35), six cases carte.
 On achète des villes, on réunit un groupe complet, puis on bâtit :
 
 ```
-Terrain nu  →  Maison  →  Deux maisons  →  Villa  →  Hôtel
+Terrain nu  →  1 maison  →  2  →  3  →  4 maisons  →  Hôtel
 ```
 
 Le dernier joueur financièrement viable gagne.
@@ -57,10 +57,17 @@ Le dernier joueur financièrement viable gagne.
 |---|---|
 | Fortune de départ | 1 500 € |
 | Terrains | 60 € (Marrakech, Le Caire) à 400 € (Monaco) |
-| Construction | 50 € à 200 € le palier, selon le groupe |
+| Construction | 50 € à 200 € le palier selon le groupe, cinq paliers — l'hôtel s'atteint donc en cinq paiements |
 | Hubs | 200 € — loyer 25 / 50 / 100 / 200 selon le nombre possédé |
 | Réseaux | 150 € — loyer de 4 × ou 10 × la somme des dés |
 | Loyers | de 2 € (terrain nu le moins cher) à 2 000 € (hôtel à Monaco) |
+
+Les loyers ne sont pas calculés par formule : chaque ville porte sa propre
+ligne de six valeurs. Une formule donnait des paliers réguliers, là où le
+barème de référence accélère irrégulièrement — c'est précisément cette
+irrégularité qui rend la troisième maison décisive et la quatrième presque
+décevante. Marrakech : 2 / 10 / 30 / 90 / 160 / 250 pour 60 € d'achat et 50 €
+le palier.
 
 L'échelle précédente était **incohérente avec elle-même** : on démarrait à
 35 000 €, une ville en coûtait 900 à 4 500 — mais le passage par le Départ
