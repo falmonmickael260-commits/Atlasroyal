@@ -1,5 +1,5 @@
 import { applyCommand, createGame } from '../engine';
-import { GROUP_INDEX, tileAt } from '../board';
+import { GROUP_INDEX, RULES, tileAt } from '../board';
 import { canBuild, canMortgage, ownedBy, priceOf, unmortgageCost } from '../rules';
 import { SEATS } from './helpers';
 import type { Command, GameState, PlayerId, TileIndex } from '../types';
@@ -43,6 +43,24 @@ const ownsFull = (s: GameState, p: PlayerId, i: TileIndex) => {
   return t.kind === 'city' && GROUP_INDEX[t.group].every((k) => s.tiles[k].owner === p);
 };
 
+/*
+  Seuils de trésorerie du pilote, exprimés en part de la fortune de départ.
+
+  Ils étaient écrits en dur — 500, 2 000, 3 000, 5 000 — sur une échelle
+  monétaire qui a changé depuis. Un seuil absolu ne veut plus rien dire dès
+  que les montants bougent : avec 1 500 de fortune, « construire si on a plus
+  de 5 000 » n'arrive jamais, et le pilote ne bâtissait plus du tout. Les
+  simulations passaient sans jamais exercer la construction — elles
+  mesuraient donc autre chose que ce qu'elles prétendaient mesurer, et toute
+  conclusion tirée de leur durée était sans valeur.
+
+  En proportion, ils suivent n'importe quelle échelle.
+*/
+const RESERVE_ECHANGE = () => RULES.startingCash * 0.12;
+const RESERVE_ACHAT = () => RULES.startingCash * 0.08;
+const SEUIL_CAUTION = () => RULES.jailFine * 4;
+const SEUIL_CONSTRUCTION = () => RULES.startingCash * 0.3;
+
 export const runBotGame = (seed: string, seats: number, maxSteps = 40_000): BotResult => {
   let s: GameState = createGame('SIM', SEATS(seats), seed);
   s = applyCommand(s, { t: 'START_GAME', by: s.order[0] }).state;
@@ -65,7 +83,7 @@ export const runBotGame = (seed: string, seats: number, maxSteps = 40_000): BotR
       if (ownsFull(s, holder, missing)) continue;
       const price = priceOf(missing);
       const offerCash = Math.round(price * 1.6);
-      if (s.players[me].cash < offerCash + 3_000) continue;
+      if (s.players[me].cash < offerCash + RESERVE_ECHANGE()) continue;
       // Contrepartie : une ville isolée, sans valeur stratégique pour moi.
       const spare = ownedBy(s, me).find((i) =>
         s.tiles[i].level === 0 && !ownsFull(s, me, i)
@@ -112,7 +130,7 @@ export const runBotGame = (seed: string, seats: number, maxSteps = 40_000): BotR
     }
 
     if (pend?.type === 'PROPERTY_DECISION') {
-      send(s.players[pend.player].cash - pend.price > 2_000
+      send(s.players[pend.player].cash - pend.price > RESERVE_ACHAT()
         ? { t: 'BUY_PROPERTY', by: pend.player }
         : { t: 'DECLINE_PROPERTY', by: pend.player });
       continue;
@@ -120,7 +138,7 @@ export const runBotGame = (seed: string, seats: number, maxSteps = 40_000): BotR
 
     if (s.phase === 'JAIL') {
       if (p.jailFreeCards > 0) send({ t: 'USE_JAIL_CARD', by: me });
-      else if (p.cash > 500) send({ t: 'PAY_JAIL_FINE', by: me });
+      else if (p.cash > SEUIL_CAUTION()) send({ t: 'PAY_JAIL_FINE', by: me });
       else send({ t: 'ATTEMPT_JAIL_ROLL', by: me });
       continue;
     }
@@ -135,7 +153,7 @@ export const runBotGame = (seed: string, seats: number, maxSteps = 40_000): BotR
         }
       }
       for (const i of ownedBy(s, me)) {
-        if (!canBuild(s, me, i) && s.players[me].cash > 5_000) send({ t: 'BUILD', by: me, tile: i });
+        if (!canBuild(s, me, i) && s.players[me].cash > SEUIL_CONSTRUCTION()) send({ t: 'BUILD', by: me, tile: i });
       }
       send({ t: 'ROLL_DICE', by: me });
       continue;
