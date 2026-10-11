@@ -1,10 +1,18 @@
 import { BOARD_SIZE } from '../engine/board';
 
-/** Géométrie du plateau, en unités monde. */
+/**
+ * Géométrie du plateau, en unités monde.
+ *
+ * Les proportions sont relevées sur l'illustration : une case de bord y fait
+ * 91 pixels de large pour un anneau de 217, soit un rapport de 2,38 — très
+ * au-dessus du 1,41 d'avant. Tout le reste en découle : emplacements des
+ * cases, des pions, des constructions, et le cadrage de la caméra. Changer
+ * d'illustration revient donc à ne corriger que ces deux nombres.
+ */
 export const GEO = {
-  corner: 2.9,
+  corner: 4.88,
   tileW: 2.05,
-  tileD: 2.9,
+  tileD: 4.88,
   thickness: 0.34,
   get side() { return this.corner * 2 + 9 * this.tileW; },
   get half() { return this.side / 2; },
@@ -85,7 +93,20 @@ export const inwardOf = (tileIndex: number, dist: number): [number, number, numb
 /** Point d'implantation des constructions : moitié extérieure de la case. */
 export const buildSlot = (tileIndex: number): { pos: [number, number, number]; rot: number } => {
   const p = PLACEMENTS[tileIndex];
-  const localZ = -0.52;
+  /*
+    Position des constructions sur la case.
+
+    Le bord intérieur est occupé par la pastille du propriétaire, et juste
+    en dessous vient le nom de la ville : y poser les maisons masquait les
+    deux. On les recule donc sur l'illustration, seul endroit où elles ne
+    cachent aucune information.
+
+    Légèrement **en deçà** du centre, et non dessus : la caméra regarde le
+    plateau de biais, si bien qu'un volume haut se couche vers l'arrière et
+    vient mordre sur ce qui le précède. Ce décalage compense ce penchant
+    pour l'hôtel, le plus haut de tous.
+  */
+  const localZ = GEO.tileD * 0.07;
   const c = Math.cos(p.rot), s = Math.sin(p.rot);
   return {
     pos: [p.pos[0] + localZ * s, GEO.thickness / 2, p.pos[2] + localZ * c],

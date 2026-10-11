@@ -1,96 +1,21 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { BOARD, GROUPS } from '../engine/board';
 import { GEO, PLACEMENTS } from './layout';
-import { centerTexture, tileTexture } from './textures';
+import { texturePlateau } from './plateauImage';
+import { PASTILLES, PLATEAU_PX } from './plateauRects';
 import type { GameState } from '../engine/types';
 
-const SLAB = new THREE.MeshStandardMaterial({ color: '#D9CFBA', roughness: 0.82, metalness: 0.04 });
-
 /**
- * Hauteur du bandeau de groupe sur la face d'une case, en unités monde.
- * Doit suivre la valeur peinte dans `tileTexture`.
+ * Conversion image → monde.
+ *
+ * L'illustration couvre exactement la surface du plateau : un pixel de
+ * l'image correspond donc toujours au même point du jeu, quelle que soit sa
+ * définition. Remplacer le fichier par un export plus fin ne demande aucun
+ * ajustement ici.
  */
-const BANDE = 0.57;
-
-/** Une case : dalle en relief + face imprimée + teinte du propriétaire. */
-const Tile = ({ index, owner }: { index: number; owner: string | null }) => {
-  const p = PLACEMENTS[index];
-  const tile = BOARD[index];
-  const map = useMemo(() => tileTexture(tile, p.width, p.depth), [tile, p.width, p.depth]);
-
-  return (
-    <group position={p.pos} rotation={[0, p.rot, 0]}>
-      <mesh castShadow receiveShadow material={SLAB} position={[0, 0, 0]}>
-        <boxGeometry args={[p.width - 0.04, GEO.thickness, p.depth - 0.04]} />
-      </mesh>
-
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, GEO.thickness / 2 + 0.012, 0]} receiveShadow>
-        <planeGeometry args={[p.width - 0.04, p.depth - 0.04]} />
-        <meshStandardMaterial map={map} roughness={0.7} metalness={0.05} toneMapped={false} />
-      </mesh>
-
-      {/*
-        Propriété : la case **entière** prend la couleur du joueur.
-
-        Un simple liseré au bord se perdait dans la vue d'ensemble — à cette
-        distance il faisait deux pixels, et il fallait compter les cases pour
-        savoir à qui appartenait quoi. Un voile sur toute la face se lit d'un
-        coup d'œil, et c'est bien la question qu'on se pose en permanence :
-        « où est-ce que je peux encore tomber sans payer ? »
-
-        Voile translucide, et non aplat opaque : le nom et le prix sont
-        imprimés dessous et doivent rester lisibles. L'écriture est sombre sur
-        carton clair, elle résiste à une teinte à cette opacité. Le bandeau
-        plein au bord extérieur donne la couleur franche, non délavée, qui
-        sert de référence pour identifier le joueur.
-      */}
-      {owner && (
-        <>
-          {/*
-            Le voile s'arrête sous le bandeau de groupe.
-
-            Couvrir la case entière effaçait la couleur de famille, qui est
-            l'information dont on se sert pour jouer : c'est elle qui dit si
-            un groupe est réunissable. On garde donc le bandeau intact et on
-            teinte tout le reste — la case appartient visiblement à quelqu'un
-            sans cesser d'appartenir à un groupe.
-          */}
-          <mesh
-            rotation={[-Math.PI / 2, 0, 0]}
-            position={[0, GEO.thickness / 2 + 0.016, (BANDE - 0.02) / 2]}
-          >
-            <planeGeometry args={[p.width - 0.04, p.depth - 0.04 - BANDE]} />
-            {/*
-              Mélange multiplicatif plutôt qu'un voile posé par-dessus.
-
-              Les couleurs de joueur sont claires — elles doivent rester
-              lisibles en petites pastilles dans l'interface. Superposées en
-              transparence à un carton déjà clair, elles donnaient un pastel
-              délavé où l'on ne reconnaissait plus personne. En multipliant,
-              la couleur agit comme un filtre coloré : le carton prend
-              franchement la teinte, et l'encre du nom, déjà sombre, reste
-              sombre et donc lisible.
-            */}
-            <meshBasicMaterial
-              color={owner}
-              transparent
-              opacity={0.5}
-              depthWrite={false}
-              toneMapped={false}
-            />
-          </mesh>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, GEO.thickness / 2 + 0.02, p.depth / 2 - 0.1]}>
-            <planeGeometry args={[p.width - 0.04, 0.17]} />
-            <meshBasicMaterial color={owner} depthWrite={false} toneMapped={false} />
-          </mesh>
-        </>
-      )}
-
-    </group>
-  );
-};
+const versMonde = (pixels: number) => (pixels / PLATEAU_PX) * GEO.side;
+const centreMonde = (pixels: number) => versMonde(pixels) - GEO.half;
 
 /**
  * Éclat d'acquisition : un anneau s'ouvre sur la case et s'efface.
@@ -140,8 +65,23 @@ const PurchaseFlash = ({
  * pion ne fait pas traverser les quarante cases à React.
  */
 export const Board = ({ state }: { state: GameState }) => {
-  const center = useMemo(() => centerTexture(GEO.side - GEO.tileD * 2), []);
-  const inner = GEO.side - GEO.tileD * 2;
+  const image = texturePlateau();
+
+  /*
+    Pastilles de propriété.
+
+    Une par case vendue, posée dans le rectangle réservé par l'illustration.
+    C'est le seul élément de couleur ajouté au dessin : tout le reste — noms,
+    prix, bandeaux de groupe, décor — vient de l'image.
+  */
+  const pastilles = useMemo(
+    () => Object.entries(PASTILLES).map(([cle, [x, y, w, h]]) => ({
+      tile: Number(cle),
+      pos: [centreMonde(x + w / 2), centreMonde(y + h / 2)] as const,
+      taille: [versMonde(w), versMonde(h)] as const,
+    })),
+    [],
+  );
 
   return (
     <group>
@@ -155,25 +95,37 @@ export const Board = ({ state }: { state: GameState }) => {
         <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={0.5} roughness={0.4} />
       </mesh>
 
-      {/* Écart franc avec le socle : 1 centième d'unité ne suffit pas à
-          départager deux surfaces à cette distance de caméra. */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.09, 0]} receiveShadow>
-        <planeGeometry args={[inner, inner]} />
-        <meshStandardMaterial map={center} roughness={0.85} toneMapped={false} />
+      {/* La surface de jeu : une seule image, cadre et tapis central compris. */}
+      <mesh castShadow receiveShadow position={[0, 0, 0]}>
+        <boxGeometry args={[GEO.side, GEO.thickness, GEO.side]} />
+        <meshStandardMaterial color="#1A2436" roughness={0.85} />
       </mesh>
+      {image && (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, GEO.thickness / 2 + 0.012, 0]} receiveShadow>
+          <planeGeometry args={[GEO.side, GEO.side]} />
+          <meshStandardMaterial map={image} roughness={0.72} metalness={0.04} toneMapped={false} />
+        </mesh>
+      )}
 
-      {BOARD.map((t) => (
-        <Tile
-          key={t.i}
-          index={t.i}
-          owner={state.tiles[t.i]?.owner ? state.players[state.tiles[t.i].owner!]?.color ?? null : null}
-        />
-      ))}
+      {pastilles.map((p) => {
+        const owner = state.tiles[p.tile]?.owner;
+        const couleur = owner ? state.players[owner]?.color : null;
+        if (!couleur) return null;
+        return (
+          <mesh
+            key={p.tile}
+            rotation={[-Math.PI / 2, 0, 0]}
+            position={[p.pos[0], GEO.thickness / 2 + 0.018, p.pos[1]]}
+          >
+            <planeGeometry args={[p.taille[0], p.taille[1]]} />
+            <meshBasicMaterial color={couleur} toneMapped={false} />
+          </mesh>
+        );
+      })}
     </group>
   );
 };
 
-export const GROUP_COLOR = (g: keyof typeof GROUPS) => GROUPS[g].color;
 
 /** Halo pulsant : signale la case d'arrivée pendant le déplacement. */
 const DestinationHalo = ({ tile }: { tile: number | null }) => {

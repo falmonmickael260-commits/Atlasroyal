@@ -88,18 +88,42 @@ const Crown = ({ landmark, mat }: { landmark: CityTile['landmark']; mat: THREE.M
 /*
   Facteur d'échelle des constructions.
 
-  À l'échelle d'origine, un hôtel mesurait une quinzaine de pixels à l'écran
-  dans la vue d'ensemble : on voyait une tache colorée, pas un bâtiment. Les
-  volumes sont dessinés en unités de case ; plutôt que de reprendre chaque
-  cote, on les agrandit d'un bloc. L'emprise reste très en deçà de la case
-  (0,99 × 0,83 pour une case de 2,05 × 2,9).
+  Les volumes sont dessinés en unités de case ; plutôt que de reprendre chaque
+  cote, un seul facteur les met à l'échelle.
+
+  Il a été réduit depuis que le plateau est illustré : les bâtiments se posent
+  désormais sur un dessin, et non sur un aplat. Trop gros, ils écrasaient la
+  vue de la ville — alors que c'est elle qui donne son identité à la case.
 */
-const BUILD_SCALE = 1.34;
+const BUILD_SCALE = 0.95;
+
+/*
+  Couleur des bâtiments : ivoire et terre cuite, et non la teinte du groupe.
+
+  Reprendre la couleur du groupe n'apporte plus rien : elle est déjà sur la
+  case, en bandeau, et la pastille du propriétaire dit à qui elle appartient.
+  Le bâtiment n'avait donc qu'une information à porter — combien — et il la
+  portait dans une teinte souvent sombre, brune ou bleu nuit, qui se lisait
+  comme une tache noire posée sur une illustration claire.
+
+  Ivoire et terre cuite se détachent sur tous les fonds du plateau, à toutes
+  les positions de caméra, et renvoient à la maison de jeu en plastique dont
+  tout le monde connaît la silhouette.
+*/
+const CORPS = new THREE.MeshPhysicalMaterial({
+  color: '#F2E6CE', roughness: 0.45, metalness: 0.02, clearcoat: 0.4, clearcoatRoughness: 0.3,
+});
+const TOIT = new THREE.MeshStandardMaterial({ color: '#C0442C', roughness: 0.55 });
+const HOTEL = new THREE.MeshPhysicalMaterial({
+  color: '#B8382A', roughness: 0.4, metalness: 0.05, clearcoat: 0.55, clearcoatRoughness: 0.25,
+});
 
 const Structure = ({
   level, color, landmark,
 }: { level: number; color: string; landmark: CityTile['landmark'] }) => {
   const gl = useThree((s) => s.gl);
+  // La teinte du groupe ne sert plus qu'au couronnement de l'hôtel : un
+  // rappel discret, sur le seul volume assez grand pour le porter.
   const mat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
@@ -114,25 +138,23 @@ const Structure = ({
     [color, gl],
   );
 
-  // Embase commune : un liseré sombre au pied de chaque construction. Elle
-  // ancre le volume sur la case et lui donne une ombre de contact nette,
-  // au lieu de paraître posé en lévitation sur l'impression.
-  const socle = (
-    <mesh receiveShadow castShadow position={[0, 0.018, 0]}>
-      <boxGeometry args={[0.74, 0.036, 0.62]} />
-      <meshStandardMaterial color="#1A2436" roughness={0.75} />
-    </mesh>
-  );
+  /*
+    Plus d'embase sombre.
+
+    Elle existait pour ancrer le volume sur une case imprimée en aplat. Sur
+    une illustration, elle ne fait qu'ajouter un rectangle noir : l'ombre
+    portée des bâtiments suffit désormais à les poser.
+  */
+  const socle = null;
 
   /** Pavillon : corps, toit à quatre pentes, fenêtre éclairée. */
   const maison = (x: number, z = 0, echelle = 1) => (
     <group key={`${x}:${z}`} position={[x, 0, z]} scale={echelle}>
-      <mesh castShadow material={mat} position={[0, 0.17, 0]}>
+      <mesh castShadow material={CORPS} position={[0, 0.17, 0]}>
         <boxGeometry args={[0.52, 0.34, 0.46]} />
       </mesh>
-      <mesh castShadow position={[0, 0.42, 0]} rotation={[0, Math.PI / 4, 0]}>
+      <mesh castShadow material={TOIT} position={[0, 0.42, 0]} rotation={[0, Math.PI / 4, 0]}>
         <coneGeometry args={[0.42, 0.24, 4]} />
-        <meshStandardMaterial color="#0F172A" roughness={0.6} />
       </mesh>
       <mesh material={WINDOW_MAT} position={[0, 0.16, 0.235]}>
         <planeGeometry args={[0.16, 0.12]} />
@@ -170,12 +192,15 @@ const Structure = ({
   return (
     <group>
       {socle}
-      <mesh castShadow material={mat} position={[0, 0.34, 0]}>
+      {/* Corps en terre cuite : l'hôtel se distingue de la maison par la
+          couleur autant que par la taille, comme sur un plateau de table. */}
+      <mesh castShadow material={HOTEL} position={[0, 0.34, 0]}>
         <boxGeometry args={[0.62, 0.68, 0.52]} />
       </mesh>
-      <mesh castShadow material={mat} position={[0, 0.84, 0]}>
+      <mesh castShadow material={HOTEL} position={[0, 0.84, 0]}>
         <boxGeometry args={[0.44, 0.34, 0.4]} />
       </mesh>
+      {/* Seul rappel de la couleur du groupe, tout en haut. */}
       <Crown landmark={landmark} mat={mat} />
       <mesh position={[0, 1.52, 0]}>
         <sphereGeometry args={[0.055, 12, 12]} />
