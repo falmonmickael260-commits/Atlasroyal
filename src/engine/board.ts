@@ -13,12 +13,19 @@ export const RULES = {
     plateau ne rapportait rien, la prison ne coûtait rien, et l'argent n'avait
     plus de sens relatif.
 
-    Tout est désormais ramené sur la même base, celle qui a été éprouvée par
-    des décennies de parties : fortune de départ de 1 500, terrains de 60 à
-    400, maisons de 50 à 200. Les proportions entre loyer, prix d'achat et
-    revenu de tour sont celles qui font fonctionner ce type de jeu.
+    Tout est désormais ramené sur la même base : terrains de 60 à 400, maisons
+    de 50 à 200, tour de plateau à 200. Les proportions entre loyer, prix
+    d'achat et revenu de tour sont celles qui font fonctionner ce type de jeu.
+
+    La fortune de départ, elle, est volontairement au-dessus de la base
+    classique de 1 500 : on démarre avec de quoi réunir un groupe entier sans
+    se mettre à nu. À noter — c'est contre-intuitif et c'est mesuré — que
+    donner plus d'argent **raccourcit** la partie plutôt que de l'allonger :
+    on bâtit plus tôt, les loyers montent plus vite, les faillites arrivent
+    avant. Ce qui rallonge, c'est de freiner la construction, pas d'enrichir
+    les joueurs.
   */
-  startingCash: 1_500,
+  startingCash: 2_500,
   passGo: 200,
   exactGo: 400,
   jailFine: 50,

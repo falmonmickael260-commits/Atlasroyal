@@ -121,18 +121,33 @@ export const runBotGame = (seed: string, seats: number, maxSteps = 40_000): BotR
     if (pend?.type === 'DEBT') {
       const d = pend.player;
       const need = () => s.players[d].cash >= pend.debt.amount;
-      // La revente doit partir du niveau le plus haut : le groupe reste homogène.
-      const byLevelDesc = () => ownedBy(s, d).sort((a, b) => s.tiles[b].level - s.tiles[a].level);
       /*
-        Défaire un hôtel peut être refusé : la banque doit disposer de quatre
-        maisons pour les reposer sur la case. On passe alors à la propriété
-        suivante au lieu d'insister — `peutVendre` reproduit le contrôle du
-        moteur pour n'émettre que des commandes légales.
+        Revente des constructions, recalculée à chaque coup.
+
+        Deux règles la contraignent, et toutes deux changent **pendant** la
+        liquidation : on ne descend pas sous le niveau du groupe, et défaire
+        un hôtel réclame quatre maisons en banque. Trier les propriétés une
+        seule fois au départ donnait donc un ordre périmé dès la première
+        vente, et le pilote finissait par émettre une commande illégale.
+
+        `peutVendre` reproduit les deux contrôles du moteur, et la propriété
+        la plus haute est choisie à neuf à chaque tour de boucle.
       */
-      const peutVendre = (i: number) =>
-        s.tiles[i].level > 0
-        && (s.tiles[i].level < MAX_LEVEL || maisonsEnJeu(s) + 4 <= RULES.houseStock);
-      for (const i of byLevelDesc()) { if (need()) break; if (peutVendre(i)) send({ t: 'SELL_BUILDING', by: d, tile: i }); }
+      const peutVendre = (i: number) => {
+        const st = s.tiles[i];
+        if (st.level === 0) return false;
+        if (st.level === MAX_LEVEL && maisonsEnJeu(s) + 4 > RULES.houseStock) return false;
+        const t = tileAt(i);
+        if (t.kind !== 'city') return true;
+        return st.level >= Math.max(...GROUP_INDEX[t.group].map((j) => s.tiles[j].level));
+      };
+      // Borne de sûreté : 22 villes × 5 paliers, on ne peut pas vendre plus.
+      for (let garde = 0; garde < 120 && !need(); garde++) {
+        const cible = ownedBy(s, d)
+          .filter(peutVendre)
+          .sort((a, b) => s.tiles[b].level - s.tiles[a].level)[0];
+        if (cible === undefined || !send({ t: 'SELL_BUILDING', by: d, tile: cible })) break;
+      }
       for (const i of ownedBy(s, d)) { if (need()) break; if (!canMortgage(s, d, i)) send({ t: 'MORTGAGE', by: d, tile: i }); }
       send(need() ? { t: 'SETTLE_DEBT', by: d } : { t: 'DECLARE_BANKRUPTCY', by: d });
       continue;

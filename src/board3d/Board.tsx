@@ -134,8 +134,9 @@ const DestinationHalo = ({ tile }: { tile: number | null }) => {
     const m = mesh.current;
     if (!m) return;
     const pulse = 0.5 + 0.5 * Math.sin(st.clock.elapsedTime * 3.4);
-    m.scale.setScalar(1 + pulse * 0.08);
-    (m.material as THREE.MeshBasicMaterial).opacity = 0.3 + pulse * 0.35;
+    // Battement d'opacité seul : agrandir la case d'arrivée la ferait
+    // déborder sur ses voisines, qui ne sont qu'à six centièmes d'unité.
+    (m.material as THREE.MeshBasicMaterial).opacity = 0.18 + pulse * 0.32;
   });
   if (tile === null) return null;
   const p = PLACEMENTS[tile];
@@ -145,7 +146,16 @@ const DestinationHalo = ({ tile }: { tile: number | null }) => {
       rotation={[-Math.PI / 2, 0, 0]}
       position={[p.pos[0], GEO.thickness / 2 + 0.02, p.pos[2]]}
     >
-      <ringGeometry args={[p.width * 0.4, p.width * 0.5, 36]} />
+      {/*
+        La case entière, et non un anneau.
+
+        L'anneau était calibré sur une case presque carrée. Depuis que le
+        plateau est illustré, une case fait 2,05 de large pour 4,88 de
+        profondeur : un cercle au milieu ne désignait plus rien de net, il
+        flottait au centre d'un long rectangle. La forme de la case, elle,
+        reste juste quelle que soit la géométrie.
+      */}
+      <planeGeometry args={[p.width - 0.06, p.depth - 0.06]} />
       <meshBasicMaterial color="#FDE68A" transparent opacity={0.4} toneMapped={false} />
     </mesh>
   );
