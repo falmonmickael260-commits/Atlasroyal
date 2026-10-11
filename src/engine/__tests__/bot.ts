@@ -1,6 +1,6 @@
 import { applyCommand, createGame } from '../engine';
-import { GROUP_INDEX, RULES, tileAt } from '../board';
-import { canBuild, canMortgage, ownedBy, priceOf, unmortgageCost } from '../rules';
+import { GROUP_INDEX, MAX_LEVEL, RULES, tileAt } from '../board';
+import { canBuild, canMortgage, maisonsEnJeu, ownedBy, priceOf, unmortgageCost } from '../rules';
 import { SEATS } from './helpers';
 import type { Command, GameState, PlayerId, TileIndex } from '../types';
 
@@ -123,7 +123,16 @@ export const runBotGame = (seed: string, seats: number, maxSteps = 40_000): BotR
       const need = () => s.players[d].cash >= pend.debt.amount;
       // La revente doit partir du niveau le plus haut : le groupe reste homogène.
       const byLevelDesc = () => ownedBy(s, d).sort((a, b) => s.tiles[b].level - s.tiles[a].level);
-      for (const i of byLevelDesc()) { if (need()) break; if (s.tiles[i].level > 0) send({ t: 'SELL_BUILDING', by: d, tile: i }); }
+      /*
+        Défaire un hôtel peut être refusé : la banque doit disposer de quatre
+        maisons pour les reposer sur la case. On passe alors à la propriété
+        suivante au lieu d'insister — `peutVendre` reproduit le contrôle du
+        moteur pour n'émettre que des commandes légales.
+      */
+      const peutVendre = (i: number) =>
+        s.tiles[i].level > 0
+        && (s.tiles[i].level < MAX_LEVEL || maisonsEnJeu(s) + 4 <= RULES.houseStock);
+      for (const i of byLevelDesc()) { if (need()) break; if (peutVendre(i)) send({ t: 'SELL_BUILDING', by: d, tile: i }); }
       for (const i of ownedBy(s, d)) { if (need()) break; if (!canMortgage(s, d, i)) send({ t: 'MORTGAGE', by: d, tile: i }); }
       send(need() ? { t: 'SETTLE_DEBT', by: d } : { t: 'DECLARE_BANKRUPTCY', by: d });
       continue;

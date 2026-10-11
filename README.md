@@ -46,6 +46,7 @@ Le dernier joueur financièrement viable gagne.
 | Taxes, impôts, cautions | versés à la cagnotte centrale |
 | Parc Gratuit | le joueur encaisse **100 %** de la cagnotte |
 | Construction | uniquement avec toutes les villes du groupe, et de façon homogène |
+| Stock de bâtiments | **32 maisons et 12 hôtels** pour toute la table — quand la banque est vide, personne ne bâtit |
 | Hypothèque | 50 % du prix ; levée à 110 % de ce montant |
 | Revente d'un niveau | 50 % du coût de construction |
 | Échanges | propriétés et liquidités dans les deux sens, à accepter ou refuser ; une contrepartie est exigée de chaque côté — pas de don déguisé |

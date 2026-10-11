@@ -58,6 +58,19 @@ export const mortgageValue = (tile: TileIndex): number =>
 export const unmortgageCost = (tile: TileIndex): number =>
   Math.round(mortgageValue(tile) * RULES.unmortgageRate);
 
+/*
+  Comptage du stock de bâtiments.
+
+  Le niveau d'une case *est* son nombre de maisons : 1 à 4 maisons, puis 5
+  pour l'hôtel. Un hôtel ne compte donc aucune maison — il les a rendues à la
+  banque en se posant, exactement comme sur la table.
+*/
+export const maisonsEnJeu = (s: GameState): number =>
+  Object.values(s.tiles).reduce((n, t) => n + (t.level > 0 && t.level < MAX_LEVEL ? t.level : 0), 0);
+
+export const hotelsEnJeu = (s: GameState): number =>
+  Object.values(s.tiles).reduce((n, t) => n + (t.level === MAX_LEVEL ? 1 : 0), 0);
+
 /** Raison du refus, ou `null` si la construction est légale. */
 export const canBuild = (s: GameState, p: PlayerId, tile: TileIndex): string | null => {
   const t = tileAt(tile);
@@ -77,6 +90,12 @@ export const canBuild = (s: GameState, p: PlayerId, tile: TileIndex): string | n
   const min = Math.min(...GROUP_INDEX[t.group].map((i) => s.tiles[i].level));
   if (st.level > min) return 'Construisez d’abord sur les autres villes du groupe.';
   if (s.players[p].cash < t.buildCost) return 'Fonds insuffisants.';
+  // Stock : une maison de plus, ou un hôtel qui en rend quatre à la banque.
+  if (st.level + 1 < MAX_LEVEL) {
+    if (maisonsEnJeu(s) >= RULES.houseStock) return 'Plus une seule maison disponible.';
+  } else if (hotelsEnJeu(s) >= RULES.hotelStock) {
+    return 'Plus un seul hôtel disponible.';
+  }
   return null;
 };
 

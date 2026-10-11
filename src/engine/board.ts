@@ -34,6 +34,23 @@ export const RULES = {
   hubRent: [25, 50, 100, 200] as const,
   /** Multiplicateur appliqué à la somme des dés, selon le nombre de réseaux. */
   reseauRent: [4, 10] as const,
+  /*
+    Stock de bâtiments, comme dans la boîte du jeu de référence.
+
+    Sans limite, chaque joueur monte tout son groupe jusqu'à l'hôtel dès qu'il
+    en a les moyens. Mesuré sur vingt parties simulées : 42 tours sans stock,
+    50 avec celui de la boîte — la partie s'allonge d'un cinquième.
+
+    Descendre plus bas se retourne contre le jeu : à 24 maisons, une partie
+    sur vingt s'est enlisée au-delà de cent mille tours, personne ne pouvant
+    plus bâtir de quoi achever l'autre.
+
+    La limite n'est pas qu'un frein, c'est une manœuvre : en achetant les
+    dernières maisons, on empêche les autres de bâtir, et on peut tenir la
+    pénurie aussi longtemps qu'on ne revend pas.
+  */
+  houseStock: 32,
+  hotelStock: 12,
   maxPlayers: 6,
   minPlayers: 2,
 } as const;

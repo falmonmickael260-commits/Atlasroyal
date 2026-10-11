@@ -1,5 +1,5 @@
 import { GROUPS, LEVEL_NAMES, RULES, tileAt } from '../../engine/board';
-import { countOwnedIn, rentFor } from '../../engine/rules';
+import { countOwnedIn, hotelsEnJeu, maisonsEnJeu, rentFor } from '../../engine/rules';
 import { HUB_TILES, RESEAU_TILES } from '../../engine/board';
 import { euro } from '../format';
 import type { GameState } from '../../engine/types';
@@ -34,6 +34,18 @@ export const PropertyCard = ({ state, tile }: { state: GameState; tile: number }
         </div>
         <div style={{ marginTop: 12, fontSize: 12, color: 'var(--fg-muted)' }}>
           Construction : {euro(t.buildCost)} par niveau · groupe complet = loyer du terrain doublé
+        </div>
+        {/*
+          Stock restant. Le moteur refuse de bâtir quand la banque est vide ;
+          sans cette ligne, le refus paraîtrait arbitraire — et surtout, la
+          pénurie est une manœuvre : savoir qu'il ne reste que deux maisons
+          change ce qu'on décide de faire.
+        */}
+        <div style={{ marginTop: 6, fontSize: 12, color: 'var(--fg-dim)' }}>
+          Banque : {RULES.houseStock - maisonsEnJeu(state)} maison
+          {RULES.houseStock - maisonsEnJeu(state) > 1 ? 's' : ''} et{' '}
+          {RULES.hotelStock - hotelsEnJeu(state)} hôtel
+          {RULES.hotelStock - hotelsEnJeu(state) > 1 ? 's' : ''} disponibles
         </div>
       </div>
     );

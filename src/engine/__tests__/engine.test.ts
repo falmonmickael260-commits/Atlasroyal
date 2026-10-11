@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyCommand, createGame } from '../engine';
 import { BOARD, GROUP_INDEX, JAIL_TILE, MAX_LEVEL, RULES, tileAt } from '../board';
+import { maisonsEnJeu } from '../rules';
 import { netWorth, ownsFullGroup, rentFor } from '../rules';
 import { CARDS } from '../cards';
 import { current, newGame, rollAs, SEATS } from './helpers';
@@ -298,6 +299,25 @@ describe('constructions', () => {
     // qu'une maison, mais il faut les cinq marches pour l'atteindre.
     expect(s.players.p1.cash).toBe(RULES.startingCash - cost * MAX_LEVEL * azur.length);
     expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] }).rejected).toMatch(/Hôtel/);
+  });
+
+  it('refuse de bâtir quand la banque n’a plus de maisons', () => {
+    let s = give(newGame(2), 'p1', azur);
+    // On vide la banque en posant des maisons ailleurs : le compteur regarde
+    // le plateau entier, pas le propriétaire.
+    s = { ...s, tiles: { ...s.tiles } };
+    const ailleurs = BOARD
+      .filter((t) => t.kind === 'city' && !azur.includes(t.i))
+      .map((t) => t.i);
+    let reste: number = RULES.houseStock;
+    for (const i of ailleurs) {
+      if (reste === 0) break;
+      const n = Math.min(4, reste);
+      s.tiles[i] = { ...s.tiles[i], owner: 'p2', level: n as 0 | 1 | 2 | 3 | 4, mortgaged: false };
+      reste -= n;
+    }
+    expect(maisonsEnJeu(s)).toBe(RULES.houseStock);
+    expect(applyCommand(s, { t: 'BUILD', by: 'p1', tile: azur[0] }).rejected).toMatch(/maison/);
   });
 
   it('impose une construction homogène dans le groupe', () => {

@@ -1,12 +1,12 @@
 import {
-  BOARD_SIZE, GO_TILE, GROUP_INDEX, HUB_TILES, JAIL_TILE, RESEAU_TILES,
+  BOARD_SIZE, GO_TILE, GROUP_INDEX, HUB_TILES, JAIL_TILE, MAX_LEVEL, RESEAU_TILES,
   RULES, isOwnable, tileAt,
 } from './board';
 import { CARDS_BY_ID, buildDeck } from './cards';
 import { rollDie, seedFromString, shuffle } from './rng';
 import {
-  activePlayers, buildCostFor, canBuild, canMortgage, countOwnedIn, mortgageValue,
-  ownedBy, ownsFullGroup, priceOf, rentFor, unmortgageCost,
+  activePlayers, buildCostFor, canBuild, canMortgage, countOwnedIn, maisonsEnJeu,
+  mortgageValue, ownedBy, ownsFullGroup, priceOf, rentFor, unmortgageCost,
 } from './rules';
 import type {
   BuildLevel, CardEffect, Command, CommandResult, Debt, GameEvent, GameState,
@@ -544,6 +544,14 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
         // Symétrique de canBuild : on ne descend pas sous le niveau du groupe.
         const max = Math.max(...GROUP_INDEX[t.group].map((i) => s.tiles[i].level));
         if (st.level < max) return reject(prev, 'Revendez d’abord les niveaux supérieurs du groupe.');
+      }
+      /*
+        Défaire un hôtel réclame quatre maisons en banque — il faut bien
+        reposer quelque chose sur la case. Sans ce contrôle, la revente
+        fabriquerait des maisons et crèverait le stock.
+      */
+      if (st.level === MAX_LEVEL && maisonsEnJeu(s) + 4 > RULES.houseStock) {
+        return reject(prev, 'Pas assez de maisons en banque pour défaire l’hôtel.');
       }
       const refund = Math.round(buildCostFor(cmd.tile) * RULES.sellBuildingRate);
       const lvl = (st.level - 1) as BuildLevel;
