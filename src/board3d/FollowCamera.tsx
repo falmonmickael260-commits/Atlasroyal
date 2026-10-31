@@ -129,7 +129,11 @@ export const FollowCamera = ({
     if (mode === 'dice') {
       cible.set(0, 0.3, 3.8);
     } else if (p) {
-      const focusScale = compact ? 0.18 : mode === 'landing' ? 0.42 : 0.3;
+      // Sur grand écran, la caméra accompagne vraiment la pièce : le centre
+      // de l'image se déplace vers sa case et resserre le cadre. Sur téléphone,
+      // le plateau doit rester lisible dans sa largeur, le mouvement est donc
+      // plus modéré et la case est signalée par le halo.
+      const focusScale = compact ? 0.2 : mode === 'landing' ? 0.52 : 0.46;
       cible.set(p.pos[0] * focusScale, 0, p.pos[2] * focusScale);
     } else {
       cible.set(0, repos.aimY, 0);
@@ -138,9 +142,9 @@ export const FollowCamera = ({
     const distFactor = mode === 'dice'
       ? compact ? 0.96 : 0.82
       : mode === 'move'
-        ? compact ? 0.97 : 0.88
+        ? compact ? 0.97 : 0.84
         : mode === 'landing'
-          ? compact ? 0.94 : 0.78
+          ? compact ? 0.94 : 0.76
           : 1;
     const dist = repos.dist * distFactor;
     const tilt = mode === 'landing' && !compact ? Math.max(0.98, repos.tilt - 0.12) : repos.tilt;
