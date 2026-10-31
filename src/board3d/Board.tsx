@@ -17,6 +17,45 @@ import type { GameState } from '../engine/types';
 const versMonde = (pixels: number) => (pixels / PLATEAU_PX) * GEO.side;
 const centreMonde = (pixels: number) => versMonde(pixels) - GEO.half;
 
+const CADRE = new THREE.MeshPhysicalMaterial({
+  color: '#30251B', roughness: 0.36, metalness: 0.58, clearcoat: 0.72, clearcoatRoughness: 0.22,
+});
+const LAITON = new THREE.MeshPhysicalMaterial({
+  color: '#D6A94E', roughness: 0.24, metalness: 0.88, clearcoat: 0.7, clearcoatRoughness: 0.16,
+});
+
+/** Chant métallique et filets de laiton autour du plateau illustré. */
+const BoardRim = () => {
+  const edge = GEO.half + 0.17;
+  const railLength = GEO.side + 0.34;
+  const y = GEO.thickness / 2 + 0.045;
+  return (
+    <group>
+      {[-1, 1].map((side) => (
+        <group key={side}>
+          <mesh position={[0, y, side * edge]} castShadow receiveShadow material={CADRE}>
+            <boxGeometry args={[railLength, 0.16, 0.28]} />
+          </mesh>
+          <mesh position={[0, y + 0.083, side * edge]} material={LAITON}>
+            <boxGeometry args={[railLength - 0.18, 0.018, 0.035]} />
+          </mesh>
+          <mesh position={[side * edge, y, 0]} castShadow receiveShadow material={CADRE}>
+            <boxGeometry args={[0.28, 0.16, railLength]} />
+          </mesh>
+          <mesh position={[side * edge, y + 0.083, 0]} material={LAITON}>
+            <boxGeometry args={[0.035, 0.018, railLength - 0.18]} />
+          </mesh>
+        </group>
+      ))}
+      {[-1, 1].flatMap((x) => [-1, 1].map((z) => (
+        <mesh key={`${x}:${z}`} position={[x * edge, y + 0.095, z * edge]} castShadow material={LAITON}>
+          <cylinderGeometry args={[0.11, 0.11, 0.035, 20]} />
+        </mesh>
+      )))}
+    </group>
+  );
+};
+
 /**
  * Éclat d'acquisition : un anneau s'ouvre sur la case et s'efface.
  * Court et net — l'achat doit se voir sans ralentir le tour, et tous les
@@ -92,10 +131,10 @@ export const Board = ({ state }: { state: GameState }) => {
       </mesh>
       <mesh position={[0, -0.56, 0]}>
         <boxGeometry args={[GEO.side + 1.5, 0.12, GEO.side + 1.5]} />
-        <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={0.5} roughness={0.4} />
+        <meshPhysicalMaterial color="#A97832" emissive="#7B4F18" emissiveIntensity={0.18} roughness={0.28} metalness={0.82} clearcoat={0.7} />
       </mesh>
 
-      {/* La surface de jeu : une seule image, cadre et tapis central compris. */}
+      {/* Illustration continue des quarante cases et du tapis central. */}
       <mesh castShadow receiveShadow position={[0, 0, 0]}>
         <boxGeometry args={[GEO.side, GEO.thickness, GEO.side]} />
         <meshStandardMaterial color="#1A2436" roughness={0.85} />
@@ -106,6 +145,7 @@ export const Board = ({ state }: { state: GameState }) => {
           <meshStandardMaterial map={image} roughness={0.72} metalness={0.04} toneMapped={false} />
         </mesh>
       )}
+      <BoardRim />
 
       {pastilles.map((p) => {
         const owner = state.tiles[p.tile]?.owner;

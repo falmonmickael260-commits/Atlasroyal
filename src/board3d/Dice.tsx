@@ -29,7 +29,11 @@ const Die = ({
   const ref = useRef<THREE.Mesh>(null);
   const t = useRef(0);
   const spin = useRef(new THREE.Vector3());
+  const deltaEuler = useMemo(() => new THREE.Euler(), []);
+  const deltaQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const faceQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const homeVec = useMemo(() => new THREE.Vector3(...home), [home]);
+  const rest = useMemo(() => new THREE.Euler(...restFor(value)), [value]);
 
   // Résine polie : un vernis net sur un corps mat, comme un dé de casino.
   const materials = useMemo(
@@ -73,19 +77,24 @@ const Die = ({
         home[1] + 1.7 * Math.max(0, 1 - p * 1.1) + bounce * 0.85,
         home[2] + Math.cos(p * 2.7 + seed) * 0.5,
       );
-      m.rotation.x += spin.current.x * dt;
-      m.rotation.y += spin.current.y * dt;
-      m.rotation.z += spin.current.z * dt;
+      // Trois axes donnent un vrai tumbling. La vitesse décroît en douceur;
+      // l'orientation finale reste celle du résultat autoritaire reçu.
+      const ralentissement = Math.max(0.28, 1 - p * 0.62);
+      deltaEuler.set(
+        spin.current.x * dt * ralentissement,
+        spin.current.y * dt * ralentissement,
+        spin.current.z * dt * ralentissement,
+      );
+      deltaQuaternion.setFromEuler(deltaEuler);
+      m.quaternion.multiply(deltaQuaternion);
       return;
     }
 
-    // Repos : le dé se cale franchement sur sa face. Une convergence molle
-    // laisse un doute sur le chiffre au moment où on le lit.
-    const [rx, ry, rz] = restFor(value);
+    // Le quaternion évite les retours longs et les retournements à ±π : le
+    // chiffre transmis par le moteur se pose toujours face visible.
+    faceQuaternion.setFromEuler(rest);
     const k = 1 - Math.pow(0.00002, dt);
-    m.rotation.x += (rx - m.rotation.x) * k;
-    m.rotation.y += (ry - m.rotation.y) * k;
-    m.rotation.z += (rz - m.rotation.z) * k;
+    m.quaternion.slerp(faceQuaternion, k);
     m.position.lerp(homeVec, k);
   });
 

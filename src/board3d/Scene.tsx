@@ -170,6 +170,7 @@ export const Scene = ({
   const fog = useMemo(() => new THREE.FogExp2('#3A2D22', 0.0035), []);
   const { ref, pret } = useHasSize();
   const [polices, setPolices] = useState(false);
+  const [vueEnsemble, setVueEnsemble] = useState(false);
   const signature = boardSignature(state);
 
   useEffect(() => {
@@ -237,8 +238,26 @@ export const Scene = ({
             destination={cinema.destination}
             purchase={cinema.purchase}
           />
-          <FollowCamera compact={compact} follow={cinema.follow} />
+          <FollowCamera
+            compact={compact}
+            follow={cinema.follow}
+            landing={cinema.highlight}
+            rolling={Boolean(cinema.dice?.rolling)}
+            overview={vueEnsemble}
+          />
         </Canvas>
+      )}
+      {pret && polices && (
+        <button
+          type="button"
+          className="camera-toggle"
+          aria-pressed={vueEnsemble}
+          aria-label={vueEnsemble ? 'Reprendre le suivi cinématique' : 'Revenir à la vue générale'}
+          onClick={() => setVueEnsemble((current) => !current)}
+        >
+          <span aria-hidden="true">⌖</span>
+          {vueEnsemble ? 'Suivi cinématique' : 'Vue générale'}
+        </button>
       )}
     </div>
   );

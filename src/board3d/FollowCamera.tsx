@@ -7,14 +7,13 @@ import { REDUCED_MOTION } from './renderProfile';
 /**
  * Caméra de la table.
  *
- * Au repos elle est **strictement immobile** : aucune dérive, aucun zoom.
- * Elle ne s'anime que pendant le déplacement d'un pion, pour permettre de
- * suivre le trajet et de voir la case d'arrivée, puis revient d'elle-même à
- * la vue d'ensemble.
+ * Vue stratégique au repos, cadrée sur tout le plateau. Le lancer, le trajet
+ * et l'arrivée déclenchent chacun un cadrage cinématique distinct, puis la
+ * caméra revient automatiquement à la vue d'ensemble. Le joueur peut aussi
+ * verrouiller cette vue avec le bouton de caméra.
  *
- * Le mouvement est un amortissement exponentiel cadré sur le delta-temps :
- * jamais de saut, jamais de rotation, pas de changement d'inclinaison. Seuls
- * le point visé et la distance varient, ce qui évite l'effet de tangage.
+ * Les changements de cible, d'angle et de distance sont amortis au delta-temps
+ * pour éviter les à-coups sur ordinateur comme sur mobile.
  *
  * Le cadrage de repos est **mesuré**, pas estimé : on projette les coins du
  * plateau et on recule jusqu'à ce qu'ils tiennent tous. Un plateau vu de
@@ -24,10 +23,16 @@ import { REDUCED_MOTION } from './renderProfile';
 export const FollowCamera = ({
   compact,
   follow,
+  landing,
+  rolling,
+  overview,
 }: {
   compact: boolean;
   /** Case actuellement suivie, ou `null` pour la vue d'ensemble. */
   follow: number | null;
+  landing: number | null;
+  rolling: boolean;
+  overview: boolean;
 }) => {
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
@@ -69,7 +74,9 @@ export const FollowCamera = ({
     const tilt = compact ? 1.17 : 1.12;
     const aimY = compact ? 0 : -1.2;
 
-    const h = GEO.half;
+    // Le cadre et le socle débordent de l'illustration d'environ 0,5 unité.
+    // Les inclure évite que le bord métallique soit coupé sur téléphone.
+    const h = GEO.half + 0.55;
     const coins: THREE.Vector3[] = [];
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
@@ -80,8 +87,8 @@ export const FollowCamera = ({
 
     // Part de l'écran réellement disponible : le rail des joueurs occupe le
     // haut et la barre d'action le bas, davantage en compact.
-    const utileX = compact ? 0.985 : 0.92;
-    const utileY = compact ? 0.72 : 0.86;
+    const utileX = compact ? 0.88 : 0.92;
+    const utileY = compact ? 0.76 : 0.86;
 
     const sonde = new THREE.PerspectiveCamera(cam.fov, aspect, cam.near, cam.far);
     let dist = h * 3;
@@ -105,37 +112,49 @@ export const FollowCamera = ({
 
   useFrame((_, dt) => {
     const cam = camera as THREE.PerspectiveCamera;
+    const mode = overview || REDUCED_MOTION
+      ? 'overview'
+      : rolling
+        ? 'dice'
+        : follow !== null
+          ? 'move'
+          : landing !== null
+            ? 'landing'
+            : 'overview';
+    const tile = mode === 'move' ? follow : mode === 'landing' ? landing : null;
+    const p = tile === null ? null : PLACEMENTS[tile];
 
-    /*
-      Le suivi est réservé au grand écran.
-
-      Sur téléphone, le plateau est contraint par la **largeur** : au repos il
-      occupe déjà 98,5 % de l'écran. Tout rapprochement — et même le simple
-      décalage latéral vers la case suivie — le fait alors déborder du cadre.
-      C'est ce qui donnait l'impression d'un zoom brutal à chaque déplacement,
-      avec une ou deux rangées coupées. En vue compacte, la caméra ne bouge
-      donc pas : le bond du pion et le halo de la case d'arrivée suffisent à
-      suivre le trajet.
-    */
-    const suit = follow !== null && !REDUCED_MOTION && !compact;
-
-    // Point visé : centre du plateau au repos, case suivie pendant un trajet.
-    if (suit) {
-      const p = PLACEMENTS[follow].pos;
-      // On ne se déporte qu'à moitié vers la case : le plateau reste dans le
-      // champ et le joueur ne perd jamais ses repères.
-      cible.set(p[0] * 0.5, repos.aimY, p[2] * 0.5);
+    // Chaque étape a sa propre mise en scène : lancer au centre, déplacement
+    // accompagné, arrêt lisible sur la case, puis retour au cadrage complet.
+    if (mode === 'dice') {
+      cible.set(0, 0.3, 3.8);
+    } else if (p) {
+      const focusScale = compact ? 0.18 : mode === 'landing' ? 0.42 : 0.3;
+      cible.set(p.pos[0] * focusScale, 0, p.pos[2] * focusScale);
     } else {
       cible.set(0, repos.aimY, 0);
     }
 
-    // Approche : un peu plus près pendant le suivi, pour lire la case.
-    const dist = suit ? repos.dist * 0.82 : repos.dist;
+    const distFactor = mode === 'dice'
+      ? compact ? 0.96 : 0.82
+      : mode === 'move'
+        ? compact ? 0.97 : 0.88
+        : mode === 'landing'
+          ? compact ? 0.94 : 0.78
+          : 1;
+    const dist = repos.dist * distFactor;
+    const tilt = mode === 'landing' && !compact ? Math.max(0.98, repos.tilt - 0.12) : repos.tilt;
 
+    // La caméra vient du côté du bord actif pendant les déplacements. Elle
+    // conserve une vue large, mais donne au déplacement une vraie perspective.
+    const azimuth = p && mode !== 'landing'
+      ? [0, -Math.PI / 2, Math.PI, Math.PI / 2][p.side]
+      : 0;
+    const horizontal = Math.cos(tilt) * dist;
     desiree.set(
-      cible.x,
-      Math.sin(repos.tilt) * dist,
-      cible.z + Math.cos(repos.tilt) * dist,
+      cible.x + Math.sin(azimuth) * horizontal,
+      cible.y + Math.sin(tilt) * dist,
+      cible.z + Math.cos(azimuth) * horizontal,
     );
 
     if (!initialise.current) {
