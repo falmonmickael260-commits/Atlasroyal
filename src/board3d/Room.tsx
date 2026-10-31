@@ -15,10 +15,82 @@ const TABLE_R = GEO.half * 1.72;
 const TABLE_Y = -0.86;
 const FLOOR_Y = -9.4;
 
+const TABLE_BRASS = new THREE.MeshPhysicalMaterial({
+  color: '#C79A50', roughness: 0.27, metalness: 0.86, clearcoat: 0.65,
+});
+const TABLE_DARK_BRASS = new THREE.MeshPhysicalMaterial({
+  color: '#66502F', roughness: 0.34, metalness: 0.78,
+});
+
+/** Fines incrustées et repères de boussole gravés dans le plateau de table. */
+const TableInlay = () => {
+  const inner = GEO.half + 0.72;
+  const outer = GEO.half + 1.05;
+  const tickRadius = GEO.half + 1.72;
+  return (
+    <group>
+      {[inner, outer].map((radius, i) => (
+        <mesh key={radius} rotation={[-Math.PI / 2, 0, 0]} position={[0, TABLE_Y + 0.018 + i * 0.002, 0]}>
+          <ringGeometry args={[radius, radius + (i === 0 ? 0.025 : 0.018), 160]} />
+          <primitive object={i === 0 ? TABLE_BRASS : TABLE_DARK_BRASS} attach="material" />
+        </mesh>
+      ))}
+
+      {Array.from({ length: 64 }, (_, i) => {
+        const angle = (i / 64) * Math.PI * 2;
+        const major = i % 8 === 0;
+        const length = major ? 0.42 : 0.2;
+        return (
+          <mesh
+            key={`tick-${i}`}
+            position={[Math.sin(angle) * tickRadius, TABLE_Y + 0.022, Math.cos(angle) * tickRadius]}
+            rotation={[0, angle, 0]}
+            material={major ? TABLE_BRASS : TABLE_DARK_BRASS}
+          >
+            <boxGeometry args={[0.035, 0.012, length]} />
+          </mesh>
+        );
+      })}
+
+      {[0, 1, 2, 3].map((i) => {
+        const angle = i * Math.PI / 2;
+        const radius = GEO.half + 2.45;
+        return (
+          <group
+            key={`rose-${i}`}
+            position={[Math.sin(angle) * radius, TABLE_Y + 0.03, Math.cos(angle) * radius]}
+            rotation={[0, angle, 0]}
+          >
+            <mesh rotation={[-Math.PI / 2, 0, 0]} material={TABLE_DARK_BRASS}>
+              <ringGeometry args={[0.48, 0.53, 48]} />
+            </mesh>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} material={TABLE_BRASS}>
+              <ringGeometry args={[0.34, 0.365, 48]} />
+            </mesh>
+            <mesh position={[0, 0.012, 0]} material={TABLE_BRASS}>
+              <octahedronGeometry args={[0.16, 0]} />
+            </mesh>
+            {[0, 1, 2, 3].map((tip) => (
+              <mesh
+                key={tip}
+                position={[0, 0.012, tip % 2 === 0 ? (tip === 0 ? -0.27 : 0.27) : 0]}
+                rotation={[0, tip * Math.PI / 2, 0]}
+                material={tip % 2 === 0 ? TABLE_BRASS : TABLE_DARK_BRASS}
+              >
+                <coneGeometry args={[0.09, 0.25, 4]} />
+              </mesh>
+            ))}
+          </group>
+        );
+      })}
+    </group>
+  );
+};
+
 const Table = () => {
   const wood = useMemo(() => {
     const t = woodTexture();
-    t.repeat.set(2.4, 2.4);
+    t.repeat.set(3.2, 3.2);
     return t;
   }, []);
 
@@ -27,8 +99,9 @@ const Table = () => {
       {/* Plateau de la table */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, TABLE_Y, 0]} receiveShadow>
         <circleGeometry args={[TABLE_R, 80]} />
-        <meshStandardMaterial map={wood} roughness={0.62} metalness={0.05} />
+        <meshPhysicalMaterial map={wood} color="#60452F" roughness={0.4} metalness={0.08} clearcoat={0.28} clearcoatRoughness={0.38} />
       </mesh>
+      <TableInlay />
       {/*
         Chant de la table.
 
@@ -40,12 +113,16 @@ const Table = () => {
       */}
       <mesh position={[0, TABLE_Y - 0.2, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[TABLE_R, TABLE_R * 0.995, 0.38, 80, 1, true]} />
-        <meshStandardMaterial color="#8A6240" roughness={0.75} metalness={0.04} side={THREE.DoubleSide} />
+        <meshPhysicalMaterial color="#382719" roughness={0.42} metalness={0.12} clearcoat={0.3} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, TABLE_Y - 0.06, 0]}>
+        <torusGeometry args={[TABLE_R - 0.08, 0.07, 8, 120]} />
+        <primitive object={TABLE_BRASS} attach="material" />
       </mesh>
       {/* Ceinture sous le plateau */}
       <mesh position={[0, TABLE_Y - 0.62, 0]}>
         <cylinderGeometry args={[TABLE_R * 0.88, TABLE_R * 0.86, 0.5, 48]} />
-        <meshStandardMaterial color="#6E4A2E" roughness={0.85} />
+        <meshPhysicalMaterial color="#291D15" roughness={0.5} metalness={0.08} clearcoat={0.18} />
       </mesh>
       {/* Quatre pieds tournés */}
       {[
