@@ -85,3 +85,9 @@ Les tests couvrent les 36 combinaisons de dés (faces visibles et nombre exact d
 ## Périmètre actuel
 
 Session locale sur un seul appareil, conservée en mémoire seulement. Elle repart de zéro à la fermeture. Achats simples et échanges fonctionnent ; maisons, hôtels, loyers, cartes, faillites, bots, sauvegarde et réseau ne sont pas encore connectés. Aucun export autonome PC ou Android n’est inclus. Le moteur React du dépôt n’est pas remplacé et sa limite de joueurs reste indépendante de ce prototype. D’autres appareils peuvent demander des ajustements.
+
+## Déploiement web sur Railway
+
+Le service utilise le dossier `/godot`, le `Dockerfile` et la configuration `/godot/railway.json`. La construction exporte le projet avec Godot 4.6.3 ; le serveur écoute sur `$PORT` et expose `/health`. Il fournit les types MIME WebAssembly et les en-têtes d’isolation nécessaires. Le moteur Web est sans threads, pour limiter les exigences du navigateur.
+
+`web/install_templates.py` récupère uniquement le modèle Web dans l’archive officielle et vérifie son empreinte. Aucun modèle d’export ni fichier binaire Web généré n’est ajouté aux sources. L’écran de chargement porte le nom Fortune Empire.
