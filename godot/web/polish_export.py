@@ -13,6 +13,7 @@ body,#status{background:#091e25;color:#f1eadb}
 #status-notice{background:#153139;border-color:#69745d;color:#f1eadb;font:15px/1.5 Arial,sans-serif}
 </style>'''
 html = html.replace('</head>',css+'</head>')
+html = html.replace('const engine = new Engine(GODOT_CONFIG);',"if (new URLSearchParams(location.search).get('renderer') === '1') GODOT_CONFIG.focusCanvas = false;\nconst engine = new Engine(GODOT_CONFIG);")
 html = html.replace('<div id="status">','<div id="status"><div id="status-brand">FORTUNE EMPIRE<small>VOTRE TABLE SE PRÉPARE…</small></div>')
 html = html.replace('Your browser does not support the canvas tag.','Votre navigateur ne prend pas en charge cet affichage.')
 html = html.replace('Your browser does not support JavaScript.','Activez JavaScript pour lancer Fortune Empire.')

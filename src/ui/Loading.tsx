@@ -50,7 +50,7 @@ export const Loading = ({ label }: { label: string }) => {
             balancement tourne en boucle à l'intérieur. Les mettre sur le même
             élément ferait se battre les deux transformations. */}
         <div className="attente__pivot">
-          <img className="attente__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune City" />
+          <img className="attente__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune Empire" />
           <span className="attente__eclat" aria-hidden="true" />
         </div>
       </div>

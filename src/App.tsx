@@ -3,7 +3,6 @@ import { useRoom } from './net/room';
 import { Home } from './ui/Home';
 import { Lobby } from './ui/Lobby';
 import { Toast } from './ui/Toast';
-import { introAlreadySeen } from './ui/introSeen';
 import { Loading } from './ui/Loading';
 
 /**
@@ -18,7 +17,7 @@ export const App = () => {
   const screen = useRoom((s) => s.screen);
   const resume = useRoom((s) => s.resume);
   const resuming = useRoom((s) => s.resuming);
-  const [intro, setIntro] = useState(() => !introAlreadySeen());
+  const [intro, setIntro] = useState(() => false);
 
   // Rafraîchissement en pleine partie : on y retourne sans rien retaper.
   useEffect(() => {
@@ -26,7 +25,7 @@ export const App = () => {
   }, [resume]);
 
   useEffect(() => {
-    document.title = screen === 'game' ? 'FORTUNE CITY — en partie' : 'FORTUNE CITY';
+    document.title = screen === 'game' ? 'FORTUNE EMPIRE — en partie' : 'FORTUNE EMPIRE';
   }, [screen]);
 
   return (

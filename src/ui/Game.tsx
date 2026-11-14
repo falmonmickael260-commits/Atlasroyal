@@ -143,7 +143,7 @@ export const Game = () => {
           <div>
             <div className="actions__turn" style={{ color: 'var(--gold)' }}>À vous de jouer</div>
             <div className="actions__hint">
-              {state.doubles > 0 ? `Double ! Vous rejouez (${state.doubles}/2).` : `Tour ${state.round}`}
+              {state.doubles > 0 ? `Double ! Vous rejouez (${state.doubles}/2).` : (state.round < RULES.purchasesFromRound ? `Tour ${state.round} · Achats ouverts au tour ${RULES.purchasesFromRound}` : `Tour ${state.round}`)}
             </div>
           </div>
           <button className="btn btn--ghost" onClick={() => setDrawer('portfolio')}>
@@ -195,7 +195,7 @@ export const Game = () => {
 
       <div className="hud-top">
         <div className="brand glass">
-          <span className="brand__mark">FORTUNE CITY</span>
+          <span className="brand__mark">FORTUNE EMPIRE</span>
           <span className="brand__round">Tour {state.round}</span>
         </div>
 

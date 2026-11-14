@@ -157,7 +157,10 @@ export const useCinematic = () => {
       case 'LANDED':
         audio.land();
         setCinema((c) => ({ ...c, highlight: ev.tile, destination: null }));
-        dur = 200;
+        if (state.round < RULES.purchasesFromRound && (tileAt(ev.tile).kind==='city' || tileAt(ev.tile).kind==='hub' || tileAt(ev.tile).kind==='reseau') && !state.tiles[ev.tile]?.owner) {
+          setCinema((c)=>({...c,banner:{key:k,kind:'buy',title:'Premier tour de table',detail:`Les achats ouvrent au tour ${RULES.purchasesFromRound}.`}}));
+          dur=900;
+        } else dur = 200;
         break;
       case 'PROPERTY_OFFERED':
         setCinema((c) => ({ ...c }));

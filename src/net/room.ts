@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { applyCommand, createGame } from '../engine/engine';
 import { RULES } from '../engine/board';
 import type { Command, GameEvent, GameState } from '../engine/types';
+import { ServerTransport } from './serverTransport';
 import { LocalTransport } from './localTransport';
 import { SupabaseTransport, supabaseConfigured } from './supabaseTransport';
 import { COLORS, TOKENS, makeRoomCode, type ClientMsg, type LobbyState, type Seat } from './protocol';
 import { forgetRoom, loadIdentity, recallRoom, rememberRoom, saveIdentity, type Identity } from './identity';
 import type { Transport } from './transport';
 
-export type NetMode = 'local' | 'supabase';
+export type NetMode = 'local' | 'supabase' | 'server';
 export type Screen = 'home' | 'lobby' | 'game';
 
 interface RoomStore {
@@ -44,8 +45,10 @@ let unsubs: Array<() => void> = [];
 let hostLobby: LobbyState | null = null;
 let hostState: GameState | null = null;
 let seq = 0;
+let joinTimer: ReturnType<typeof setTimeout> | null = null;
 
 const teardown = () => {
+  if(joinTimer){clearTimeout(joinTimer);joinTimer=null;}
   for (const u of unsubs) u();
   unsubs = [];
   transport?.close();
@@ -55,7 +58,8 @@ const teardown = () => {
   seq = 0;
 };
 
-const makeTransport = (mode: NetMode, code: string, id: string): Transport =>
+const makeTransport = (mode: NetMode, code: string, id: string, host: boolean): Transport =>
+  mode === 'server' ? new ServerTransport(code,id,host) :
   mode === 'supabase' && supabaseConfigured
     ? new SupabaseTransport(code, id)
     : new LocalTransport(code);
@@ -96,7 +100,7 @@ export const useRoom = create<RoomStore>((set, get) => {
           return;
         }
         if (hostLobby.seats.length >= RULES.maxPlayers) {
-          transport.broadcast({ k: 'REJECT', to: msg.seat.id, reason: 'Salon complet (6 joueurs).' });
+          transport.broadcast({ k: 'REJECT', to: msg.seat.id, reason: 'Salon complet (8 joueurs).' });
           return;
         }
         // Couleur ET pion doivent être uniques : deux joueurs identiques sur
@@ -186,6 +190,7 @@ export const useRoom = create<RoomStore>((set, get) => {
       switch (msg.k) {
         case 'LOBBY':
           if (!assis(msg.lobby.seats.map((s) => s.id))) break;
+          if(joinTimer){clearTimeout(joinTimer);joinTimer=null;}
           set({ lobby: msg.lobby, screen: msg.lobby.started ? 'game' : 'lobby' });
           break;
         case 'SNAPSHOT':
@@ -223,7 +228,7 @@ export const useRoom = create<RoomStore>((set, get) => {
     teardown();
     set({ connecting: true, error: null, queue: [], state: null });
     const id = get().identity;
-    transport = makeTransport(mode, code, id.id);
+    transport = makeTransport(mode, code, id.id, asHost);
     await transport.connect();
 
     if (asHost) {
@@ -241,6 +246,7 @@ export const useRoom = create<RoomStore>((set, get) => {
       // Si l'hôte est déjà en jeu, on demande l'état complet.
       transport.sendToHost({ k: 'REQUEST_SYNC', id: id.id });
     }
+    if(!asHost){joinTimer=setTimeout(()=>{if(!get().lobby){teardown();forgetRoom();set({screen:'home',connecting:false,error:'Le salon ne répond pas. Vérifiez le code ou demandez à l’hôte de garder la page ouverte.'});}},12000);}
     rememberRoom({ code, host: asHost, mode });
     set({ connecting: false, isHost: asHost, mode, screen: 'lobby' });
   };
@@ -248,7 +254,7 @@ export const useRoom = create<RoomStore>((set, get) => {
   return {
     identity: loadIdentity(),
     screen: 'home',
-    mode: supabaseConfigured ? 'supabase' : 'local',
+    mode: supabaseConfigured ? 'supabase' : 'server',
     isHost: false,
     connecting: false,
     resuming: false,

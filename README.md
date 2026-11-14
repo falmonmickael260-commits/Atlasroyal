@@ -1,4 +1,18 @@
-# FORTUNE CITY
+# Fortune Empire
+
+Le jeu complet conserve son moteur de règles d’origine. Les visuels Godot sont intégrés dans la partie via un rendu contrôlé par les instantanés du moteur : cartes, doubles, achats, loyers, maisons/hôtels et échanges restent gérés par `src/engine`.
+
+Les salons entre appareils utilisent le serveur WebSocket de `server/index.mjs`. L’hôte garde sa page ouverte : son navigateur est l’autorité de la partie. Quitter ou recharger cet onglet ferme le salon. La caméra du plateau est fixe.
+
+Déploiement Railway : racine `/`, `Dockerfile` racine, port `$PORT`, santé `/health`. Le conteneur sert le jeu principal et le rendu Godot sous `/godot/`. Le dossier Godot seul est un banc d’essai visuel, pas le jeu complet.
+
+Pour vérifier : `npm test`, `npm run check` et `node --test server/rooms.test.mjs`. Pour lancer l’ensemble, utiliser le Dockerfile racine ; il compile également le rendu Godot requis par le jeu.
+
+Les achats restent soumis à la règle d’origine : pas d’achat au premier tour de table, puis achats ouverts au deuxième. Les interfaces affichent cette condition.
+
+## Documentation des règles d’origine
+
+## Règles et fonctionnement
 
 Jeu de plateau multijoueur en ligne, 2 à 6 joueurs. Univers, plateau, villes,
 cartes, pions et identité visuelle originaux ; mécaniques d'acquisition, de

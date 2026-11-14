@@ -1,5 +1,5 @@
 /**
- * FORTUNE CITY — types du moteur.
+ * FORTUNE EMPIRE — types du moteur.
  * Aucun import React/DOM ici : ce module doit rester exécutable côté serveur.
  */
 

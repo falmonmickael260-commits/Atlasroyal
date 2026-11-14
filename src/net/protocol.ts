@@ -46,16 +46,18 @@ export const AVATARS = [
 ] as const;
 
 export const TOKENS = [
-  { id: 't1', label: 'Obélisque' },
-  { id: 't2', label: 'Dirigeable' },
-  { id: 't3', label: 'Cargo' },
-  { id: 't4', label: 'Monolithe' },
-  { id: 't5', label: 'Satellite' },
-  { id: 't6', label: 'Phare' },
+  { id: 't1', label: 'Roadster' },
+  { id: 't2', label: 'Biplan' },
+  { id: 't3', label: 'Voilier' },
+  { id: 't4', label: 'Locomotive' },
+  { id: 't5', label: 'Couronne' },
+  { id: 't6', label: 'Astrolabe' },
+  { id: 't7', label: 'Caméra' },
+  { id: 't8', label: 'Fusée' },
 ] as const;
 
 export const COLORS = [
-  '#F5D97B', '#5FE3BC', '#FF9C86', '#7BA6FF', '#D183F5', '#FFB24D',
+  '#F5D97B', '#5FE3BC', '#FF9C86', '#7BA6FF', '#D183F5', '#FFB24D', '#83A49A', '#D8DFE5',
 ] as const;
 
 const CODE_ALPHABET = 'ACDEFGHJKLMNPQRSTUVWXYZ2345679';

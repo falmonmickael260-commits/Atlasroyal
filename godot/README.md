@@ -1,6 +1,8 @@
 # Fortune Empire
 
-Un plateau de jeu 3D original sous **Godot 4.6**, avec huit pièces distinctes, une interface de gestion locale et des échanges fonctionnels.
+Ce dossier fournit les visuels 3D de **Fortune Empire**. En production, le jeu principal et ses salons sont servis depuis la racine du dépôt. Le moteur existant (`src/engine`) reste l’autorité sur les cartes, doubles, achats, loyers, constructions, échanges et faillites.
+
+La page `/godot/index.html?renderer=1` reçoit uniquement les instantanés et événements du jeu principal. Elle ne lance pas une deuxième partie et ne calcule aucune règle. La caméra y est fixe. Le mode Godot autonome reste un banc d’essai visuel local.
 
 ![Interface Fortune Empire](preview-empire.jpg)
 
@@ -82,12 +84,12 @@ godot --headless --path godot --script res://trade_ui_test.gd
 
 Les tests couvrent les 36 combinaisons de dés (faces visibles et nombre exact de cases), la continuité du parcours et son bouclage, huit tours, le placement partagé et l’arrêt précis. Ils vérifient aussi les achats et échanges, les contre-propositions, les offres périmées, les droits des participants, la conservation des sommes et l’exécution unique. Les tests d’interface couvrent les vues ordinateur et portrait, l’absence de débordement, la navigation et l’action principale de tour. Captures inspectées avec le rendu OpenGL de Godot 4.6.3.
 
-## Périmètre actuel
+## Jeu complet et déploiement
 
-Session locale sur un seul appareil, conservée en mémoire seulement. Elle repart de zéro à la fermeture. Achats simples et échanges fonctionnent ; maisons, hôtels, loyers, cartes, faillites, bots, sauvegarde et réseau ne sont pas encore connectés. Aucun export autonome PC ou Android n’est inclus. Le moteur React du dépôt n’est pas remplacé et sa limite de joueurs reste indépendante de ce prototype. D’autres appareils peuvent demander des ajustements.
+La racine du dépôt contient le jeu complet React, ses menus, salons et règles d’origine. Le serveur `server/index.mjs` relaie les salons entre navigateurs/appareils via WebSocket. Le navigateur hôte conserve l’autorité du moteur comme dans l’architecture d’origine ; quitter ou recharger cet onglet ferme le salon. Il n’y a pas de sauvegarde persistante.
 
-## Déploiement web sur Railway
+La scène Godot est intégrée comme rendu de cette partie, avec huit modèles de pions, dés synchronisés, repères de propriété et maisons/hôtels issus de l’état officiel. Le plateau ne tourne plus automatiquement.
 
-Le service utilise le dossier `/godot`, le `Dockerfile` et la configuration `/godot/railway.json`. La construction exporte le projet avec Godot 4.6.3 ; le serveur écoute sur `$PORT` et expose `/health`. Il fournit les types MIME WebAssembly et les en-têtes d’isolation nécessaires. Le moteur Web est sans threads, pour limiter les exigences du navigateur.
+Railway doit utiliser la racine **/** du dépôt et le **Dockerfile racine**. Il exporte le rendu Godot, compile le jeu principal et lance le serveur Node sur `$PORT`, avec `/health` et les bons en-têtes WebAssembly. Ne pas déployer le dossier `/godot` seul comme jeu complet.
 
-`web/install_templates.py` récupère uniquement le modèle Web dans l’archive officielle et vérifie son empreinte. Aucun modèle d’export ni fichier binaire Web généré n’est ajouté aux sources. L’écran de chargement porte le nom Fortune Empire.
+Le lancement direct de `project.godot` hors du jeu principal reste une démonstration locale des visuels ; ses écrans simplifiés ne remplacent pas les règles de `src/engine`.

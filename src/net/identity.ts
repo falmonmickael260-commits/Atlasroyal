@@ -56,7 +56,7 @@ export interface RememberedRoom {
   host: boolean;
   /** Le transport doit être retrouvé à l'identique : un salon Supabase ne se
    *  rejoint pas en BroadcastChannel. */
-  mode: 'local' | 'supabase';
+  mode: 'local' | 'supabase' | 'server';
 }
 
 export const rememberRoom = (room: RememberedRoom) =>

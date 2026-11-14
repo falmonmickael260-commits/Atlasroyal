@@ -66,6 +66,7 @@ func setup(positions: Array[Vector3]) -> void:
   add_child(root)
   pieces.append(root)
   var metal := material(COLORS[i])
+  root.set_meta("player_metal",metal)
   var dark := material(Color("162931"),0.4)
   var trim := material(Color("e6dbc0"),0.65)
   # Low medallion and colored rim identify the player without hiding the sculpt.
@@ -225,7 +226,7 @@ func add_spokes(wheel: MeshInstance3D, metal: Material) -> void:
 func slot(piece: int, tile: int) -> Vector3:
  var occupants: Array[int] = []
  for i in range(8):
-  if indices[i]==tile: occupants.append(i)
+  if pieces[i].visible and indices[i]==tile: occupants.append(i)
  if occupants.size()<=1: return Vector3.ZERO
  var rank := occupants.find(piece)
  var column := rank%3

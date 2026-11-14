@@ -450,3 +450,6 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-width: 640px) {
   .attente__astuce { font-size: 12px; padding: 10px 14px; }
 }
+
+:root {--bg:#091e25;--bg-deep:#07171d;--surface:#102b32;--surface-2:#193b42;--primary:#2a6253;--primary-lift:#387c69;--accent:#c9ad78;--accent-lift:#dec58e;--gold:#d6b982;--on-accent:#10252d;--fg:#f1eadb;--fg-muted:#acbeb6;--border:rgba(173,178,142,.24);--glass:rgba(9,30,37,.90);--glass-strong:rgba(9,30,37,.96);--font-display:Georgia,"Times New Roman",serif;}
+.brand__mark{font-family:var(--font-display);letter-spacing:.06em}.tokenlabels{display:none}.menu__logo{display:none}.menu__wordmark{font-family:var(--font-display);font-size:clamp(30px,5vw,62px);color:var(--gold);letter-spacing:.07em;text-align:center;margin-bottom:24px}.sheet{border:1px solid var(--border);box-shadow:0 24px 64px #0008}.btn--accent{box-shadow:0 4px 18px #0003}

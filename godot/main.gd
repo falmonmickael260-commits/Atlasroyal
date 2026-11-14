@@ -9,10 +9,11 @@ var yaw := 0.0
 var pitch := 0.80
 var distance := 34.0
 var camera_target := Vector3.ZERO
-var orbit := true
+var orbit := false
 var dragging := false
 var token: Node3D
 var pawns: Node3D
+var renderer_mode := false
 var legacy_ui: Control
 var owner_markers: Dictionary = {}
 var session: RefCounted
@@ -123,6 +124,10 @@ func _ready() -> void:
  add_child(trading)
  trading.setup(self,session)
  legacy_ui.hide()
+ if OS.has_feature("web") and str(JavaScriptBridge.get_interface("window").location.search).contains("renderer=1"):
+  var bridge = load("res://live_renderer.gd").new()
+  add_child(bridge)
+  bridge.setup(self)
 
 func environment_setup() -> void:
  var world := WorldEnvironment.new()
@@ -479,7 +484,7 @@ func _process(delta: float) -> void:
  if selection: selection.position.y = 0.15+sin(time*2)*0.025
 
 func _unhandled_input(event: InputEvent) -> void:
- if moving: return
+ if renderer_mode or moving: return
  if is_instance_valid(trading) and trading.is_open(): return
  if event is InputEventScreenDrag:
   orbit = false
@@ -497,7 +502,7 @@ func _unhandled_input(event: InputEvent) -> void:
   pitch = clamp(pitch+event.relative.y*0.005,0.35,1.5)
  if event is InputEventKey and event.pressed:
   if event.keycode == KEY_SPACE: roll()
-  if event.keycode == KEY_R: yaw = 0; pitch = 0.80; distance = 34; orbit = true; camera_target = Vector3.ZERO
+  if event.keycode == KEY_R: yaw = 0; pitch = 0.80; distance = 34; orbit = false; camera_target = Vector3.ZERO
 
 func pick(screen: Vector2) -> void:
  var from := camera.project_ray_origin(screen)

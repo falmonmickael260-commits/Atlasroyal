@@ -17,7 +17,7 @@ const { fontFamily: DISPLAY } = loadDisplay();
 const { fontFamily: BODY } = loadBody();
 
 /**
- * Générique d'ouverture d'FORTUNE CITY.
+ * Générique d'ouverture d'FORTUNE EMPIRE.
  *
  * Écrit selon les règles Remotion : toute l'animation est pilotée par
  * `useCurrentFrame()` + `interpolate()` (aucune transition CSS, qui ne serait
