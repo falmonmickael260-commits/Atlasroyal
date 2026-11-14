@@ -4,6 +4,9 @@ import { Home } from './ui/Home';
 import { Lobby } from './ui/Lobby';
 import { Toast } from './ui/Toast';
 import { Loading } from './ui/Loading';
+import { introAlreadySeen } from './ui/introSeen';
+import { warmBoard } from './board3d/warmBoard';
+import { BoardFrame } from './board3d/Scene';
 
 /**
  * Le moteur 3D (three.js) et le lecteur Remotion pèsent l'essentiel du poids
@@ -17,7 +20,11 @@ export const App = () => {
   const screen = useRoom((s) => s.screen);
   const resume = useRoom((s) => s.resume);
   const resuming = useRoom((s) => s.resuming);
-  const [intro, setIntro] = useState(() => false);
+  const [intro, setIntro] = useState(() => !introAlreadySeen());
+
+  useEffect(() => {
+    if (screen === 'lobby') { warmBoard(); void import('./ui/Game'); }
+  }, [screen]);
 
   // Rafraîchissement en pleine partie : on y retourne sans rien retaper.
   useEffect(() => {
@@ -30,6 +37,7 @@ export const App = () => {
 
   return (
     <>
+      <BoardFrame active={screen==='lobby'||screen==='game'} visible={screen==='game'}/>
       {intro && (
         <Suspense fallback={null}>
           <Intro onDone={() => setIntro(false)} />

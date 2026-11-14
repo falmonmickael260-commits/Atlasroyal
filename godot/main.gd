@@ -51,6 +51,11 @@ var traffic: Array[Node3D] = []
 var motes: Array[MeshInstance3D] = []
 var sails: Array[Node3D] = []
 var header_labels: Array[Label] = []
+var labels_viewport := Vector2.ZERO
+var labels_camera := Transform3D.IDENTITY
+var labels_selection := -999
+var labels_layout_count := 0
+var static_batch_stats: Dictionary = {}
 
 func mat(color: Color, metal := 0.0, rough := 0.5, glow := 0.0) -> StandardMaterial3D:
  var m := StandardMaterial3D.new()
@@ -100,6 +105,10 @@ func text3(parent: Node3D, value: String, pos: Vector3, size: int, color: Color,
 
 func _ready() -> void:
  rng.seed = 260
+ renderer_mode = bool(get_meta("renderer_only",false)) or (OS.has_feature("web") and str(JavaScriptBridge.get_interface("window").location.search).contains("renderer=1"))
+ if renderer_mode:
+  pitch = 1.05
+  Engine.max_fps = 30
  tiles = JSON.parse_string(FileAccess.get_file_as_string("res://assets/board.json"))
  environment_setup()
  build_board()
@@ -107,7 +116,13 @@ func _ready() -> void:
  build_tokens()
  build_dice()
  build_living_world()
- build_ui()
+ if renderer_mode:
+  var animated_nodes: Array = [pawns,dice_rig,selection,animated_globe,airship]
+  animated_nodes.append_array(traffic)
+  animated_nodes.append_array(motes)
+  animated_nodes.append_array(sails)
+  static_batch_stats = load("res://static_batch.gd").bake(self,animated_nodes)
+ if not renderer_mode: build_ui()
  camera = Camera3D.new()
  camera.fov = 43
  camera.near = 0.1
@@ -120,11 +135,12 @@ func _ready() -> void:
  session = load("res://trade_state.gd").new()
  session.setup(tiles,pawns.NAMES)
  session.changed.connect(refresh_ownership)
- trading = load("res://trade_ui.gd").new()
- add_child(trading)
- trading.setup(self,session)
- legacy_ui.hide()
- if OS.has_feature("web") and str(JavaScriptBridge.get_interface("window").location.search).contains("renderer=1"):
+ if not renderer_mode:
+  trading = load("res://trade_ui.gd").new()
+  add_child(trading)
+  trading.setup(self,session)
+  legacy_ui.hide()
+ if renderer_mode and OS.has_feature("web"):
   var bridge = load("res://live_renderer.gd").new()
   add_child(bridge)
   bridge.setup(self)
@@ -338,17 +354,26 @@ func build_tokens() -> void:
  pawns = load("res://pawns.gd").new()
  add_child(pawns)
  pawns.setup(positions)
+ if renderer_mode:
+  for piece in pawns.pieces:
+   var sculpture: Node3D = piece.get_node("Sculpture")
+   var moving_parts: Array = []
+   for part in sculpture.find_children("*","Node",true,false):
+    if part.name in ["Propeller","Flame"] or part.has_meta("radius") or part.has_meta("needle") or part.has_meta("steering"): moving_parts.append(part)
+   load("res://static_batch.gd").bake(sculpture,moving_parts)
  token = pawns.pieces[0]
  pawns.crossed_tile.connect(func(index: int):
   steps_moved += 1
   selection.position = positions[index]+Vector3(0,0.15,0)
-  detail.text = "Case %02d · %s" % [index+1,str(tiles[index].name)]
+  if is_instance_valid(detail): detail.text = "Case %02d · %s" % [index+1,str(tiles[index].name)]
  )
 
 func build_dice() -> void:
  dice_rig = load("res://premium_dice.gd").new()
  add_child(dice_rig)
  dice = dice_rig.dice
+ if renderer_mode:
+  for die in dice: load("res://static_batch.gd").bake(die,[])
 
 func label_at(parent: Control, value: String, pos: Vector2, size: int, color: Color) -> Label:
  var l := Label.new()
@@ -674,6 +699,11 @@ func build_city_labels() -> void:
 func update_city_labels() -> void:
  if city_labels.is_empty(): return
  var viewport_size := get_viewport().get_visible_rect().size
+ if viewport_size==labels_viewport and camera.transform.is_equal_approx(labels_camera) and selected_tile==labels_selection: return
+ labels_viewport = viewport_size
+ labels_camera = camera.transform
+ labels_selection = selected_tile
+ labels_layout_count += 1
  var compact := viewport_size.x<1100 or viewport_size.y<700
  compact = compact or camera_target.length()>1
  var safe := Rect2(Vector2(248,205),viewport_size-Vector2(270,370))

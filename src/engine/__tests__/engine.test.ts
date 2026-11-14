@@ -117,6 +117,22 @@ describe('dés et déplacement', () => {
     expect(state.phase).toBe('ROLL_DICE');
   });
 
+  it('conserve la relance après un double et une décision d’achat', () => {
+    for (const decision of ['BUY_PROPERTY', 'DECLINE_PROPERTY'] as const) {
+      const s = atRound(newGame(2), 2);
+      const offer = rollAs(s, 'p1', 4, 4).state;
+      expect(offer.pending?.type).toBe('PROPERTY_DECISION');
+      const resolved = applyCommand(offer, { t: decision, by: 'p1' }).state;
+      expect(current(resolved)).toBe('p1');
+      expect(resolved.phase).toBe('ROLL_DICE');
+      expect(resolved.doubles).toBe(1);
+      expect(applyCommand(resolved, { t: 'END_TURN', by: 'p1' }).rejected).toBeTruthy();
+      const next = rollAs(resolved, 'p1', 3, 3).state;
+      expect(next.doubles).toBe(2);
+      expect(current(next)).toBe('p1');
+    }
+  });
+
   it('envoie en prison au troisième double, sans quatrième lancer', () => {
     let s = newGame(2);
     s = rollAs(s, 'p1', 2, 2).state;

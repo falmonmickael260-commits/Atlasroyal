@@ -325,7 +325,7 @@ func move_active(steps: int, duration_scale := 1.0) -> bool:
 func _process(delta: float) -> void:
  if is_instance_valid(halo):
   halo.position = pieces[active].position+Vector3(0,0.018,0)
-  halo.material_override.albedo_color = COLORS[active]
+  halo.material_override.albedo_color = pieces[active].get_meta("player_metal").albedo_color
   var pulse := 1.0+sin(Time.get_ticks_msec()*0.004)*0.06
   halo.scale = Vector3(pulse,1,pulse)
  for piece in pieces:

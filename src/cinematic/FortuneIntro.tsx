@@ -239,7 +239,7 @@ const Masthead = () => {
           }),
         }}
       >
-        CITY
+        EMPIRE
       </Interactive.Div>
 
       <Interactive.Div

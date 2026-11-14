@@ -6,15 +6,19 @@ Les salons entre appareils utilisent le serveur WebSocket de `server/index.mjs`.
 
 Déploiement Railway : racine `/`, `Dockerfile` racine, port `$PORT`, santé `/health`. Le conteneur sert le jeu principal et le rendu Godot sous `/godot/`. Le dossier Godot seul est un banc d’essai visuel, pas le jeu complet.
 
-Pour vérifier : `npm test`, `npm run check` et `node --test server/rooms.test.mjs`. Pour lancer l’ensemble, utiliser le Dockerfile racine ; il compile également le rendu Godot requis par le jeu.
+Pour vérifier : `npm test`, `npm run check`, `node --test server/*.test.mjs` et `godot --headless --path godot --script bridge_test.gd`. Pour lancer l’ensemble, utiliser le Dockerfile racine ; il compile également le rendu Godot requis par le jeu.
 
 Les achats restent soumis à la règle d’origine : pas d’achat au premier tour de table, puis achats ouverts au deuxième. Les interfaces affichent cette condition.
+
+Le logo illustré d’origine (`public/ui/logo.webp`) reste utilisé dans les menus et la partie. Les règles sont consultables depuis la partie. Le résultat des dés et la commande **Relancer — double !** rendent explicite le droit de rejouer après résolution de la case.
+
+Le plateau se prépare dès le salon : le même cadre Godot est conservé lors du lancement. Les fichiers Web sont compressés en Brotli/gzip et portent une version issue de leur contenu pour éviter les mélanges de cache après publication. Les géométries immobiles sont regroupées ; les pions et éléments animés conservent leur hiérarchie.
 
 ## Documentation des règles d’origine
 
 ## Règles et fonctionnement
 
-Jeu de plateau multijoueur en ligne, 2 à 6 joueurs. Univers, plateau, villes,
+Jeu de plateau multijoueur en ligne, 2 à 8 joueurs. Univers, plateau, villes,
 cartes, pions et identité visuelle originaux ; mécaniques d'acquisition, de
 loyers et de construction du genre « immobilier de plateau ».
 
@@ -49,7 +53,7 @@ Le dernier joueur financièrement viable gagne.
 
 | Règle | Valeur |
 |---|---|
-| Fortune de départ | 1 500 € |
+| Fortune de départ | 2 500 € |
 | Passage par le Départ | +200 € |
 | Arrivée exacte sur le Départ | +400 € (animation distincte) |
 | Premier tour de table | aucun achat possible |
@@ -70,7 +74,7 @@ Le dernier joueur financièrement viable gagne.
 
 | | |
 |---|---|
-| Fortune de départ | 1 500 € |
+| Fortune de départ | 2 500 € |
 | Terrains | 60 € (Marrakech, Le Caire) à 400 € (Monaco) |
 | Construction | 50 € à 200 € le palier selon le groupe, cinq paliers — l'hôtel s'atteint donc en cinq paiements |
 | Hubs | 200 € — loyer 25 / 50 / 100 / 200 selon le nombre possédé |

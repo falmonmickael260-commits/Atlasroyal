@@ -3,6 +3,7 @@ import { useRoom } from '../net/room';
 import { AVATARS, COLORS, TOKENS } from '../net/protocol';
 import { RULES } from '../engine/board';
 import { audio } from '../audio/audio';
+import { useBoardPreparation } from '../board3d/Scene';
 import { Icon } from './Icon';
 import './Lobby.css';
 
@@ -11,6 +12,7 @@ const avatarIcon = (id: string) =>
 
 export const Lobby = () => {
   const { lobby, identity, isHost, setIdentity, setReady, startGame, leaveRoom } = useRoom();
+  const board=useBoardPreparation();
   const [copied, setCopied] = useState(false);
   if (!lobby) return null;
 
@@ -136,6 +138,7 @@ export const Lobby = () => {
         </div>
 
         <div className="lobby__foot">
+          <span className="lobby__hint" role="status">{board.error??(board.engineReady?'Plateau prêt':`Préparation du plateau · ${board.progress} %`)}</span>
           <p className="lobby__hint">
             {isHost
               ? allReady

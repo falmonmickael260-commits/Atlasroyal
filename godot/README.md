@@ -2,6 +2,8 @@
 
 Ce dossier fournit les visuels 3D de **Fortune Empire**. En production, le jeu principal et ses salons sont servis depuis la racine du dépôt. Le moteur existant (`src/engine`) reste l’autorité sur les cartes, doubles, achats, loyers, constructions, échanges et faillites.
 
+Le rendu se prépare dès le salon et reste monté au passage en partie. Les fichiers Web portent une version de contenu et sont servis avec compression Brotli/gzip. Les éléments immobiles sont regroupés en maillages, sans fusionner les modèles animés. Les prénoms sont reprojetés vers les étiquettes de l’interface d’origine.
+
 La page `/godot/index.html?renderer=1` reçoit uniquement les instantanés et événements du jeu principal. Elle ne lance pas une deuxième partie et ne calcule aucune règle. La caméra y est fixe. Le mode Godot autonome reste un banc d’essai visuel local.
 
 ![Interface Fortune Empire](preview-empire.jpg)

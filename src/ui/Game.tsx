@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoom } from '../net/room';
 import { RULES, tileAt } from '../engine/board';
 import { liquidationValue, netWorth, ownedBy } from '../engine/rules';
+import { Rules } from './Rules';
+import { RollResult } from './panels/RollResult';
 import { Scene } from '../board3d/Scene';
 import { audio } from '../audio/audio';
 import { useCinematic } from './cinema';
@@ -19,13 +21,14 @@ import { Victory } from './panels/Victory';
 import { CashFlight } from './panels/CashFlight';
 import './Game.css';
 
-type Drawer = 'none' | 'portfolio' | 'trade';
+type Drawer = 'none' | 'portfolio' | 'trade' | 'rules';
 
 export const Game = () => {
   const { state, identity, send, leaveRoom } = useRoom();
   const cinema = useCinematic();
   const compact = useCompact();
   const [drawer, setDrawer] = useState<Drawer>('none');
+  const [boardReady,setBoardReady] = useState(false);
   const [glLost, setGlLost] = useState(false);
   // Pont entre les étiquettes DOM et la scène, qui les positionne.
   const labels = useRef<Map<string, HTMLElement | null>>(new Map());
@@ -50,7 +53,7 @@ export const Game = () => {
   const current = state.players[state.order[state.currentIndex]];
   const pending = state.pending;
   const iAmPending = pending && 'player' in pending && pending.player === me;
-  const busy = cinema.playing;
+  const busy = cinema.playing || !boardReady;
   const player = state.players[me];
   const spectator = !player;
 
@@ -141,7 +144,7 @@ export const Game = () => {
       return (
         <>
           <div>
-            <div className="actions__turn" style={{ color: 'var(--gold)' }}>À vous de jouer</div>
+            <div className="actions__turn" style={{ color: 'var(--gold)' }}>{state.doubles > 0 ? 'Double ! À vous de rejouer' : 'À vous de jouer'}</div>
             <div className="actions__hint">
               {state.doubles > 0 ? `Double ! Vous rejouez (${state.doubles}/2).` : (state.round < RULES.purchasesFromRound ? `Tour ${state.round} · Achats ouverts au tour ${RULES.purchasesFromRound}` : `Tour ${state.round}`)}
             </div>
@@ -154,7 +157,7 @@ export const Game = () => {
           </button>
           <button className="btn btn--accent btn--lg" disabled={busy}
             onClick={() => { audio.unlock(); send({ t: 'ROLL_DICE', by: me }); }}>
-            <Icon name="dice" size={20} /> Lancer les dés
+            <Icon name="dice" size={20} /> {busy ? (!boardReady ? 'Préparation du plateau…' : 'Déplacement en cours…') : state.doubles > 0 ? 'Relancer — double !' : 'Lancer les dés'}
           </button>
         </>
       );
@@ -186,6 +189,7 @@ export const Game = () => {
         <Scene
           state={state}
           cinema={cinema}
+          onReadyChange={setBoardReady}
           compact={compact}
           activePlayer={state.order[state.currentIndex]}
           onContextLost={() => setGlLost(true)}
@@ -195,7 +199,7 @@ export const Game = () => {
 
       <div className="hud-top">
         <div className="brand glass">
-          <span className="brand__mark">FORTUNE EMPIRE</span>
+          <img className="brand__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune Empire"/>
           <span className="brand__round">Tour {state.round}</span>
         </div>
 
@@ -214,6 +218,9 @@ export const Game = () => {
           <button className="icon-btn" aria-pressed={music} aria-label="Musique"
             onClick={() => { audio.unlock(); audio.setMusic(!music); setMusic(!music); }}>
             <Icon name="music" size={18} />
+          </button>
+          <button className="icon-btn" aria-label="Règles du jeu" onClick={()=>setDrawer('rules')}>
+            <Icon name="school" size={18} />
           </button>
           <button className="icon-btn" aria-label="Quitter la partie" onClick={leaveRoom}>
             <Icon name="exit" size={18} />
@@ -248,6 +255,7 @@ export const Game = () => {
         })}
       </div>
 
+      <RollResult dice={cinema.dice} state={state} me={me} />
       <TokenLabels state={state} register={registerLabels} />
       {!spectator && <TradeTicker state={state} me={me} onOpen={() => setDrawer('trade')} />}
       <BannerLayer banner={cinema.banner} />
@@ -274,6 +282,10 @@ export const Game = () => {
         </div>
       )}
 
+      {drawer === 'rules' && <div className="sheet sheet--right" role="dialog" aria-label="Règles du jeu">
+        <div className="sheet__head"><span className="sheet__title">Règles de Fortune Empire</span><button className="icon-btn" aria-label="Fermer les règles" onClick={()=>setDrawer('none')}><Icon name="close" size={18}/></button></div>
+        <div className="sheet__scroll"><Rules/></div>
+      </div>}
       {!spectator && drawer === 'portfolio' && (
         <Portfolio state={state} me={me} send={send} onClose={() => setDrawer('none')} />
       )}

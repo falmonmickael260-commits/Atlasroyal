@@ -7,20 +7,24 @@ var id_to_slot: Dictionary = {}
 var targets: Dictionary = {}
 var motion: Dictionary = {}
 var dice_key := -1
+var pending_roll: Dictionary = {}
 var buildings: Dictionary = {}
 var building_levels: Dictionary = {}
+var label_clock := 0.0
 
 func setup(scene: Node3D) -> void:
  host = scene
  host.renderer_mode = true
+ Engine.max_fps = 5
  host.orbit = false
  host.follow_pawn = false
  host.distance = 34
  host.pitch = 1.05
  host.yaw = 0
- host.trading.visible = false
- host.legacy_ui.hide()
+ if is_instance_valid(host.trading): host.trading.visible = false
+ if is_instance_valid(host.legacy_ui): host.legacy_ui.hide()
  host.dice_rig.muted = true
+ host.dice_rig.hide()
  for piece in host.pawns.pieces: piece.visible = false
  if OS.has_feature("web"):
   browser = JavaScriptBridge.get_interface("window")
@@ -38,10 +42,11 @@ func on_message(args: Array) -> void:
 func apply_frame(packet: Dictionary) -> void:
  var state: Dictionary = packet.get("state",{})
  if not state.has("order"): return
+ Engine.max_fps = 30
  var cinema: Dictionary = packet.get("cinema",{})
  var order: Array = state.order
  var players: Dictionary = state.players
- var active_id: String = order[int(state.currentIndex)]
+ var active_id: String = str(cinema.get("actor") if cinema.get("actor")!=null else order[int(state.currentIndex)])
  for piece in host.pawns.pieces: piece.visible = false
  id_to_slot.clear()
  for rank in range(order.size()):
@@ -86,8 +91,8 @@ func apply_frame(packet: Dictionary) -> void:
  var roll = cinema.get("dice")
  if roll is Dictionary and int(roll.get("key",-1))!=dice_key:
   dice_key = int(roll.key)
-  var a := int(roll.values[0]);var b := int(roll.values[1])
-  host.dice_rig.roll_pair(a,b,0.18 if packet.get("reduced",false) else 0.74)
+  pending_roll = {"a":int(roll.values[0]),"b":int(roll.values[1]),"duration":0.18 if packet.get("reduced",false) else 0.74}
+  play_pending_dice()
  host.session.owners.clear()
  for key in state.tiles:
   var tile := int(key)
@@ -136,8 +141,39 @@ func update_building(tile: int, level: int) -> void:
  group.scale = Vector3.ONE*0.01
  create_tween().tween_property(group,"scale",Vector3.ONE,0.40).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
+func play_pending_dice() -> void:
+ if pending_roll.is_empty() or host.dice_rig.busy: return
+ var roll := pending_roll.duplicate()
+ pending_roll.clear()
+ host.dice_rig.show()
+ host.dice_rig.roll_pair(int(roll.a),int(roll.b),float(roll.duration))
+
+func send_player_labels() -> void:
+ if browser==null: return
+ var positions := {}
+ var stacks := {}
+ for id in id_to_slot:
+  var slot: int = id_to_slot[id]
+  var piece: Node3D = host.pawns.pieces[slot]
+  var at: Vector3 = piece.position
+  var edge := maxf(absf(at.x),absf(at.z))
+  if edge>0: at -= Vector3(at.x/edge,0,at.z/edge)*1.5
+  at.y = 0.65
+  var point: Vector2 = host.camera.unproject_position(at)
+  var tile: int = host.pawns.indices[slot]
+  var stack: int = stacks.get(tile,0)
+  stacks[tile] = stack+1
+  positions[id] = {"x":point.x,"y":point.y,"visible":piece.visible and not host.camera.is_position_behind(at),"stack":stack}
+ var viewport_size: Vector2 = host.get_viewport().get_visible_rect().size
+ browser.parent.postMessage(JSON.stringify({"type":"fortune-pawns","positions":positions,"width":viewport_size.x,"height":viewport_size.y}),str(browser.location.origin))
+
 func _process(_delta: float) -> void:
  if not is_instance_valid(host): return
+ play_pending_dice()
+ label_clock += _delta
+ if label_clock>=0.067:
+  label_clock = 0
+  send_player_labels()
  host.orbit = false
  host.follow_pawn = false
  host.camera_target = Vector3.ZERO

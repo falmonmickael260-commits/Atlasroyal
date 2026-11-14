@@ -95,7 +95,7 @@ export const Home = () => {
       </header>
 
       <div className="menu__corps">
-        <h1 className="menu__wordmark">FORTUNE EMPIRE</h1>
+        <img className="menu__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune Empire" draggable={false} />
 
         <nav className="menu__principal">
           {PRINCIPALES.map((e) => (

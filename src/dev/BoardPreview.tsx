@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { createGame } from '../engine/engine';
 import { BOARD, GROUP_INDEX, LEVEL_NAMES } from '../engine/board';
-import { Scene } from '../board3d/Scene';
+import { Scene, BoardFrame } from '../board3d/Scene';
 import { useCompact } from '../ui/useCompact';
 import type { BuildLevel, GameState } from '../engine/types';
 import type { Cinema } from '../ui/cinema';
@@ -38,9 +38,10 @@ const build = (level: BuildLevel): GameState => {
 };
 
 const EMPTY_CINEMA = (state: GameState): Cinema => ({
+  actor: state.order[0],
   tokenTile: Object.fromEntries(state.order.map((id) => [id, state.players[id].position])),
   hop: {},
-  dice: { values: [4, 2], rolling: false, key: 1 },
+  dice: { values: [4, 2], rolling: false, key: 1, player: state.order[0], isDouble:false, streak:0, jail:false },
   banner: null,
   card: null,
   highlight: null,
@@ -59,7 +60,8 @@ export const BoardPreview = () => {
   const labels = useRef(new Map<string, HTMLElement | null>());
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#050A14' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'transparent' }}>
+      <BoardFrame active visible/>
       <Scene
         state={state}
         cinema={EMPTY_CINEMA(state)}

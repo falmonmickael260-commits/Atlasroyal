@@ -16,7 +16,14 @@ export const server=http.createServer((req,res)=>{
  if(fs.existsSync(file)&&fs.statSync(file).isDirectory())file=path.join(file,'index.html');
  if(!fs.existsSync(file)){if(path.extname(file)){res.writeHead(404);res.end();return;}file=path.join(base,'index.html');}
  res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');
- res.setHeader('Cache-Control',path.extname(file)==='.html'?'no-cache':'public, max-age=300');
+ res.setHeader('Cache-Control',path.extname(file)==='.html'||path.basename(file)==='manifest.json'?'no-cache':/fortune-[a-f0-9]{12}\./.test(path.basename(file))?'public, max-age=31536000, immutable':'public, max-age=300');
+ res.setHeader('Vary','Accept-Encoding');
+ const accepted=String(req.headers['accept-encoding']||'').split(',').map(value=>{const [name,...params]=value.trim().split(';');const quality=params.find(p=>p.trim().startsWith('q='));return {name,q:quality?Number(quality.trim().slice(2)):1};});
+ const quality=name=>accepted.find(e=>e.name===name)?.q??accepted.find(e=>e.name==='*')?.q??0;
+ const encoding=['br','gzip'].filter(name=>quality(name)>0&&fs.existsSync(file+(name==='br'?'.br':'.gz'))).sort((a,b)=>quality(b)-quality(a))[0];
+ if(encoding){res.setHeader('Content-Encoding',encoding);file+=encoding==='br'?'.br':'.gz';}
+ res.setHeader('Content-Length',fs.statSync(file).size);
+ if(req.method==='HEAD'){res.writeHead(200);res.end();return;}
  const stream=fs.createReadStream(file);stream.on('error',()=>{res.writeHead(404);res.end();});stream.pipe(res);
 });
 const wsServer=new WebSocketServer({server,path:'/ws',maxPayload:256*1024});

@@ -23,11 +23,12 @@ export interface CashFly {
 }
 
 export interface Cinema {
+  actor: PlayerId | null;
   /** Case occupée visuellement (peut être en retard sur l'état autoritaire). */
   tokenTile: Record<PlayerId, number>;
   /** Incrémenté à chaque pas : déclenche le rebond du pion. */
   hop: Record<PlayerId, number>;
-  dice: { values: [number, number]; rolling: boolean; key: number } | null;
+  dice: { values: [number, number]; rolling: boolean; key: number; player: PlayerId; isDouble: boolean; streak: number; jail: boolean } | null;
   /** Résultat lisible en permanence, pour que toute la table le voie. */
   banner: Banner | null;
   card: string | null;
@@ -45,7 +46,7 @@ export interface Cinema {
 }
 
 const initial: Cinema = {
-  tokenTile: {}, hop: {}, dice: null,
+  actor: null, tokenTile: {}, hop: {}, dice: null,
   banner: null, card: null, highlight: null, build: null, cashFly: null, purchase: null,
   follow: null, destination: null,
   playing: false,
@@ -92,7 +93,7 @@ export const useCinematic = () => {
 
     switch (ev.e) {
       case 'TURN_STARTED': {
-        setCinema((c) => ({ ...c, banner: null, card: null, highlight: null }));
+        setCinema((c) => ({ ...c, actor: ev.player, banner: null, card: null, highlight: null }));
         dur = 420;
         break;
       }
@@ -100,7 +101,8 @@ export const useCinematic = () => {
         audio.diceShake();
         setCinema((c) => ({
           ...c,
-          dice: { values: ev.dice, rolling: true, key: k },
+          actor: ev.player,
+          dice: { values: ev.dice, rolling: true, key: k, player: ev.player, isDouble: ev.isDouble, streak: ev.doublesStreak, jail: false },
           // La case d'arrivée est connue dès le lancer : on l'annonce pour que
           // chacun puisse suivre le trajet en sachant où il finit.
           destination:
@@ -119,7 +121,8 @@ export const useCinematic = () => {
         audio.diceShake();
         setCinema((c) => ({
           ...c,
-          dice: { values: ev.dice, rolling: true, key: k },
+          actor: ev.player,
+          dice: { values: ev.dice, rolling: true, key: k, player: ev.player, isDouble: ev.success, streak: 0, jail: true },
         }));
         window.setTimeout(() => {
           audio.diceLand();
@@ -136,6 +139,7 @@ export const useCinematic = () => {
         audio.step();
         setCinema((c) => ({
           ...c,
+          actor: ev.player,
           tokenTile: { ...c.tokenTile, [ev.player]: ev.to },
           hop: { ...c.hop, [ev.player]: (c.hop[ev.player] ?? 0) + 1 },
           follow: ev.to,
@@ -264,7 +268,7 @@ export const useCinematic = () => {
         }
       }
       if (!changed && !c.playing && !c.banner && c.follow === null) return c;
-      return { ...c, tokenTile, playing: false, banner: null, follow: null, destination: null };
+      return { ...c, actor: state.order[state.currentIndex], tokenTile, playing: false, banner: null, follow: null, destination: null };
     });
   }, [queue.length, state]);
 

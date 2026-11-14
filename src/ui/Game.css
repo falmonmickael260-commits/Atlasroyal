@@ -527,3 +527,26 @@
 }
 
 @media (min-width:1000px) and (max-height:900px){.pcard{padding:7px 10px}.pcard__cash{font-size:17px}.pcard__meta{font-size:10px}.rail{gap:6px}}
+
+.stage-loader{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:16px;width:min(370px,85vw);padding:28px;border:1px solid #65735b;border-radius:18px;background:#0d282f;color:#f1eadb;box-shadow:0 20px 60px #0008;text-align:center}
+.stage-loader__eyebrow{font:12px Georgia,serif;letter-spacing:.2em;color:#d6b982}
+.stage-loader progress{width:100%;height:6px;accent-color:#d6b982}
+.stage-loader>span:last-child{font-size:12px;color:#b9c9c4}
+.roll-result{position:absolute;right:16px;top:86px;z-index:10;padding:12px 16px;border:1px solid var(--border);border-radius:16px;display:grid;gap:8px;min-width:194px;background:#10252dee}
+.roll-result--double{border-color:#bd9e65}
+.roll-result__name{font-size:11px;color:var(--fg-muted);max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roll-result__values{display:flex;gap:9px;align-items:center;font-size:20px}
+.roll-result__values strong{font-size:24px;color:#f1eadb;white-space:nowrap}
+.roll-result__die{width:38px;height:38px}
+.roll-result__die--rolling{animation:dice-readout .3s ease-in-out infinite alternate}
+.roll-result__die--rolling circle{opacity:0}
+.roll-result__detail{font-size:12px;color:#e2c27f;max-width:220px}
+.ticker{top:246px}
+@keyframes dice-readout{from{transform:rotate(-8deg) translateY(0)}to{transform:rotate(8deg) translateY(-3px)}}
+@media(max-width:860px){.roll-result{top:160px;right:8px;padding:8px 10px;min-width:0;gap:5px}.roll-result__die{width:28px;height:28px}.roll-result__values{gap:6px}.roll-result__values strong{font-size:18px}.roll-result__detail{font-size:11px;max-width:190px}.ticker{top:auto}.hud-top .brand{flex-direction:column;gap:0;align-items:flex-start}.hud-top .brand__mark{font-size:10px;letter-spacing:.06em}}
+@media(prefers-reduced-motion:reduce){.roll-result__die--rolling{animation:none}}
+
+.brand__logo{width:126px;height:56px;object-fit:contain}.brand{padding:3px 12px}.stage-loader__logo{width:min(260px,100%);height:auto;filter:drop-shadow(0 12px 20px #0007)}
+@media(max-width:860px){.brand__logo{width:82px;height:38px}.brand{padding:2px 5px}.brand__round{font-size:9px}}
+
+.game{background:transparent;z-index:1}
