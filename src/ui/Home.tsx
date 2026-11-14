@@ -143,6 +143,10 @@ export const Home = () => {
             {feuille === 'jouer' && (
               <>
                 <h2 className="feuille__titre">Entrer en partie</h2>
+                {error && <p className="menu__erreur" role="alert">{error}</p>}
+                <p>{mode === 'local'
+                  ? 'Mode local : seuls les onglets de ce navigateur peuvent se rejoindre.'
+                  : 'Mode en ligne : connexion au serveur temps réel.'}</p>
                 <label className="label" htmlFor="pseudo">Votre pseudo</label>
                 <input
                   id="pseudo" className="input" maxLength={16} placeholder="Ex. Alexandra"
@@ -153,7 +157,7 @@ export const Home = () => {
                   disabled={!nom.trim() || connecting}
                   onClick={() => go(() => void createRoom(mode))}
                 >
-                  <Icon name="spark" size={18} /> Créer une partie
+                  <Icon name="spark" size={18} /> {connecting ? 'Connexion en cours…' : 'Créer une partie'}
                 </button>
 
                 <div className="feuille__sep">ou rejoindre</div>
