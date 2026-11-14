@@ -2,6 +2,12 @@
 
 Prototype autonome sous **Godot 4.6**, avec un plateau 3D de 40 cases et huit pièces originales.
 
+![Composer un échange, rendu réel dans Godot](preview-trades.jpg)
+
+![Examen par le destinataire](preview-trade-review.jpg)
+
+![Interface portrait](preview-trades-mobile.jpg)
+
 ![Les huit pièces, rendu réel dans Godot](preview-pawns.jpg)
 
 ![Plateau](preview.jpg)
@@ -16,7 +22,7 @@ Télécharger cette branche GitHub (Code → Download ZIP), décompresser et imp
 - Clic sur une case ou liste « Explorer les 40 cases » : sélectionner.
 - **Détail** : rapprocher la caméra de la sélection.
 - **Vue du dessus** ou **R** : revenir à une vue d’ensemble.
-- **Lancer les dés** / Espace : lancer puis déplacer la pièce active.
+- **Lancer les dés** / Espace : lancer puis déplacer la pièce active. À l’arrivée, acheter une case libre ou négocier, puis **Terminer le tour** pour passer au joueur suivant.
 - Les huit pièces jouent à tour de rôle sur le même appareil ; le bandeau indique la pièce et le tour suivant.
 - Un anneau de couleur identifie la pièce active.
 - Sur téléphone : glisser pour tourner ; sélectionner les cases dans la liste. Les gestes de grossissement permettent le zoom lorsqu’ils sont exposés par l’appareil.
@@ -72,4 +78,25 @@ Tests : huit pièces distinctes, emplacements partagés, continuité du parcours
 
 ## Périmètre
 
-Il s’agit d’un prototype visuel interactif en local. Les achats, les règles économiques, les bots, les salons et le réseau ne sont pas connectés. Les huit pièces locales ne modifient pas la limite de joueurs du jeu web React existant. Aucun export Android ou PC autonome n’est inclus. D’autres appareils et tailles peuvent nécessiter des ajustements.
+Il s’agit d’un prototype visuel interactif en local. Les achats simples et les échanges de propriétés/argent fonctionnent dans cette session locale. Les loyers, constructions, cartes, faillites, bots, salons et réseau ne sont pas encore connectés. La session reste en mémoire et repart de zéro à la fermeture du projet. Les huit pièces locales ne modifient pas la limite de joueurs du jeu web React existant. Aucun export Android ou PC autonome n’est inclus. D’autres appareils et tailles peuvent nécessiter des ajustements.
+
+## Interface et échanges
+
+Les boutons **Patrimoine**, **Échanges** et **Journal** ouvrent les écrans de gestion. Le patrimoine donne accès aux huit joueurs, aux soldes et à l’achat de la case d’arrivée. Le journal retrace lancers, arrivées, achats et échanges. Un repère coloré sur les cases indique le propriétaire.
+
+Dans **Échanges → Composer un échange**, choisir un partenaire, cocher les propriétés de chaque côté et ajouter éventuellement une somme. Le récapitulatif et le bouton de proposition restent visibles pendant le défilement. Une proposition ne transfère rien. Le destinataire examine le récapitulatif sur le même appareil, puis accepte ou refuse ; l’auteur peut retirer son offre.
+
+À l’acceptation, l’autorité locale revérifie les propriétaires et les deux soldes, puis effectue tous les transferts ensemble. Une offre périmée expire sans transfert partiel. Les propositions sans contrepartie, doublons et montants négatifs sont refusés. Aucune connexion réseau ni authentification distante n’est simulée.
+
+Pour tester immédiatement : **Patrimoine → Démarrer une partie d’essai locale** distribue deux villes à chacun. Cette option est indisponible après le premier achat ou la première offre. Les captures des écrans d’échange utilisent cette partie d’essai.
+
+La caméra accompagne les déplacements en douceur et revient ensuite à la vue choisie. La pièce garde son tour à l’arrivée jusqu’à **Terminer le tour**.
+
+Tests supplémentaires :
+
+```bash
+godot --headless --path godot --script res://trade_test.gd
+godot --headless --path godot --script res://trade_ui_test.gd
+```
+
+Ils couvrent l’achat, les prix des hubs et réseaux, l’absence de transfert à la proposition, les droits des participants, les offres périmées, l’insuffisance de fonds, la conservation des sommes échangées et l’exécution unique. Le test d’interface vérifie un échange réel, les repères de propriété, les vues 1600×1000 et 390×844 ainsi que la fin de tour explicite.

@@ -13,6 +13,12 @@ var orbit := true
 var dragging := false
 var token: Node3D
 var pawns: Node3D
+var owner_markers: Dictionary = {}
+var session: RefCounted
+var trading: CanvasLayer
+var turn_phase := "roll"
+var follow_pawn := false
+var saved_camera: Dictionary = {}
 var token_index := 0
 var moving := false
 var detail: Label
@@ -104,6 +110,12 @@ func _ready() -> void:
  update_camera()
  build_city_labels()
  update_city_labels()
+ session = load("res://trade_state.gd").new()
+ session.setup(tiles,pawns.NAMES)
+ session.changed.connect(refresh_ownership)
+ trading = load("res://trade_ui.gd").new()
+ add_child(trading)
+ trading.setup(self,session)
 
 func environment_setup() -> void:
  var world := WorldEnvironment.new()
@@ -472,12 +484,15 @@ func _process(delta: float) -> void:
  if get_viewport().get_visible_rect().size != last_viewport_size:
   update_responsive_ui()
  if orbit and not dragging: yaw += delta*0.045
+ if follow_pawn:
+  camera_target = camera_target.lerp(token.position,1.0-exp(-delta*4.0))
  update_camera()
  update_city_labels()
  animate_world(delta)
  if selection: selection.position.y = 0.15+sin(time*2)*0.025
 
 func _unhandled_input(event: InputEvent) -> void:
+ if is_instance_valid(trading) and trading.is_open(): return
  if event is InputEventScreenDrag:
   orbit = false
   yaw -= event.relative.x*0.006
@@ -545,15 +560,37 @@ func update_responsive_ui() -> void:
  tile_picker.custom_minimum_size.x = min(300,last_viewport_size.x-40)
  status.add_theme_font_size_override("font_size",20 if compact else 22)
  detail.add_theme_font_size_override("font_size",17)
+ if turn_phase=="manage": roll_button.text = "Fin du tour" if compact else "Terminer le tour"
+ if is_instance_valid(trading): trading.resize_ui()
+
+func finish_turn() -> void:
+ if moving or turn_phase!="manage": return
+ pawns.active = (pawns.active+1)%8
+ turn_phase = "roll"
+ status.text = pawns.NAMES[pawns.active].to_upper()+" · À VOUS DE JOUER"
+ detail.text = "Lancez les dés pour votre prochain voyage."
+ update_responsive_ui()
+ trading.refresh_bar()
 
 func roll() -> void:
- if moving: return
+ if moving or (is_instance_valid(trading) and trading.is_open()): return
+ if turn_phase=="manage":
+  finish_turn()
+  return
  moving = true
+ turn_phase = "moving"
  roll_button.disabled = true
  var a := rng.randi_range(1,6)
  var b := rng.randi_range(1,6)
  var piece: int = pawns.active
  token = pawns.pieces[piece]
+ saved_camera = {"target":camera_target,"distance":distance,"pitch":pitch,"yaw":yaw,"orbit":orbit}
+ orbit = false
+ follow_pawn = true
+ distance = 15.0
+ pitch = 0.94
+ session.log_event("%s lance les dés : %d + %d." % [pawns.NAMES[piece],a,b])
+ trading.refresh_bar()
  status.text = pawns.NAMES[piece].to_upper()+" · EN ROUTE"
  detail.text = "Lancer en cours"
  var tween := create_tween().set_parallel(true)
@@ -568,11 +605,23 @@ func roll() -> void:
  detail.text = "%d + %d = %d cases" % [a,b,a+b]
  await pawns.move_active(a+b)
  token_index = pawns.indices[piece]
+ pawns.active = piece
+ follow_pawn = false
+ camera_target = saved_camera.target
+ distance = saved_camera.distance
+ pitch = saved_camera.pitch
+ yaw = saved_camera.yaw
+ orbit = saved_camera.orbit
+ turn_phase = "manage"
+ session.log_event("%s arrive à %s." % [pawns.NAMES[piece],tiles[token_index].name])
  selection.position = positions[token_index]+Vector3(0,0.15,0)
  status.text = "%s · %s" % [pawns.NAMES[piece],str(tiles[token_index].name)]
- detail.text = "%d + %d · Arrivée case %02d · Au tour de %s" % [a,b,token_index+1,pawns.NAMES[pawns.active]]
+ detail.text = "Arrivée case %02d · Achetez, négociez, puis terminez votre tour." % [token_index+1]
  moving = false
  roll_button.disabled = false
+ update_responsive_ui()
+ trading.refresh_bar()
+ if session.price(token_index)>0 and not session.owners.has(token_index): trading.open("portfolio")
 
 
 func build_city_labels() -> void:
@@ -819,3 +868,16 @@ func animate_world(_delta: float) -> void:
  for flag in sails:
   var phase: float = flag.get_meta("phase")
   flag.rotation.y = sin(time*2+phase)*0.18
+
+
+func refresh_ownership() -> void:
+ for tile in session.owners:
+  var owner: int = session.owners[tile]
+  var marker: MeshInstance3D
+  if owner_markers.has(tile): marker = owner_markers[tile]
+  else:
+   var offset := Vector3(0,0.374,0.79).rotated(Vector3.UP,-float(int(tile)/10)*PI/2)
+   marker = box(self,positions[tile]+offset,Vector3(1.35,0.018,0.035),mat(pawns.COLORS[owner],0.2))
+   marker.rotation.y = -float(int(tile)/10)*PI/2
+   owner_markers[tile] = marker
+  marker.material_override.albedo_color = pawns.COLORS[owner]
