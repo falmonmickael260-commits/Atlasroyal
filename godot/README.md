@@ -1,72 +1,75 @@
-![Aperçu du plateau Godot](preview.jpg)
-
-![Détail des nouvelles cases](preview-cases.jpg)
-
-![Interface portrait](preview-mobile.jpg)
-
 # ATLAS ROYAL — Le Grand Tour
 
-Prototype visuel original sous **Godot 4.6**. Plateau 3D autonome avec les 40 cases du jeu Atlasroyal, 22 monuments stylisés, matériaux ivoire/laiton/vert profond, rose des vents, cartes et quatre pions.
+Prototype autonome sous **Godot 4.6**, avec un plateau 3D de 40 cases et huit pièces originales.
 
-## Ouvrir
+![Les huit pièces, rendu réel dans Godot](preview-pawns.jpg)
 
-1. Télécharger cette branche GitHub (Code → Download ZIP) et décompresser.
-2. Dans Godot 4.6, importer `godot/project.godot`.
-3. Appuyer sur **F6** depuis `main.tscn`, ou **F5** pour le projet.
+![Plateau](preview.jpg)
 
-Le décor est créé par `main.gd` à l'exécution : lancez la scène pour le voir. Aucun plugin, serveur ou téléchargement d'assets nécessaire.
+![Détail des cases](preview-cases.jpg)
 
-## Commandes
+## Ouvrir et jouer
 
-- Bouton droit + glisser : tourner la caméra.
-- Molette : zoomer.
-- Clic gauche sur une case : nom, pays et prix.
-- Espace / Lancer les dés : lancer animé et déplacement du pion doré.
-- Vue cinéma : activer ou arrêter l'orbite automatique.
-- Vue du dessus : observer le plateau en plan.
-- R : rétablir la caméra initiale.
+Télécharger cette branche GitHub (Code → Download ZIP), décompresser et importer `godot/project.godot` dans Godot 4.6. Appuyer sur **F5**. Le décor est construit au lancement : lancer la scène pour le voir.
+
+- Bouton droit + glisser : tourner la caméra ; molette : zoomer.
+- Clic sur une case ou liste « Explorer les 40 cases » : sélectionner.
+- **Détail** : rapprocher la caméra de la sélection.
+- **Vue du dessus** ou **R** : revenir à une vue d’ensemble.
+- **Lancer les dés** / Espace : lancer puis déplacer la pièce active.
+- Les huit pièces jouent à tour de rôle sur le même appareil ; le bandeau indique la pièce et le tour suivant.
+- Un anneau de couleur identifie la pièce active.
+- Sur téléphone : glisser pour tourner ; sélectionner les cases dans la liste. Les gestes de grossissement permettent le zoom lorsqu’ils sont exposés par l’appareil.
+
+## Les huit voyageurs
+
+Chaque pièce possède sa propre géométrie, et non une simple variation de couleur :
+
+1. **Le Roadster** : capot, cockpit, pare-brise, calandre, phares et roues.
+2. **L’Aviateur** : biplan, entretoises, empennage et hélice animée.
+3. **Le Voilier** : coque, pont, mât, bôme et deux voiles triangulaires.
+4. **L’Express** : chaudière, cheminée, cabine, six roues et chasse-pierres.
+5. **La Couronne** : huit pointes, perles, intérieur et pierres décoratives.
+6. **L’Astrolabe** : cadran incliné, graduations, aiguille et anneaux.
+7. **Le Cinéaste** : caméra sur pied, objectif, bobines perforées et manivelle.
+8. **La Fusée** : corps fuselé, ogive, hublot, ailerons et poussée animée.
+
+Les pièces ont un socle bas et une finition métallique. Elles commencent au départ dans des emplacements distincts.
+
+## Déplacement
+
+Le déplacement suit une courbe fermée passant par les 40 cases. L’interpolation adoucit les angles et une progression sinusoïdale produit l’accélération et le freinage. La pièce s’oriente selon la tangente, prend une légère inclinaison dans les virages et revient droite à l’arrêt. Le biplan et la fusée ont un léger soulèvement.
+
+Les passages de cases sont comptés même lorsque la cadence baisse. À l’arrivée, les pièces partagent des emplacements distincts ; les doubles lancements sont bloqués. La durée ne dépend pas du nombre d’images affichées. Il s’agit d’une animation dirigée, pas d’une simulation physique avec collisions.
+
+## Décor et dessins
+
+- 40 dessins SVG individuels dans `assets/cases/` : fonds encrés, filets dorés, numéros, pays ou catégories, illustrations, titres et prix.
+- Monuments miniatures stylisés : pyramides, arcades, ponts à câbles, pagodes, tour horloge et tours étagées.
+- Globe tournant, dirigeable, tramways, jardins avec fontaines, arbres, lampadaires, vitrines et drapeaux animés.
+- Noms de villes horizontaux avec traits de liaison ; disposition adaptée aux petits écrans avec liste de sélection.
+- `assets/plateau-vectoriel.svg` : plateau vectoriel complet, avec les mêmes 40 dessins.
+- `assets/centre-vectoriel.svg` : motif central utilisé dans Godot.
+
+Les lettres SVG sont converties en tracés ; licence DejaVu dans `assets/FONT-LICENSE.txt`. Les SVG sont des sources vectorielles éditables ; leur rendu dans Godot passe par des textures à résolution finie, avec mipmaps et filtrage anisotrope. Les bâtiments et pièces sont de la géométrie 3D.
+
+## Fichiers et vérifications
+
+- `main.gd` : plateau, interface, décor et liaison aux pièces.
+- `pawns.gd` : huit modèles, parcours, animation, placement et alternance des tours.
+- `pawns_gallery.gd` : outil de capture des huit modèles.
+- `pawns_test.gd` : tests de déplacement.
+- `smoke.gd` : vérification du projet complet.
+
+Depuis la racine du dépôt :
+
+```bash
+godot --headless --path godot --script res://smoke.gd
+godot --headless --path godot --script res://pawns_test.gd
+```
+
+Tests : huit pièces distinctes, emplacements partagés, continuité du parcours, comptage exact au passage du départ, alternance de huit tours, tour complet, arrêt précis et blocage des lancements concurrents. Le test général couvre aussi les 40 cases, les étiquettes sur quatre angles, les interfaces 1600×1000, 1280×800 et 390×844, les animations et un lancer complet. Captures inspectées avec le rendu OpenGL de Godot 4.6.3.
 
 ## Périmètre
 
-Il s'agit du premier prototype de plateau demandé : aucun salon, backend, bot, achat ou règle économique n'est connecté. Les trois autres pions sont décoratifs. Les dés utilisent des valeurs aléatoires et des orientations correspondant à leurs faces ; l'animation est chorégraphiée, sans simulation physique.
-
-Les monuments sont des miniatures procédurales stylisées inspirées des types du plateau, et non des reproductions architecturales exactes. Les cases sont importées de `src/engine/board.ts` ; `assets/board.json` constitue l'instantané utilisé par ce prototype.
-
-## Structure
-
-- `main.gd` : géométrie, matériaux, interface et interactions.
-- `main.tscn` : scène principale.
-- `assets/board.json` : 40 cases et données des villes.
-- `smoke.gd` : vérifie la création du plateau et un déplacement complet.
-
-Vérification sans interface : `godot --headless --path godot --script res://smoke.gd`.
-
-## Lisibilité des villes
-
-Les 22 noms de villes et leurs prix apparaissent dans des étiquettes 2D horizontales reliées aux cases. Leur taille reste constante à l’écran et leur disposition évite les chevauchements. Les monuments ne peuvent plus masquer les noms. Le test smoke vérifie les 22 étiquettes sur quatre angles de caméra à la taille de fenêtre par défaut.
-
-## Plateau vivant et lisibilité
-
-- Globe armillaire en rotation, dirigeable en orbite et trois tramways animés.
-- Quatre jardins avec arbres et fontaines, lampadaires, drapeaux et vitrines éclairées.
-- Les 22 villes utilisent des étiquettes horizontales avec traits de liaison ; noms et prix gardent leur taille à l’écran.
-- En dessous de 1 100 pixels de largeur (ou 700 de hauteur), seule l’étiquette de la ville sélectionnée apparaît. Le menu « Explorer les 40 cases » donne accès à chaque nom complet et au détail de chaque case.
-- Sur téléphone : glisser pour tourner et utiliser la liste pour sélectionner. Sur les appareils qui exposent les gestes de grossissement, le pincement permet le zoom.
-- L’interface et les commandes se réorganisent en portrait. Le prototype n’est pas encore une application Android exportée.
-
-## Sources vectorielles
-
-- `assets/plateau-vectoriel.svg` : plateau complet de 40 cases, autonome et éditable, ouvrable dans un navigateur ou un éditeur SVG.
-- `assets/centre-vectoriel.svg` : motif vectoriel central réellement utilisé dans la scène Godot.
-- Les lettres SVG sont converties en tracés : aucun besoin d’installer la police. Licence des glyphes DejaVu incluse dans `assets/FONT-LICENSE.txt`.
-- Le centre SVG est importé en texture 4 096 × 4 096 avec mipmaps et filtrage anisotrope. La source vectorielle peut être agrandie ; le rendu GPU reste une texture à résolution finie. Les bâtiments et pions restent de la géométrie 3D.
-
-Les tests couvrent les noms sur quatre angles en 1 600 × 1 000, une disposition en 1 280 × 800 et une interface portrait en 390 × 844, ainsi que les animations et le déplacement. D’autres tailles et appareils peuvent nécessiter des ajustements.
-
-## Cases redessinées
-
-Les 40 cases utilisent désormais des dessins SVG individuels (`assets/cases/`) : fond encré, double filet doré, numéro, pays ou catégorie, illustration, titre et prix. Leurs couleurs et pictogrammes différencient les villes, cartes, transports, taxes, réseaux et jardins. Ces mêmes dessins sont intégrés dans le SVG du plateau complet.
-
-Les miniatures 3D comportent des socles en pierre, corniches, fenêtres et silhouettes spécifiques : pyramides, portes à arcades, ponts à câbles, pagodes, tour horloge, tours étagées et jardins suspendus. Ce sont des interprétations stylisées, pas des modèles architecturaux exacts.
-
-Sélectionnez une case par clic ou dans la liste, puis **Détail** pour rapprocher la caméra. **Vue du dessus** ou **R** rétablit une vue d’ensemble. Les noms restent dans les étiquettes de lecture, même lorsque la caméra tourne.
+Il s’agit d’un prototype visuel interactif en local. Les achats, les règles économiques, les bots, les salons et le réseau ne sont pas connectés. Les huit pièces locales ne modifient pas la limite de joueurs du jeu web React existant. Aucun export Android ou PC autonome n’est inclus. D’autres appareils et tailles peuvent nécessiter des ajustements.

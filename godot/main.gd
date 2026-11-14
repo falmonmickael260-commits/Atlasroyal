@@ -12,6 +12,7 @@ var camera_target := Vector3.ZERO
 var orbit := true
 var dragging := false
 var token: Node3D
+var pawns: Node3D
 var token_index := 0
 var moving := false
 var detail: Label
@@ -310,18 +311,14 @@ func build_center() -> void:
   text3(self,"DESTIN" if side<0 else "MARCHÉ",Vector3(side*4.3,0.60,-2.3),23,Color("f4e7c7"))
 
 func build_tokens() -> void:
- for i in range(4):
-  var pawn := Node3D.new()
-  add_child(pawn)
-  pawn.position = tile_position(i*10)+Vector3(0,0.4,0)
-  var m := mat([Color("f4cb78"),Color("81e4ce"),Color("d386a4"),Color("91b8e4")][i],0.75,0.22)
-  cylinder(pawn,Vector3(0,0.08,0),0.22,0.15,m)
-  cylinder(pawn,Vector3(0,0.38,0),0.13,0.50,m,0.065)
-  var sphere := SphereMesh.new()
-  sphere.radius = 0.14
-  sphere.height = 0.28
-  mesh(pawn,sphere,Vector3(0,0.70,0),m)
-  if i==0: token = pawn
+ pawns = load("res://pawns.gd").new()
+ add_child(pawns)
+ pawns.setup(positions)
+ token = pawns.pieces[0]
+ pawns.crossed_tile.connect(func(index: int):
+  selection.position = positions[index]+Vector3(0,0.15,0)
+  detail.text = "Case %02d · %s" % [index+1,str(tiles[index].name)]
+ )
 
 func build_dice() -> void:
  for i in range(2):
@@ -555,7 +552,9 @@ func roll() -> void:
  roll_button.disabled = true
  var a := rng.randi_range(1,6)
  var b := rng.randi_range(1,6)
- status.text = "LE VOYAGE COMMENCE…"
+ var piece: int = pawns.active
+ token = pawns.pieces[piece]
+ status.text = pawns.NAMES[piece].to_upper()+" · EN ROUTE"
  detail.text = "Lancer en cours"
  var tween := create_tween().set_parallel(true)
  # Face orientations correspond to the actual pip geometry above.
@@ -567,16 +566,11 @@ func roll() -> void:
   tween.tween_property(dice[i],"rotation",target,0.85).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
  await tween.finished
  detail.text = "%d + %d = %d cases" % [a,b,a+b]
- for step in range(a+b):
-  token_index = (token_index+1)%40
-  var target := positions[token_index]+Vector3(0,0.4,0)
-  var hop := create_tween()
-  hop.tween_property(token,"position",target+Vector3(0,0.6,0),0.12)
-  hop.tween_property(token,"position",target,0.10)
-  await hop.finished
+ await pawns.move_active(a+b)
+ token_index = pawns.indices[piece]
  selection.position = positions[token_index]+Vector3(0,0.15,0)
- status.text = str(tiles[token_index].name).to_upper()
- detail.text = "Arrivée  •  %d + %d  •  Démonstration visuelle, sans règles économiques" % [a,b]
+ status.text = "%s · %s" % [pawns.NAMES[piece],str(tiles[token_index].name)]
+ detail.text = "%d + %d · Arrivée case %02d · Au tour de %s" % [a,b,token_index+1,pawns.NAMES[pawns.active]]
  moving = false
  roll_button.disabled = false
 
