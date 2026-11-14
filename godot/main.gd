@@ -91,20 +91,20 @@ func environment_setup() -> void:
  env.background_color = Color("07161d")
  env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
  env.ambient_light_color = Color("95b5bc")
- env.ambient_light_energy = 0.4
+ env.ambient_light_energy = 0.28
  env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
  world.environment = env
  add_child(world)
  var sun := DirectionalLight3D.new()
  sun.rotation_degrees = Vector3(-52,-25,0)
- sun.light_color = Color("ffe0a9")
- sun.light_energy = 0.9
+ sun.light_color = Color("f1e6d0")
+ sun.light_energy = 0.48
  sun.shadow_enabled = true
  add_child(sun)
  var fill := DirectionalLight3D.new()
  fill.rotation_degrees = Vector3(-30,145,0)
  fill.light_color = Color("81bed4")
- fill.light_energy = 0.35
+ fill.light_energy = 0.18
  add_child(fill)
  box(self, Vector3(0,-1.2,0),Vector3(200,0.2,200),mat(Color("07151c")))
  # Oversized circular display plinth beneath the square board.
@@ -119,6 +119,18 @@ func tile_position(i: int) -> Vector3:
   1: return Vector3(-9.0,0,9.0-n*1.8)
   2: return Vector3(-9.0+n*1.8,0,-9.0)
   _: return Vector3(9.0,0,-9.0+n*1.8)
+
+func wrapped_name(value: String) -> String:
+ var lines := PackedStringArray()
+ var line := ""
+ for word in value.to_upper().split(" "):
+  if not line.is_empty() and (line+" "+word).length()>10:
+   lines.append(line)
+   line = word
+  else:
+   line = word if line.is_empty() else line+" "+word
+ lines.append(line)
+ return "\n".join(lines)
 
 func build_board() -> void:
  var brass := mat(GOLD,0.8,0.3)
@@ -136,11 +148,20 @@ func build_board() -> void:
   root.rotation.y = -float(i / 10)*PI/2.0
   add_child(root)
   var c := Color(t.color)
-  box(root,Vector3(0,0.24,0),Vector3(1.72,0.25,1.72),mat(Color("e7dfc9"),0.12,0.7))
+  box(root,Vector3(0,0.24,0),Vector3(1.72,0.25,1.72),mat(Color("9caa9e"),0.0,0.95))
   box(root,Vector3(0,0.39,-0.65),Vector3(1.70,0.06,0.30),mat(c,0.4))
-  text3(root,str(t.name).to_upper().replace(" ","\n") if str(t.name).length()>14 else str(t.name).to_upper(),Vector3(0,0.38,0.42),17,INK)
+  # A matte inset separates the lettering from lit geometry and reflections.
+  box(root,Vector3(0,0.375,0.46),Vector3(1.61,0.025,0.72),mat(Color("a8b5a8"),0.0,1.0))
+  var name_label := text3(root,wrapped_name(str(t.name)),Vector3(0,0.397,0.41),32,Color("07191e"))
+  name_label.pixel_size = 0.009
+  name_label.line_spacing = -4
+  var max_width := 0.0
+  for line in name_label.text.split("\n"):
+   max_width = max(max_width,ThemeDB.fallback_font.get_string_size(line,HORIZONTAL_ALIGNMENT_LEFT,-1,32).x)
+  if max_width > 0: name_label.pixel_size = min(0.009,1.45/max_width)
+
   if t.kind == "city":
-   text3(root,"%s €" % t.price,Vector3(0,0.39,0.75),15,Color("73634b"))
+   text3(root,"%s €" % t.price,Vector3(0,0.40,0.75),24,Color("203c3b"))
    landmark(root,str(t.landmark),c,i)
   else:
    text3(root,{"depart":"➜","card":"?","hub":"✦","tax":"€","prison":"II","parc":"✧","gotoprison":"!","reseau":"+"}.get(str(t.kind),"◆"),Vector3(0,0.42,-0.14),65,c)
@@ -324,10 +345,11 @@ func build_ui() -> void:
  status = Label.new()
  status.text = "EXPLOREZ VOTRE EMPIRE"
  status.add_theme_color_override("font_color",GOLD)
+ status.add_theme_font_size_override("font_size",22)
  column.add_child(status)
  detail = Label.new()
  detail.text = "Cliquez sur une ville pour découvrir son escale."
- detail.add_theme_font_size_override("font_size",14)
+ detail.add_theme_font_size_override("font_size",17)
  column.add_child(detail)
  for title in ["Vue cinéma","Vue du dessus","Lancer les dés"]:
   var button := Button.new()
