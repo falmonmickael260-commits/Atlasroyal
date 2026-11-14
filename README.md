@@ -14,6 +14,14 @@ Le logo illustré d’origine (`public/ui/logo.webp`) reste utilisé dans les me
 
 Le plateau se prépare dès le salon : le même cadre Godot est conservé lors du lancement. Les fichiers Web sont compressés en Brotli/gzip et portent une version issue de leur contenu pour éviter les mélanges de cache après publication. Les géométries immobiles sont regroupées ; les pions et éléments animés conservent leur hiérarchie.
 
+## Interface de partie et échanges
+
+Le comptoir des échanges présente les propriétés illustrées, leurs groupes et les hypothèques dans deux colonnes. Le récapitulatif, le solde prévu après accord et l’envoi restent visibles pendant le défilement. Les valeurs catalogue indiquent les prix d’achat, sans estimer la valeur stratégique des groupes.
+
+Les offres reçues et envoyées disposent de vues dédiées. Le joueur peut accepter, refuser, retirer ou préparer une contre-proposition. Une contre-proposition reprend l’offre en sens inverse ; l’envoi refuse l’original puis propose le nouvel accord avec les commandes existantes. Les transferts restent effectués uniquement à l’acceptation par le moteur d’origine.
+
+Le brouillon est conservé quand la fenêtre se ferme, pendant la partie en cours. Les propriétés construites sont désactivées ; une sélection devenue périmée doit être actualisée. Les refus du moteur conservent la proposition à corriger. L’interface gère le clavier, Échap et les petits écrans.
+
 ## Documentation des règles d’origine
 
 ## Règles et fonctionnement
