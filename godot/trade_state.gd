@@ -107,3 +107,14 @@ func seed_demo() -> bool:
  demo = true
  log_event("Partie d’essai locale : deux villes attribuées à chaque joueur. Soldes de départ : 2 500 €.")
  return true
+
+func counter_offer(id: int, actor: int, give: Array, receive: Array, payment: int, requested: int) -> Dictionary:
+ var original := find_offer(id)
+ if original.is_empty() or original.status!="pending" or original.to!=actor:
+  return {"error":"Seul le destinataire peut répondre à une offre en attente."}
+ var result := propose(actor,original.from,give,receive,payment,requested)
+ if result.has("error"): return result
+ original.status = "countered"
+ find_offer(result.id)["counter_of"] = id
+ log_event("Offre #%d remplacée par la contre-proposition #%d." % [id,result.id])
+ return result

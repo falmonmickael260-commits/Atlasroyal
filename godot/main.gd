@@ -13,6 +13,7 @@ var orbit := true
 var dragging := false
 var token: Node3D
 var pawns: Node3D
+var legacy_ui: Control
 var owner_markers: Dictionary = {}
 var session: RefCounted
 var trading: CanvasLayer
@@ -27,6 +28,11 @@ var roll_button: Button
 var selection: MeshInstance3D
 var time := 0.0
 var dice: Array[Node3D] = []
+var dice_rig: Node3D
+var dice_values: Array[int] = [0,0]
+var dice_total := 0
+var steps_moved := 0
+var travel_stage := ""
 var rng := RandomNumberGenerator.new()
 var city_labels: Array[Dictionary] = []
 var name_overlay: Control
@@ -116,6 +122,7 @@ func _ready() -> void:
  trading = load("res://trade_ui.gd").new()
  add_child(trading)
  trading.setup(self,session)
+ legacy_ui.hide()
 
 func environment_setup() -> void:
  var world := WorldEnvironment.new()
@@ -328,36 +335,15 @@ func build_tokens() -> void:
  pawns.setup(positions)
  token = pawns.pieces[0]
  pawns.crossed_tile.connect(func(index: int):
+  steps_moved += 1
   selection.position = positions[index]+Vector3(0,0.15,0)
   detail.text = "Case %02d · %s" % [index+1,str(tiles[index].name)]
  )
 
 func build_dice() -> void:
- for i in range(2):
-  var die := Node3D.new()
-  die.position = Vector3(-0.65+i*1.3,0.82,-3.6)
-  die.rotation.y = 0.2-i*0.4
-  add_child(die)
-  dice.append(die)
-  box(die,Vector3.ZERO,Vector3(0.75,0.75,0.75),mat(Color("ece3ce"),0.1,0.35))
-  # Opposite faces sum to seven. X/Z points are in the face plane.
-  var normals := [Vector3.UP,Vector3.DOWN,Vector3.RIGHT,Vector3.LEFT,Vector3.FORWARD,Vector3.BACK]
-  var values := [1,6,3,4,2,5]
-  for face in range(6):
-   var normal: Vector3 = normals[face]
-   var u := Vector3.RIGHT if abs(normal.y)>0.5 else Vector3.UP
-   var v := normal.cross(u)
-   var points: Array[Vector2] = []
-   var value: int = values[face]
-   if value%2==1: points.append(Vector2.ZERO)
-   if value>=2: points.append_array([Vector2(-1,-1),Vector2(1,1)])
-   if value>=4: points.append_array([Vector2(-1,1),Vector2(1,-1)])
-   if value==6: points.append_array([Vector2(-1,0),Vector2(1,0)])
-   for pt in points:
-    var sphere := SphereMesh.new()
-    sphere.radius = 0.047
-    sphere.height = 0.094
-    mesh(die,sphere,normal*0.376+u*pt.x*0.19+v*pt.y*0.19,mat(INK))
+ dice_rig = load("res://premium_dice.gd").new()
+ add_child(dice_rig)
+ dice = dice_rig.dice
 
 func label_at(parent: Control, value: String, pos: Vector2, size: int, color: Color) -> Label:
  var l := Label.new()
@@ -373,11 +359,12 @@ func build_ui() -> void:
  var layer := CanvasLayer.new()
  add_child(layer)
  var ui := Control.new()
+ legacy_ui = ui
  ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
  layer.add_child(ui)
  label_at(ui,"A / R",Vector2(42,28),26,GOLD)
- label_at(ui,"ATLAS ROYAL",Vector2(42,65),14,Color("eef0e8"))
+ label_at(ui,"FORTUNE EMPIRE",Vector2(42,65),14,Color("eef0e8"))
  label_at(ui,"LE GRAND TOUR  /  ÉTUDE DE PLATEAU",Vector2(42,91),11,Color("91aaa9"))
  var top := Label.new()
  top.text = "COLLECTION 01     •     40 ESCALES     •     GODOT 4"
@@ -492,6 +479,7 @@ func _process(delta: float) -> void:
  if selection: selection.position.y = 0.15+sin(time*2)*0.025
 
 func _unhandled_input(event: InputEvent) -> void:
+ if moving: return
  if is_instance_valid(trading) and trading.is_open(): return
  if event is InputEventScreenDrag:
   orbit = false
@@ -532,7 +520,7 @@ func select_tile(i: int) -> void:
  var t: Dictionary = tiles[i]
  selection.position = positions[i]+Vector3(0,0.15,0)
  status.text = str(t.name).to_upper()
- detail.text = "%s  •  %s €  •  Case %02d / 40" % [t.get("country","Grand Tour"), t.price, i+1] if t.kind=="city" else "Case %02d / 40  •  %s" % [i+1,str(t.name)]
+ detail.text = "%s  •  %d €  •  Case %02d / 40" % [t.get("country","Grand Tour"), t.price, i+1] if t.kind=="city" else "Case %02d / 40  •  %s" % [i+1,str(t.name)]
  tile_picker.select(i+1)
 
 func update_responsive_ui() -> void:
@@ -586,30 +574,38 @@ func roll() -> void:
  token = pawns.pieces[piece]
  saved_camera = {"target":camera_target,"distance":distance,"pitch":pitch,"yaw":yaw,"orbit":orbit}
  orbit = false
- follow_pawn = true
- distance = 15.0
+ follow_pawn = false
+ # Camera transition is performed before the dice leave the table.
+ travel_stage = "dice"
+ steps_moved = 0
+ dice_values = [0,0]
+ dice_total = 0
  pitch = 0.94
  session.log_event("%s lance les dés : %d + %d." % [pawns.NAMES[piece],a,b])
  trading.refresh_bar()
  status.text = pawns.NAMES[piece].to_upper()+" · EN ROUTE"
  detail.text = "Lancer en cours"
- var tween := create_tween().set_parallel(true)
- # Face orientations correspond to the actual pip geometry above.
- var faces := [Vector3.ZERO,Vector3(PI/2,0,0),Vector3(0,0,PI/2),Vector3(0,0,-PI/2),Vector3(-PI/2,0,0),Vector3(PI,0,0)]
- for i in range(2):
-  var value := a if i==0 else b
-  var target: Vector3 = faces[value-1]+Vector3(TAU*2,0,TAU*2)
-  dice[i].rotation = Vector3.ZERO
-  tween.tween_property(dice[i],"rotation",target,0.85).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
- await tween.finished
- detail.text = "%d + %d = %d cases" % [a,b,a+b]
- await pawns.move_active(a+b)
+ await direct_camera(Vector3(0,0.3,-3.6),13.0,0.94,0.32)
+ var valid: bool = await dice_rig.roll_pair(a,b)
+ if not valid:
+  moving = false
+  turn_phase = "roll"
+  roll_button.disabled = false
+  status.text = "Le lancer n’a pas abouti. Réessayez."
+  return
+ dice_values = dice_rig.top_values()
+ dice_total = dice_values[0]+dice_values[1]
+ detail.text = "%d + %d = %d cases" % [dice_values[0],dice_values[1],dice_total]
+ await get_tree().create_timer(0.35).timeout
+ travel_stage = "travel"
+ follow_pawn = true
+ create_tween().tween_property(self,"distance",15.0,0.4).set_trans(Tween.TRANS_SINE)
+ await pawns.move_active(dice_total)
  token_index = pawns.indices[piece]
  pawns.active = piece
  follow_pawn = false
- camera_target = saved_camera.target
- distance = saved_camera.distance
- pitch = saved_camera.pitch
+ travel_stage = ""
+ await direct_camera(saved_camera.target,saved_camera.distance,saved_camera.pitch,0.35)
  yaw = saved_camera.yaw
  orbit = saved_camera.orbit
  turn_phase = "manage"
@@ -617,11 +613,13 @@ func roll() -> void:
  selection.position = positions[token_index]+Vector3(0,0.15,0)
  status.text = "%s · %s" % [pawns.NAMES[piece],str(tiles[token_index].name)]
  detail.text = "Arrivée case %02d · Achetez, négociez, puis terminez votre tour." % [token_index+1]
+ var purchase_ready: bool = session.price(token_index)>0 and not session.owners.has(token_index)
+ if purchase_ready: await get_tree().create_timer(0.4).timeout
  moving = false
  roll_button.disabled = false
  update_responsive_ui()
  trading.refresh_bar()
- if session.price(token_index)>0 and not session.owners.has(token_index): trading.open("portfolio")
+ if purchase_ready: trading.open("portfolio")
 
 
 func build_city_labels() -> void:
@@ -661,7 +659,7 @@ func build_city_labels() -> void:
   name_label.add_theme_color_override("font_color",Color("f3f0e5"))
   column.add_child(name_label)
   var price := Label.new()
-  price.text = "%02d   /   %s €" % [i+1,t.price]
+  price.text = "%02d   /   %d €" % [i+1,t.price]
   price.add_theme_font_size_override("font_size",11)
   price.add_theme_color_override("font_color",Color("b4c8bf"))
   column.add_child(price)
@@ -673,7 +671,7 @@ func update_city_labels() -> void:
  var viewport_size := get_viewport().get_visible_rect().size
  var compact := viewport_size.x<1100 or viewport_size.y<700
  compact = compact or camera_target.length()>1
- var safe := Rect2(Vector2(18,180),viewport_size-Vector2(36,365))
+ var safe := Rect2(Vector2(248,205),viewport_size-Vector2(270,370))
  var placed: Array[Rect2] = []
  var center := camera.unproject_position(Vector3(0,0.4,0))
  for entry in city_labels:
@@ -881,3 +879,12 @@ func refresh_ownership() -> void:
    marker.rotation.y = -float(int(tile)/10)*PI/2
    owner_markers[tile] = marker
   marker.material_override.albedo_color = pawns.COLORS[owner]
+
+
+func direct_camera(target: Vector3, next_distance: float, next_pitch: float, duration: float) -> void:
+ var transition := create_tween().set_parallel(true)
+ transition.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+ transition.tween_property(self,"camera_target",target,duration)
+ transition.tween_property(self,"distance",next_distance,duration)
+ transition.tween_property(self,"pitch",next_pitch,duration)
+ await transition.finished

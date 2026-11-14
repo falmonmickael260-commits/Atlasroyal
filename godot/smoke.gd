@@ -82,7 +82,7 @@ func run() -> void:
  var globe_before: float = scene.animated_globe.rotation.y
  var airship_before: Vector3 = scene.airship.position
  scene.roll()
- await create_timer(5.0).timeout
+ while scene.moving: await process_frame
  assert(scene.animated_globe.rotation.y>globe_before)
  assert(scene.airship.position.distance_to(airship_before)>0.01)
  assert(scene.traffic.size()==3)

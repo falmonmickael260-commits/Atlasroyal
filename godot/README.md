@@ -1,102 +1,87 @@
-# ATLAS ROYAL — Le Grand Tour
+# Fortune Empire
 
-Prototype autonome sous **Godot 4.6**, avec un plateau 3D de 40 cases et huit pièces originales.
+Un plateau de jeu 3D original sous **Godot 4.6**, avec huit pièces distinctes, une interface de gestion locale et des échanges fonctionnels.
 
-![Composer un échange, rendu réel dans Godot](preview-trades.jpg)
+![Interface Fortune Empire](preview-empire.jpg)
 
-![Examen par le destinataire](preview-trade-review.jpg)
+[Voir une capture réelle du lancer et du déplacement : 3 + 4 = 7 cases](fortune-movement.mp4)
 
-![Interface portrait](preview-trades-mobile.jpg)
+## Ouvrir
 
-![Les huit pièces, rendu réel dans Godot](preview-pawns.jpg)
+Télécharger cette branche (Code → Download ZIP), décompresser, puis importer `godot/project.godot` dans Godot 4.6. Appuyer sur **F5**. Le décor est généré au lancement.
 
-![Plateau](preview.jpg)
+## Une interface pour toute la partie
 
-![Détail des cases](preview-cases.jpg)
+- **Plateau** : revenir à la vue générale.
+- **Propriétés** : consulter la trésorerie, les biens possédés et les 40 escales ; acheter une case libre à l’arrivée.
+- **Échanges** : propositions reçues et envoyées, récapitulatifs, acceptation, refus, retrait et contre-propositions.
+- **Joueurs** : consulter les huit investisseurs et lancer une négociation.
+- **Journal** : retrouver les lancers, arrivées, achats et accords.
 
-## Ouvrir et jouer
+La colonne des investisseurs apparaît sur ordinateur. Sur téléphone, la navigation reste en haut et la commande du tour en bas, sans colonne latérale. Les cartes de propriété utilisent les dessins du plateau ; les titres emploient une police intégrée au projet. Les fenêtres ont un léger fondu, des états de sélection et une navigation clavier visible. Échap ferme une fenêtre.
 
-Télécharger cette branche GitHub (Code → Download ZIP), décompresser et importer `godot/project.godot` dans Godot 4.6. Appuyer sur **F5**. Le décor est construit au lancement : lancer la scène pour le voir.
+![Votre patrimoine](preview-portfolio.jpg)
 
-- Bouton droit + glisser : tourner la caméra ; molette : zoomer.
-- Clic sur une case ou liste « Explorer les 40 cases » : sélectionner.
-- **Détail** : rapprocher la caméra de la sélection.
-- **Vue du dessus** ou **R** : revenir à une vue d’ensemble.
-- **Lancer les dés** / Espace : lancer puis déplacer la pièce active. À l’arrivée, acheter une case libre ou négocier, puis **Terminer le tour** pour passer au joueur suivant.
-- Les huit pièces jouent à tour de rôle sur le même appareil ; le bandeau indique la pièce et le tour suivant.
-- Un anneau de couleur identifie la pièce active.
-- Sur téléphone : glisser pour tourner ; sélectionner les cases dans la liste. Les gestes de grossissement permettent le zoom lorsqu’ils sont exposés par l’appareil.
+![Interface sur téléphone](preview-empire-mobile.jpg)
 
-## Les huit voyageurs
+## Dés et déplacements
 
-Chaque pièce possède sa propre géométrie, et non une simple variation de couleur :
+**Lancer les dés** déclenche une transition de caméra vers les deux dés, puis le lancer, les rebonds et l’arrêt. Les dés ont une géométrie arrondie et des points sombres cerclés de laiton. Les faces visibles sont calculées à partir des valeurs retenues. Le résultat affiché est relu sur les deux faces supérieures et son total sert au déplacement.
 
-1. **Le Roadster** : capot, cockpit, pare-brise, calandre, phares et roues.
-2. **L’Aviateur** : biplan, entretoises, empennage et hélice animée.
-3. **Le Voilier** : coque, pont, mât, bôme et deux voiles triangulaires.
-4. **L’Express** : chaudière, cheminée, cabine, six roues et chasse-pierres.
-5. **La Couronne** : huit pointes, perles, intérieur et pierres décoratives.
-6. **L’Astrolabe** : cadran incliné, graduations, aiguille et anneaux.
-7. **Le Cinéaste** : caméra sur pied, objectif, bobines perforées et manivelle.
-8. **La Fusée** : corps fuselé, ogive, hublot, ailerons et poussée animée.
+La caméra suit ensuite la pièce et le compteur indique les cases parcourues. À l’arrivée, la caméra revient à la vue choisie. La gestion reste au joueur courant jusqu’à **Terminer mon tour**. Les doubles clics/lancements sont bloqués pendant l’animation.
 
-Les pièces ont un socle bas et une finition métallique. Elles commencent au départ dans des emplacements distincts.
+![Les dés, 3 + 4 = 7 cases](preview-dice.jpg)
 
-## Déplacement
+Les huit pièces ont une géométrie propre : roadster, biplan, voilier, locomotive, couronne, astrolabe, caméra de cinéma et fusée. Le déplacement suit une courbe continue avec anticipation, accélération, orientation tangentielle, inclinaison dans les virages, freinage et mise au repos. Le roadster a des roues qui tournent et des roues avant orientables ; le voilier prend du roulis ; le biplan incline sa trajectoire et fait tourner son hélice ; la locomotive fait tourner ses roues ; la fusée se soulève avec une flamme animée. Les autres pièces ont une animation plus discrète adaptée à leur forme.
 
-Le déplacement suit une courbe fermée passant par les 40 cases. L’interpolation adoucit les angles et une progression sinusoïdale produit l’accélération et le freinage. La pièce s’oriente selon la tangente, prend une légère inclinaison dans les virages et revient droite à l’arrêt. Le biplan et la fusée ont un léger soulèvement.
+![Les huit voyageurs](preview-pawns.jpg)
 
-Les passages de cases sont comptés même lorsque la cadence baisse. À l’arrivée, les pièces partagent des emplacements distincts ; les doubles lancements sont bloqués. La durée ne dépend pas du nombre d’images affichées. Il s’agit d’une animation dirigée, pas d’une simulation physique avec collisions.
+À l’arrivée, plusieurs pièces sur une même case se répartissent dans des emplacements distincts. Il s’agit d’animations dirigées, et non d’une simulation physique avec collisions. Les sons de contact des dés se coupent dans **Joueurs**.
 
-## Décor et dessins
+## Échanges entre les joueurs
 
-- 40 dessins SVG individuels dans `assets/cases/` : fonds encrés, filets dorés, numéros, pays ou catégories, illustrations, titres et prix.
-- Monuments miniatures stylisés : pyramides, arcades, ponts à câbles, pagodes, tour horloge et tours étagées.
-- Globe tournant, dirigeable, tramways, jardins avec fontaines, arbres, lampadaires, vitrines et drapeaux animés.
-- Noms de villes horizontaux avec traits de liaison ; disposition adaptée aux petits écrans avec liste de sélection.
-- `assets/plateau-vectoriel.svg` : plateau vectoriel complet, avec les mêmes 40 dessins.
-- `assets/centre-vectoriel.svg` : motif central utilisé dans Godot.
+Choisir un partenaire, cocher les propriétés de chaque côté et ajouter éventuellement de l’argent. Le récapitulatif et la commande d’envoi restent visibles pendant le défilement. La proposition ne transfère rien.
 
-Les lettres SVG sont converties en tracés ; licence DejaVu dans `assets/FONT-LICENSE.txt`. Les SVG sont des sources vectorielles éditables ; leur rendu dans Godot passe par des textures à résolution finie, avec mipmaps et filtrage anisotrope. Les bâtiments et pièces sont de la géométrie 3D.
+Le destinataire examine l’offre sur le même appareil, puis l’accepte, la refuse ou prépare une contre-proposition. L’auteur peut retirer son offre. Une contre-proposition valide remplace l’offre initiale, qui ne peut alors plus être acceptée.
 
-## Fichiers et vérifications
+Avant l’acceptation, l’autorité locale revérifie les propriétaires, les contreparties et les deux soldes. Les titres et l’argent sont transférés ensemble. Une offre périmée expire sans transfert partiel ; les doublons, montants négatifs et propositions sans contrepartie sont refusés.
 
-- `main.gd` : plateau, interface, décor et liaison aux pièces.
-- `pawns.gd` : huit modèles, parcours, animation, placement et alternance des tours.
-- `pawns_gallery.gd` : outil de capture des huit modèles.
-- `pawns_test.gd` : tests de déplacement.
-- `smoke.gd` : vérification du projet complet.
+![Composer un échange](preview-trades.jpg)
+
+![Récapitulatif pour le destinataire](preview-trade-review.jpg)
+
+Pour essayer immédiatement : **Propriétés → Démarrer une partie d’essai locale** attribue deux villes à chacun. Cette option n’est plus disponible après le premier achat ou la première offre. Les captures de gestion utilisent cette partie d’essai, signalée dans l’en-tête.
+
+## Commandes de caméra
+
+Bouton droit + glisser : tourner. Molette : zoomer. Sur téléphone : glisser pour tourner ; les gestes de grossissement permettent le zoom quand l’appareil les expose. Clic sur une case, puis **Détail** : examiner. Dans **Propriétés → Explorer les 40 cases**, **Voir** ouvre également un gros plan. **Plateau**, **Vue générale** ou **R** rétablit une vue d’ensemble. **Cinéma** active ou arrête l’orbite. Espace lance les dés ou termine le tour selon la phase.
+
+## Dessins et décor
+
+40 cases SVG individuelles (`assets/cases/`) avec cadres dorés, titres en tracés, pictogrammes, numéros, pays et prix. Monuments miniatures stylisés, jardins, fontaines, lampadaires, globe tournant, dirigeable, tramways et drapeaux animés.
+
+- `assets/plateau-vectoriel.svg` : plateau vectoriel complet.
+- `assets/centre-vectoriel.svg` : motif central utilisé dans la scène.
+- `assets/ui/EmpireSerif.ttf` : police de titres intégrée, sous-ensemble DejaVu Serif.
+- `assets/FONT-LICENSE.txt` : licence des polices et glyphes.
+
+Les SVG sont des sources éditables ; Godot les importe en textures à résolution finie, avec mipmaps et filtrage anisotrope. Les bâtiments, pièces et dés sont de la géométrie 3D. Les monuments sont des interprétations stylisées.
+
+## Vérifications
 
 Depuis la racine du dépôt :
 
 ```bash
 godot --headless --path godot --script res://smoke.gd
+godot --headless --path godot --script res://premium_ui_test.gd
 godot --headless --path godot --script res://pawns_test.gd
-```
-
-Tests : huit pièces distinctes, emplacements partagés, continuité du parcours, comptage exact au passage du départ, alternance de huit tours, tour complet, arrêt précis et blocage des lancements concurrents. Le test général couvre aussi les 40 cases, les étiquettes sur quatre angles, les interfaces 1600×1000, 1280×800 et 390×844, les animations et un lancer complet. Captures inspectées avec le rendu OpenGL de Godot 4.6.3.
-
-## Périmètre
-
-Il s’agit d’un prototype visuel interactif en local. Les achats simples et les échanges de propriétés/argent fonctionnent dans cette session locale. Les loyers, constructions, cartes, faillites, bots, salons et réseau ne sont pas encore connectés. La session reste en mémoire et repart de zéro à la fermeture du projet. Les huit pièces locales ne modifient pas la limite de joueurs du jeu web React existant. Aucun export Android ou PC autonome n’est inclus. D’autres appareils et tailles peuvent nécessiter des ajustements.
-
-## Interface et échanges
-
-Les boutons **Patrimoine**, **Échanges** et **Journal** ouvrent les écrans de gestion. Le patrimoine donne accès aux huit joueurs, aux soldes et à l’achat de la case d’arrivée. Le journal retrace lancers, arrivées, achats et échanges. Un repère coloré sur les cases indique le propriétaire.
-
-Dans **Échanges → Composer un échange**, choisir un partenaire, cocher les propriétés de chaque côté et ajouter éventuellement une somme. Le récapitulatif et le bouton de proposition restent visibles pendant le défilement. Une proposition ne transfère rien. Le destinataire examine le récapitulatif sur le même appareil, puis accepte ou refuse ; l’auteur peut retirer son offre.
-
-À l’acceptation, l’autorité locale revérifie les propriétaires et les deux soldes, puis effectue tous les transferts ensemble. Une offre périmée expire sans transfert partiel. Les propositions sans contrepartie, doublons et montants négatifs sont refusés. Aucune connexion réseau ni authentification distante n’est simulée.
-
-Pour tester immédiatement : **Patrimoine → Démarrer une partie d’essai locale** distribue deux villes à chacun. Cette option est indisponible après le premier achat ou la première offre. Les captures des écrans d’échange utilisent cette partie d’essai.
-
-La caméra accompagne les déplacements en douceur et revient ensuite à la vue choisie. La pièce garde son tour à l’arrivée jusqu’à **Terminer le tour**.
-
-Tests supplémentaires :
-
-```bash
+godot --headless --path godot --script res://dice_test.gd
 godot --headless --path godot --script res://trade_test.gd
 godot --headless --path godot --script res://trade_ui_test.gd
 ```
 
-Ils couvrent l’achat, les prix des hubs et réseaux, l’absence de transfert à la proposition, les droits des participants, les offres périmées, l’insuffisance de fonds, la conservation des sommes échangées et l’exécution unique. Le test d’interface vérifie un échange réel, les repères de propriété, les vues 1600×1000 et 390×844 ainsi que la fin de tour explicite.
+Les tests couvrent les 36 combinaisons de dés (faces visibles et nombre exact de cases), la continuité du parcours et son bouclage, huit tours, le placement partagé et l’arrêt précis. Ils vérifient aussi les achats et échanges, les contre-propositions, les offres périmées, les droits des participants, la conservation des sommes et l’exécution unique. Les tests d’interface couvrent les vues ordinateur et portrait, l’absence de débordement, la navigation et l’action principale de tour. Captures inspectées avec le rendu OpenGL de Godot 4.6.3.
+
+## Périmètre actuel
+
+Session locale sur un seul appareil, conservée en mémoire seulement. Elle repart de zéro à la fermeture. Achats simples et échanges fonctionnent ; maisons, hôtels, loyers, cartes, faillites, bots, sauvegarde et réseau ne sont pas encore connectés. Aucun export autonome PC ou Android n’est inclus. Le moteur React du dépôt n’est pas remplacé et sa limite de joueurs reste indépendante de ce prototype. D’autres appareils peuvent demander des ajustements.

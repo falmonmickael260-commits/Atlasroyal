@@ -35,7 +35,7 @@ func run() -> void:
  var layer := CanvasLayer.new()
  root.add_child(layer)
  var title := Label.new()
- title.text = "ATLAS ROYAL  /  LES HUIT VOYAGEURS"
+ title.text = "FORTUNE EMPIRE  /  LES HUIT VOYAGEURS"
  title.position = Vector2(55,35)
  title.add_theme_font_size_override("font_size",27)
  title.add_theme_color_override("font_color",Color("dec58e"))

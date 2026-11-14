@@ -86,8 +86,17 @@ func setup(positions: Array[Vector3]) -> void:
     for z in [-0.16,0.15]:
      var wheel := disc(body,Vector3(x,0.12,z),0.068,0.04,dark)
      wheel.rotation.z = PI/2
+     wheel.set_meta("radius",0.068 if i==0 else 0.062)
+     add_spokes(wheel,metal)
      var hub := disc(body,Vector3(x*1.18,0.12,z),0.032,0.01,metal)
      hub.rotation.z = PI/2
+     if z<0:
+      var steering := Node3D.new()
+      steering.position = wheel.position
+      steering.set_meta("steering",true)
+      body.add_child(steering)
+      wheel.reparent(steering,true)
+      hub.reparent(steering,true)
     sphere(body,Vector3(x*0.7,0.19,-0.27),Vector3.ONE*0.045,trim)
   elif i==1:
    # Biplane, two stacked wings, struts, tailplane and working propeller.
@@ -127,6 +136,8 @@ func setup(positions: Array[Vector3]) -> void:
     for z in [-0.17,0,0.17]:
      var wheel := disc(body,Vector3(x,0.12,z),0.062,0.025,dark)
      wheel.rotation.z = PI/2
+     wheel.set_meta("radius",0.068 if i==0 else 0.062)
+     add_spokes(wheel,metal)
    block(body,Vector3(0,0.14,-0.28),Vector3(0.24,0.04,0.10),trim).rotation.x = 0.35
   elif i==4:
    # Eight-point royal crown, velvet interior, pearls and colored gemstones.
@@ -157,6 +168,7 @@ func setup(positions: Array[Vector3]) -> void:
     tick.rotation.y = a
    var needle := block(instrument,Vector3(0,0.053,0),Vector3(0.035,0.016,0.26),metal)
    needle.rotation.y = 0.45
+   needle.set_meta("needle",true)
    sphere(instrument,Vector3(0,0.07,0),Vector3.ONE*0.035,trim)
    var ring := TorusMesh.new()
    ring.inner_radius = 0.21
@@ -205,6 +217,11 @@ func setup(positions: Array[Vector3]) -> void:
  ring.outer_radius = 0.255
  halo = add_mesh(self,ring,Vector3.ZERO,material(COLORS[0],0.3))
 
+func add_spokes(wheel: MeshInstance3D, metal: Material) -> void:
+ for angle in [0.0,PI/2]:
+  var spoke := block(wheel,Vector3(0,0.022,0),Vector3(0.1,0.008,0.012),metal)
+  spoke.rotation.y = angle
+
 func slot(piece: int, tile: int) -> Vector3:
  var occupants: Array[int] = []
  for i in range(8):
@@ -238,6 +255,7 @@ func apply_progress(value: float, piece: int, start: int, steps: int, origin_off
  pos += origin_offset*pow(1.0-clampf((value-start)/0.7,0.0,1.0),3)
  var forward := sample_track(value+0.02)-sample_track(value)
  var target_yaw := atan2(-forward.x,-forward.z)
+ var distance_travelled := pieces[piece].position.distance_to(pos)
  pieces[piece].position = pos
  pieces[piece].rotation.y = target_yaw
  var visual := pieces[piece].get_node("Sculpture") as Node3D
@@ -245,7 +263,27 @@ func apply_progress(value: float, piece: int, start: int, steps: int, origin_off
  visual.position.y = wave*(0.20 if piece==7 else (0.12 if piece==1 else 0.018))
  var ahead := sample_track(value+0.10)-sample_track(value+0.08)
  var turn := wrapf(atan2(-ahead.x,-ahead.z)-target_yaw,-PI,PI)
- visual.rotation.z = clampf(-turn*1.2,-0.15,0.15)*wave
+ visual.rotation.z = clampf(-turn*(2.2 if piece==1 else 1.2),-0.20,0.20)*wave
+ var launch := sin(clampf(normalized/0.18,0,1)*PI) if normalized<0.18 else 0.0
+ var brake := sin(clampf((normalized-0.82)/0.18,0,1)*PI) if normalized>0.82 else 0.0
+ visual.rotation.x = (launch-brake)*0.055
+ if piece==0 or piece==3:
+  visual.position.y = sin(value*TAU*2)*0.006*wave
+ elif piece==2:
+  visual.rotation.z += sin(value*PI*1.5)*0.065*wave
+  visual.rotation.x += sin(value*PI)*0.035*wave
+ elif piece==4:
+  visual.rotation.y = sin(normalized*PI)*0.08
+ elif piece==6:
+  visual.rotation.y = sin(normalized*TAU)*0.06
+ elif piece==7:
+  visual.rotation.x += wave*0.10
+ for pivot in visual.get_children():
+  if pivot.has_meta("steering"): pivot.rotation.y = clampf(-turn*1.8,-0.24,0.24)
+ for part in visual.find_children("*","MeshInstance3D",true,false):
+  if part.has_meta("radius"):
+   part.rotate_object_local(Vector3.UP,distance_travelled/float(part.get_meta("radius")))
+  if part.has_meta("needle"): part.rotation.y = 0.45+wave*sin(value*PI)*0.45
  var crossed := mini(start+steps,int(floor(value+0.0001)))
  while last_crossed<crossed:
   last_crossed += 1
@@ -258,6 +296,10 @@ func move_active(steps: int, duration_scale := 1.0) -> bool:
  var start := indices[piece]
  var offset := slot(piece,start)
  last_crossed = start
+ var visual := pieces[piece].get_node("Sculpture") as Node3D
+ var prepare := create_tween()
+ prepare.tween_property(visual,"rotation:x",0.055,maxf(0.01,0.13*duration_scale)).set_trans(Tween.TRANS_SINE)
+ await prepare.finished
  var duration := (0.45+steps*0.20)*duration_scale
  movement_tween = create_tween()
  movement_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -268,9 +310,11 @@ func move_active(steps: int, duration_scale := 1.0) -> bool:
  var landing := create_tween().set_parallel(true)
  for i in range(8):
   landing.tween_property(pieces[i],"position",track[indices[i]]+slot(i,indices[i]),maxf(0.01,0.20*duration_scale)).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-  var visual := pieces[i].get_node("Sculpture") as Node3D
-  landing.tween_property(visual,"rotation",Vector3.ZERO,maxf(0.01,0.20*duration_scale))
-  landing.tween_property(visual,"position",Vector3.ZERO,maxf(0.01,0.20*duration_scale))
+  var settling := pieces[i].get_node("Sculpture") as Node3D
+  for pivot in settling.get_children():
+   if pivot.has_meta("steering"): landing.tween_property(pivot,"rotation:y",0.0,maxf(0.01,0.20*duration_scale))
+  landing.tween_property(settling,"rotation",Vector3.ZERO,maxf(0.01,0.20*duration_scale))
+  landing.tween_property(settling,"position",Vector3.ZERO,maxf(0.01,0.20*duration_scale))
  await landing.finished
  arrived.emit(piece,indices[piece])
  active = (active+1)%8

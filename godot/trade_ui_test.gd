@@ -52,6 +52,13 @@ func run() -> void:
  check(error.is_empty(),"Accept offer from local recipient")
  check(scene.session.owners[1]==1 and scene.session.owners[6]==0,"UI trade transfers ownership")
  check(scene.owner_markers.has(1),"Board ownership markers exist")
+ var next_offer: Dictionary = scene.session.propose(1,0,[1],[6],20,0)
+ ui.prepare_counter(next_offer.id,0)
+ check(ui.viewer==0 and ui.partner==1,"Counter targets original sender")
+ check(ui.selected_give==[6] and ui.selected_receive==[1],"Counter flips property sides")
+ ui.give_cash = 30
+ ui.submit_offer()
+ check(scene.session.find_offer(next_offer.id).status=="countered","UI counter replaces original")
  ui.close()
  root.size = Vector2i(1600,1000)
  await process_frame

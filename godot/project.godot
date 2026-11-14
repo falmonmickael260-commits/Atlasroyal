@@ -1,7 +1,7 @@
 config_version=5
 
 [application]
-config/name="ATLAS ROYAL — Grand Tour"
+config/name="FORTUNE EMPIRE — Grand Tour"
 run/main_scene="res://main.tscn"
 
 [display]
