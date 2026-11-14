@@ -7,6 +7,7 @@ func run() -> void:
  root.add_child(scene)
  await process_frame
  assert(scene.tiles.size()==40)
+ for i in range(40): assert(FileAccess.file_exists("res://assets/cases/%02d.svg" % i))
  assert(scene.positions.size()==40)
  assert(scene.city_labels.size()==22)
  scene.orbit = false
@@ -31,6 +32,16 @@ func run() -> void:
  if DisplayServer.get_name() != "headless":
   await RenderingServer.frame_post_draw
   root.get_texture().get_image().save_png("res://preview.png")
+  scene.set_process(false)
+  var transform_before: Transform3D = scene.camera.transform
+  scene.camera.position = Vector3(2,7,15)
+  scene.camera.look_at(Vector3(1,0,8))
+  scene.name_overlay.visible = false
+  await RenderingServer.frame_post_draw
+  root.get_texture().get_image().save_png("res://preview-cases.png")
+  scene.camera.transform = transform_before
+  scene.name_overlay.visible = true
+  scene.set_process(true)
  # Verify the tablet-width desktop layout too.
  root.size = Vector2i(1280,800)
  await process_frame
@@ -78,5 +89,8 @@ func run() -> void:
  assert(not scene.moving)
  assert(scene.token_index>0)
  assert(scene.roll_button.disabled==false)
+ scene.focus_tile()
+ assert(scene.camera_target==scene.positions[14])
+ assert(scene.distance==8.5)
  print("SMOKE OK: 40 cases, 22 noms sans chevauchement sur 4 angles, interface 390x844, lancer et déplacement terminés")
  quit()

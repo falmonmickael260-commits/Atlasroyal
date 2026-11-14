@@ -1,5 +1,7 @@
 ![Aperçu du plateau Godot](preview.jpg)
 
+![Détail des nouvelles cases](preview-cases.jpg)
+
 ![Interface portrait](preview-mobile.jpg)
 
 # ATLAS ROYAL — Le Grand Tour
@@ -60,3 +62,11 @@ Les 22 noms de villes et leurs prix apparaissent dans des étiquettes 2D horizon
 - Le centre SVG est importé en texture 4 096 × 4 096 avec mipmaps et filtrage anisotrope. La source vectorielle peut être agrandie ; le rendu GPU reste une texture à résolution finie. Les bâtiments et pions restent de la géométrie 3D.
 
 Les tests couvrent les noms sur quatre angles en 1 600 × 1 000, une disposition en 1 280 × 800 et une interface portrait en 390 × 844, ainsi que les animations et le déplacement. D’autres tailles et appareils peuvent nécessiter des ajustements.
+
+## Cases redessinées
+
+Les 40 cases utilisent désormais des dessins SVG individuels (`assets/cases/`) : fond encré, double filet doré, numéro, pays ou catégorie, illustration, titre et prix. Leurs couleurs et pictogrammes différencient les villes, cartes, transports, taxes, réseaux et jardins. Ces mêmes dessins sont intégrés dans le SVG du plateau complet.
+
+Les miniatures 3D comportent des socles en pierre, corniches, fenêtres et silhouettes spécifiques : pyramides, portes à arcades, ponts à câbles, pagodes, tour horloge, tours étagées et jardins suspendus. Ce sont des interprétations stylisées, pas des modèles architecturaux exacts.
+
+Sélectionnez une case par clic ou dans la liste, puis **Détail** pour rapprocher la caméra. **Vue du dessus** ou **R** rétablit une vue d’ensemble. Les noms restent dans les étiquettes de lecture, même lorsque la caméra tourne.

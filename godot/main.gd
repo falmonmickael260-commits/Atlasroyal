@@ -8,6 +8,7 @@ var camera: Camera3D
 var yaw := 0.0
 var pitch := 0.80
 var distance := 34.0
+var camera_target := Vector3.ZERO
 var orbit := true
 var dragging := false
 var token: Node3D
@@ -67,7 +68,7 @@ func cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, materi
  shape.bottom_radius = radius
  shape.top_radius = radius if top < 0 else top
  shape.height = height
- shape.radial_segments = 32
+ shape.radial_segments = 96 if radius>5 else 32
  return mesh(parent, shape, pos, material)
 
 func text3(parent: Node3D, value: String, pos: Vector3, size: int, color: Color, flat := true) -> Label3D:
@@ -167,20 +168,17 @@ func build_board() -> void:
   root.rotation.y = -float(i / 10)*PI/2.0
   add_child(root)
   var c := Color(t.color)
-  box(root,Vector3(0,0.24,0),Vector3(1.72,0.25,1.72),mat(Color("9caa9e"),0.0,0.95))
-  box(root,Vector3(0,0.39,-0.65),Vector3(1.70,0.06,0.30),mat(c,0.4))
-  # A matte inset separates the lettering from lit geometry and reflections.
-  box(root,Vector3(0,0.375,0.46),Vector3(1.61,0.025,0.72),mat(Color("a8b5a8"),0.0,1.0))
-  # City names are rendered in screen space: always horizontal and crisp.
-  if t.kind != "city":
-   var name_label := text3(root,wrapped_name(str(t.name)),Vector3(0,0.397,0.41),26,Color("07191e"))
-   name_label.pixel_size = 0.007
-
+  box(root,Vector3(0,0.21,0),Vector3(1.74,0.23,1.74),mat(Color("101f25"),0.35,0.65))
+  box(root,Vector3(0,0.332,0),Vector3(1.72,0.035,1.72),brass)
+  var face := PlaneMesh.new()
+  face.size = Vector2(1.67,1.67)
+  var ink := StandardMaterial3D.new()
+  ink.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+  ink.albedo_texture = load("res://assets/cases/%02d.svg" % i)
+  ink.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+  mesh(root,face,Vector3(0,0.355,0),ink)
   if t.kind == "city":
-   text3(root,"%02d" % (i+1),Vector3(0,0.40,0.53),28,Color("203c3b"))
    landmark(root,str(t.landmark),c,i)
-  else:
-   text3(root,{"depart":"➜","card":"?","hub":"✦","tax":"€","prison":"II","parc":"✧","gotoprison":"!","reseau":"+"}.get(str(t.kind),"◆"),Vector3(0,0.42,-0.14),65,c)
   var body := StaticBody3D.new()
   body.set_meta("tile",i)
   var collision := CollisionShape3D.new()
@@ -195,43 +193,106 @@ func build_board() -> void:
   for z in [-10.15,10.15]: cylinder(self,Vector3(x,0.2,z),0.09,0.04,brass)
  selection = box(self,Vector3(9,0.13,9),Vector3(1.83,0.05,1.83),mat(Color("7fffe3"),0.4,0.4,1.3))
 
+func rod(parent: Node3D, a: Vector3, b: Vector3, radius: float, material: Material) -> void:
+ var d := b-a
+ var node := cylinder(parent,(a+b)/2,radius,d.length(),material)
+ if abs(d.normalized().dot(Vector3.UP))<0.999:
+  node.quaternion = Quaternion(Vector3.UP,d.normalized())
+
 func landmark(root: Node3D, kind: String, color: Color, index: int) -> void:
- var ivory := mat(Color("eee9d8"),0.15,0.45)
- var accent := mat(color,0.5,0.28)
- var brass := mat(GOLD,0.75,0.3)
- var base := Vector3(0,0.42,-0.16)
- cylinder(root,base,0.43,0.08,brass)
- if kind == "pyramid":
-  var cone := cylinder(root,base+Vector3(0,0.32,0),0.4,0.65,ivory,0)
-  cone.mesh = cone.mesh.duplicate()
-  cone.mesh.radial_segments = 4
-  cone.rotation.y = PI/4
- elif kind == "dome":
-  cylinder(root,base+Vector3(0,0.22,0),0.30,0.38,ivory)
+ var ivory := mat(Color("b5b4a0"),0.1,0.8)
+ var accent := mat(color.darkened(0.2),0.35,0.55)
+ var brass := mat(GOLD.darkened(0.15),0.65,0.4)
+ var glass := mat(Color("324f58"),0.5,0.25)
+ var model := Node3D.new()
+ root.add_child(model)
+ model.position = Vector3(0,0.38,-0.15)
+ # A terraced stone plaza keeps miniature architecture separate from lettering.
+ box(model,Vector3(0,0.02,0),Vector3(0.91,0.045,0.69),brass)
+ box(model,Vector3(0,0.055,0),Vector3(0.84,0.045,0.62),ivory)
+ if index==3:
+  for j in range(3):
+   var pyramid := cylinder(model,Vector3(-0.28+j*0.28,0.22+j*0.07,0.03),0.24,0.3+j*0.14,ivory,0)
+   pyramid.mesh.radial_segments = 4
+   pyramid.rotation.y = PI/4
+ elif index==14:
+  cylinder(model,Vector3(0,0.21,0),0.22,0.25,ivory,0.15)
+  box(model,Vector3(0,0.53,0),Vector3(0.11,0.43,0.12),ivory)
+  box(model,Vector3(0,0.65,0),Vector3(0.65,0.07,0.09),ivory)
+  cylinder(model,Vector3(0,0.82,0),0.075,0.14,ivory)
+ elif index==34:
+  for x in [-0.28,0.0,0.28]:
+   box(model,Vector3(x,0.40,0),Vector3(0.18,0.62,0.31),glass)
+   for y in range(6): box(model,Vector3(x,0.13+y*0.10,0.161),Vector3(0.17,0.015,0.013),brass)
+  box(model,Vector3(0,0.75,0),Vector3(0.98,0.11,0.35),ivory)
+  box(model,Vector3(0,0.815,0),Vector3(0.65,0.025,0.22),mat(Color("4b897d"),0.3,0.2))
+ elif index==37:
+  for level in range(7):
+   var h := 0.12
+   var w := 0.40-float(level)*0.045
+   box(model,Vector3(0,0.12+level*h,0),Vector3(w,h,w),glass)
+   box(model,Vector3(0,0.18+level*h,0),Vector3(w+0.015,0.012,w+0.015),brass)
+  cylinder(model,Vector3(0,1.13,0),0.025,0.38,brass,0)
+ elif index==26:
+  box(model,Vector3(0,0.43,0),Vector3(0.30,0.70,0.30),ivory)
+  box(model,Vector3(0,0.84,0),Vector3(0.40,0.16,0.40),brass)
+  for x in [-0.1,0,0.1]: box(model,Vector3(x,0.4,0.156),Vector3(0.023,0.48,0.012),glass)
+  var clock := cylinder(model,Vector3(0,0.85,0.21),0.066,0.012,mat(Color("e8dcb9")))
+  clock.rotation.x = PI/2
+  rod(model,Vector3(0,0.85,0.22),Vector3(0.04,0.87,0.22),0.006,glass)
+  cylinder(model,Vector3(0,1.04,0),0.25,0.25,accent,0).mesh.radial_segments = 4
+ elif index==31:
+  for j in [-1,1]:
+   rod(model,Vector3(j*0.31,0.08,0),Vector3(0,1.05,0),0.028,accent)
+   rod(model,Vector3(j*0.18,0.08,-0.20),Vector3(0,1.05,0),0.024,accent)
+  for level in range(4):
+   var w := 0.56-level*0.11
+   box(model,Vector3(0,0.2+level*0.2,0),Vector3(w,0.045,w*0.7),ivory)
+  cylinder(model,Vector3(0,1.1,0),0.015,0.25,brass,0)
+ elif kind=="bridge":
+  box(model,Vector3(0,0.16,0),Vector3(0.87,0.12,0.43),glass)
+  for x in [-0.28,0.28]:
+   box(model,Vector3(x,0.35,0),Vector3(0.11,0.57,0.16),accent)
+   for end in [-0.43,0,0.43]: rod(model,Vector3(x,0.64,0),Vector3(end,0.23,0),0.008,brass)
+  box(model,Vector3(0,0.23,0),Vector3(0.96,0.045,0.22),ivory)
+ elif kind=="arch":
+  for x in [-0.34,0.34]:
+   box(model,Vector3(x,0.33,0),Vector3(0.20,0.50,0.29),ivory)
+   box(model,Vector3(x,0.61,0),Vector3(0.24,0.07,0.34),accent)
+   for k in range(3): box(model,Vector3(x-0.075+k*0.075,0.68,0),Vector3(0.035,0.09,0.30),ivory)
+  for k in range(9):
+   var a := PI*k/8
+   var block := box(model,Vector3(cos(a)*0.24,0.35+sin(a)*0.24,0),Vector3(0.095,0.10,0.26),ivory)
+   block.rotation.z = a-PI/2
+ elif kind=="dome":
+  cylinder(model,Vector3(0,0.23,0),0.30,0.30,ivory)
   var sphere := SphereMesh.new()
   sphere.radius = 0.31
   sphere.height = 0.62
-  mesh(root,sphere,base+Vector3(0,0.42,0),accent).scale.y = 0.65
-  cylinder(root,base+Vector3(0,0.72,0),0.025,0.3,brass,0)
- elif kind == "arch" or kind == "bridge":
-  for x in [-0.3,0.3]:
-   box(root,base+Vector3(x,0.30,0),Vector3(0.16,0.60,0.24),ivory)
-  box(root,base+Vector3(0,0.58,0),Vector3(0.80,0.16,0.27),accent)
-  box(root,base+Vector3(0,0.72,0),Vector3(0.84,0.10,0.30),brass)
- elif kind == "pagoda":
-  for level in range(3):
-   var w := 0.68-float(level)*0.15
-   box(root,base+Vector3(0,0.12+level*0.23,0),Vector3(w*0.65,0.21,w*0.65),ivory)
-   cylinder(root,base+Vector3(0,0.25+level*0.23,0),w*0.7,0.15,accent,0.08).mesh.radial_segments = 4
+  mesh(model,sphere,Vector3(0,0.40,0),accent).scale.y = 0.65
+  for j in range(12):
+   var a := TAU*j/12
+   cylinder(model,Vector3(sin(a)*0.29,0.24,cos(a)*0.29),0.022,0.27,brass)
+  for x in [-0.38,0.38]:
+   cylinder(model,Vector3(x,0.4,0),0.045,0.66,ivory)
+   cylinder(model,Vector3(x,0.8,0),0.07,0.18,accent,0)
+ elif kind=="pagoda":
+  for level in range(4):
+   var w := 0.70-level*0.13
+   box(model,Vector3(0,0.15+level*0.18,0),Vector3(w*0.65,0.16,w*0.65),ivory)
+   var roof := cylinder(model,Vector3(0,0.25+level*0.18,0),w*0.70,0.10,accent,0.05)
+   roof.mesh.radial_segments = 4
+   roof.rotation.y = PI/4
+  cylinder(model,Vector3(0,0.95,0),0.018,0.30,brass,0)
  else:
   for j in range(3):
-   var h := 0.36 + float((index+j*3)%7)*0.12
-   var x := float(j-1)*0.25
-   box(root,base+Vector3(x,h/2,0),Vector3(0.21,h,0.27),ivory if j != 1 else accent)
-   for k in range(int(h/0.14)):
-    box(root,base+Vector3(x,0.08+k*0.14,0.142),Vector3(0.13,0.025,0.01),brass)
-  if kind == "spire" or kind == "tower":
-   cylinder(root,base+Vector3(0,1.05,0),0.035,0.6,brass,0)
+   var h := 0.38+float((index+j*3)%7)*0.08
+   var x := float(j-1)*0.26
+   box(model,Vector3(x,h/2+0.08,0),Vector3(0.21,h,0.27),ivory if j!=1 else accent)
+   box(model,Vector3(x,h+0.09,0),Vector3(0.23,0.045,0.29),brass)
+   for k in range(int(h/0.12)):
+    for col in [-1,1]: box(model,Vector3(x+col*0.05,0.14+k*0.12,0.142),Vector3(0.04,0.055,0.012),glass)
+  if kind=="spire" or kind=="tower": cylinder(model,Vector3(0,1.02,0),0.025,0.40,brass,0)
 
 func build_center() -> void:
  # Vector source imported at 4096 px, with mipmaps for stable oblique viewing.
@@ -358,7 +419,7 @@ func build_ui() -> void:
  actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
  actions.add_theme_constant_override("separation",8)
  row.add_child(actions)
- for title in ["Vue cinéma","Vue du dessus","Lancer les dés"]:
+ for title in ["Vue cinéma","Vue du dessus","Détail","Lancer les dés"]:
   var button := Button.new()
   button.text = title
   button.custom_minimum_size = Vector2(100,48)
@@ -374,7 +435,8 @@ func build_ui() -> void:
   actions.add_child(button)
   footer_buttons.append(button)
   if title=="Vue cinéma": button.pressed.connect(func(): orbit = not orbit)
-  elif title=="Vue du dessus": button.pressed.connect(func(): orbit = false; pitch = 1.48; yaw = 0; distance = 29)
+  elif title=="Vue du dessus": button.pressed.connect(func(): orbit = false; pitch = 1.48; yaw = 0; distance = 29; camera_target = Vector3.ZERO)
+  elif title=="Détail": button.pressed.connect(focus_tile)
   else:
    roll_button = button
    button.pressed.connect(roll)
@@ -405,8 +467,8 @@ func update_camera() -> void:
  var view := get_viewport().get_visible_rect().size
  var aspect: float = view.x/maxf(1.0,view.y)
  var framing: float = maxf(1.0,0.92/aspect)
- camera.position *= framing
- camera.look_at(Vector3(0,0.15,0))
+ camera.position = camera_target+camera.position*framing
+ camera.look_at(camera_target+Vector3(0,0.15,0))
 
 func _process(delta: float) -> void:
  time += delta
@@ -435,7 +497,7 @@ func _unhandled_input(event: InputEvent) -> void:
   pitch = clamp(pitch+event.relative.y*0.005,0.35,1.5)
  if event is InputEventKey and event.pressed:
   if event.keycode == KEY_SPACE: roll()
-  if event.keycode == KEY_R: yaw = 0; pitch = 0.80; distance = 34; orbit = true
+  if event.keycode == KEY_R: yaw = 0; pitch = 0.80; distance = 34; orbit = true; camera_target = Vector3.ZERO
 
 func pick(screen: Vector2) -> void:
  var from := camera.project_ray_origin(screen)
@@ -443,6 +505,15 @@ func pick(screen: Vector2) -> void:
  var hit := get_world_3d().direct_space_state.intersect_ray(query)
  if hit and hit.collider.has_meta("tile"):
   select_tile(int(hit.collider.get_meta("tile")))
+
+func focus_tile() -> void:
+ var index := selected_tile if selected_tile>=0 else 1
+ select_tile(index)
+ orbit = false
+ camera_target = positions[index]
+ distance = 8.5
+ pitch = 0.95
+ yaw = -float(index/10)*PI/2.0
 
 func select_tile(i: int) -> void:
  selected_tile = i
@@ -466,8 +537,13 @@ func update_responsive_ui() -> void:
  footer_hint.visible = not compact
  footer_hint.position.y = -165
  for i in range(footer_buttons.size()):
-  footer_buttons[i].text = ["Cinéma","Dessus","Lancer"][i] if compact else ["Vue cinéma","Vue du dessus","Lancer les dés"][i]
-  footer_buttons[i].custom_minimum_size.x = 65 if compact else 140
+  footer_buttons[i].text = ["Cinéma","Dessus","Détail","Lancer"][i] if compact else ["Vue cinéma","Vue du dessus","Détail","Lancer les dés"][i]
+  footer_buttons[i].custom_minimum_size.x = 60 if compact else 130
+  footer_buttons[i].add_theme_font_size_override("font_size",14 if compact else 16)
+  var button_style: StyleBoxFlat = footer_buttons[i].get_theme_stylebox("normal").duplicate()
+  button_style.content_margin_left = 6 if compact else 16
+  button_style.content_margin_right = 6 if compact else 16
+  footer_buttons[i].add_theme_stylebox_override("normal",button_style)
  tile_picker.position = Vector2(20 if compact else 42,12 if short_screen else 126)
  tile_picker.custom_minimum_size.x = min(300,last_viewport_size.x-40)
  status.add_theme_font_size_override("font_size",20 if compact else 22)
@@ -553,6 +629,7 @@ func update_city_labels() -> void:
  if city_labels.is_empty(): return
  var viewport_size := get_viewport().get_visible_rect().size
  var compact := viewport_size.x<1100 or viewport_size.y<700
+ compact = compact or camera_target.length()>1
  var safe := Rect2(Vector2(18,180),viewport_size-Vector2(36,365))
  var placed: Array[Rect2] = []
  var center := camera.unproject_position(Vector3(0,0.4,0))
