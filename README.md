@@ -22,6 +22,12 @@ Les offres reçues et envoyées disposent de vues dédiées. Le joueur peut acce
 
 Le brouillon est conservé quand la fenêtre se ferme, pendant la partie en cours. Les propriétés construites sont désactivées ; une sélection devenue périmée doit être actualisée. Les refus du moteur conservent la proposition à corriger. L’interface gère le clavier, Échap et les petits écrans.
 
+## Correctifs de stabilité
+
+Les dettes conservent la suite des paiements et des effets de carte. Le règlement d’une caution obligatoire reprend la sortie de prison et le déplacement déjà tiré. Les cartes de travaux comptent chaque maison et chaque hôtel ; leurs montants affichés suivent les effets configurés. Une offre est de nouveau vérifiée à l’acceptation, et les commandes financières sont arrêtées après la victoire.
+
+L’entrée dans un salon attend la confirmation de l’hôte et reste visible pendant la connexion. Les états d’une ancienne connexion sont effacés, la reprise évite les connexions concurrentes et les instantanés reçus deux fois ne rejouent pas leurs animations. Un invité conserve son code lors d’une coupure récupérable. Un battement WebSocket repère les connexions disparues ; un message mal formé ne doit pas arrêter les autres salons.
+
 ## Documentation des règles d’origine
 
 ## Règles et fonctionnement

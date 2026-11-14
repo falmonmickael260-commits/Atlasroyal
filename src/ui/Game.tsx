@@ -99,6 +99,14 @@ export const Game = () => {
       );
     }
 
+    if (pending?.type === 'DEBT') {
+      return <>
+        <div><div className="actions__turn">Règlement de {state.players[pending.player].name}</div><div className="actions__hint">{euro(pending.debt.amount)} à réunir avant de poursuivre.</div></div>
+        <button className="btn btn--ghost" onClick={()=>setDrawer('portfolio')}><Icon name="building" size={16}/>Patrimoine</button>
+        <button className="btn btn--ghost" onClick={openTrades}><Icon name="swap" size={16}/>Échanges{incoming>0&&<span className="exchange-count">{incoming}</span>}</button>
+      </>;
+    }
+
     if (!myTurn) {
       return (
         <>

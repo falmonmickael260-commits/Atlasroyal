@@ -5,8 +5,22 @@ import type { Command, GameEvent, GameState } from '../engine/types';
 import { ServerTransport } from './serverTransport';
 import { LocalTransport } from './localTransport';
 import { SupabaseTransport, supabaseConfigured } from './supabaseTransport';
-import { COLORS, TOKENS, makeRoomCode, type ClientMsg, type LobbyState, type Seat } from './protocol';
-import { forgetRoom, loadIdentity, recallRoom, rememberRoom, saveIdentity, type Identity } from './identity';
+import {
+  COLORS,
+  TOKENS,
+  makeRoomCode,
+  type ClientMsg,
+  type LobbyState,
+  type Seat,
+} from './protocol';
+import {
+  forgetRoom,
+  loadIdentity,
+  recallRoom,
+  rememberRoom,
+  saveIdentity,
+  type Identity,
+} from './identity';
 import type { Transport } from './transport';
 
 export type NetMode = 'local' | 'supabase' | 'server';
@@ -46,9 +60,21 @@ let hostLobby: LobbyState | null = null;
 let hostState: GameState | null = null;
 let seq = 0;
 let joinTimer: ReturnType<typeof setTimeout> | null = null;
+let lastSnapshotSeq = 0;
+let joining: { resolve: () => void; reject: (error: Error) => void } | null = null;
+const finishJoin = (error?: string) => {
+  if (joinTimer) {
+    clearTimeout(joinTimer);
+    joinTimer = null;
+  }
+  const pending = joining;
+  joining = null;
+  if (error) pending?.reject(new Error(error));
+  else pending?.resolve();
+};
 
 const teardown = () => {
-  if(joinTimer){clearTimeout(joinTimer);joinTimer=null;}
+  finishJoin('Connexion annulée.');
   for (const u of unsubs) u();
   unsubs = [];
   transport?.close();
@@ -56,13 +82,15 @@ const teardown = () => {
   hostLobby = null;
   hostState = null;
   seq = 0;
+  lastSnapshotSeq = 0;
 };
 
 const makeTransport = (mode: NetMode, code: string, id: string, host: boolean): Transport =>
-  mode === 'server' ? new ServerTransport(code,id,host) :
-  mode === 'supabase' && supabaseConfigured
-    ? new SupabaseTransport(code, id)
-    : new LocalTransport(code);
+  mode === 'server'
+    ? new ServerTransport(code, id, host)
+    : mode === 'supabase' && supabaseConfigured
+      ? new SupabaseTransport(code, id)
+      : new LocalTransport(code);
 
 export const useRoom = create<RoomStore>((set, get) => {
   /* ---------------- autorité (hôte uniquement) ---------------- */
@@ -79,10 +107,20 @@ export const useRoom = create<RoomStore>((set, get) => {
   };
 
   const handleClientMsg = (msg: ClientMsg) => {
-    if (!hostLobby || !transport) return;
+    if (!hostLobby || !transport || !msg || typeof msg !== 'object') return;
 
     switch (msg.k) {
       case 'HELLO': {
+        if (
+          !msg.seat ||
+          typeof msg.seat.id !== 'string' ||
+          typeof msg.seat.name !== 'string' ||
+          msg.seat.name.length > 32 ||
+          !['color', 'token', 'avatar'].every(
+            (key) => typeof msg.seat[key as 'color' | 'token' | 'avatar'] === 'string',
+          )
+        )
+          return;
         const existing = hostLobby.seats.find((s) => s.id === msg.seat.id);
         if (existing) {
           // Reconnexion : on retrouve le siège, on ne le duplique pas.
@@ -90,7 +128,11 @@ export const useRoom = create<RoomStore>((set, get) => {
           existing.name = msg.seat.name || existing.name;
           pushLobby();
           if (hostState) {
-            hostState = applyCommand(hostState, { t: 'SET_CONNECTED', by: msg.seat.id, connected: true }).state;
+            hostState = applyCommand(hostState, {
+              t: 'SET_CONNECTED',
+              by: msg.seat.id,
+              connected: true,
+            }).state;
             pushSnapshot([]);
           }
           return;
@@ -100,7 +142,11 @@ export const useRoom = create<RoomStore>((set, get) => {
           return;
         }
         if (hostLobby.seats.length >= RULES.maxPlayers) {
-          transport.broadcast({ k: 'REJECT', to: msg.seat.id, reason: 'Salon complet (8 joueurs).' });
+          transport.broadcast({
+            k: 'REJECT',
+            to: msg.seat.id,
+            reason: 'Salon complet (8 joueurs).',
+          });
           return;
         }
         // Couleur ET pion doivent être uniques : deux joueurs identiques sur
@@ -108,10 +154,10 @@ export const useRoom = create<RoomStore>((set, get) => {
         const usedColors = new Set(hostLobby.seats.map((s) => s.color));
         const usedTokens = new Set(hostLobby.seats.map((s) => s.token));
         const color = usedColors.has(msg.seat.color)
-          ? COLORS.find((c) => !usedColors.has(c)) ?? msg.seat.color
+          ? (COLORS.find((c) => !usedColors.has(c)) ?? msg.seat.color)
           : msg.seat.color;
         const token = usedTokens.has(msg.seat.token)
-          ? TOKENS.find((t) => !usedTokens.has(t.id))?.id ?? msg.seat.token
+          ? (TOKENS.find((t) => !usedTokens.has(t.id))?.id ?? msg.seat.token)
           : msg.seat.token;
         hostLobby.seats.push({ ...msg.seat, color, token, connected: true, host: false });
         pushLobby();
@@ -120,15 +166,26 @@ export const useRoom = create<RoomStore>((set, get) => {
 
       case 'UPDATE_SEAT': {
         const seat = hostLobby.seats.find((s) => s.id === msg.id);
-        if (!seat || hostLobby.started) return;
+        if (!seat || hostLobby.started || !msg.patch || typeof msg.patch !== 'object') return;
         // Deux joueurs ne peuvent pas partager couleur ou pion.
-        if (msg.patch.color && hostLobby.seats.some((s) => s.id !== msg.id && s.color === msg.patch.color)) {
+        if (
+          msg.patch.color &&
+          hostLobby.seats.some((s) => s.id !== msg.id && s.color === msg.patch.color)
+        ) {
           delete msg.patch.color;
         }
-        if (msg.patch.token && hostLobby.seats.some((s) => s.id !== msg.id && s.token === msg.patch.token)) {
+        if (
+          msg.patch.token &&
+          hostLobby.seats.some((s) => s.id !== msg.id && s.token === msg.patch.token)
+        ) {
           delete msg.patch.token;
         }
-        Object.assign(seat, msg.patch);
+        for (const field of ['name', 'avatar', 'color', 'token', 'ready'] as const) {
+          const value = msg.patch[field];
+          if (field === 'ready') {
+            if (typeof value === 'boolean') seat.ready = value;
+          } else if (typeof value === 'string') seat[field] = value;
+        }
         pushLobby();
         return;
       }
@@ -139,7 +196,11 @@ export const useRoom = create<RoomStore>((set, get) => {
         if (hostLobby.started) {
           seat.connected = false;
           if (hostState) {
-            hostState = applyCommand(hostState, { t: 'SET_CONNECTED', by: msg.id, connected: false }).state;
+            hostState = applyCommand(hostState, {
+              t: 'SET_CONNECTED',
+              by: msg.id,
+              connected: false,
+            }).state;
             pushSnapshot([]);
           }
         } else {
@@ -157,6 +218,7 @@ export const useRoom = create<RoomStore>((set, get) => {
 
       case 'INTENT': {
         if (!hostState) return;
+        if (!msg.cmd || typeof msg.cmd !== 'object') return;
         if (msg.cmd.t === 'START_GAME') {
           if (msg.cmd.by !== hostLobby.hostId) return;
         }
@@ -177,78 +239,141 @@ export const useRoom = create<RoomStore>((set, get) => {
   const attach = (isHost: boolean) => {
     if (!transport) return;
     if (isHost) unsubs.push(transport.onClientMsg(handleClientMsg));
-    unsubs.push(transport.onServerMsg((msg) => {
-      /*
+    unsubs.push(
+      transport.onServerMsg((msg) => {
+        if (!msg || typeof msg !== 'object') return;
+        /*
         L'hôte diffuse à la cantonade : salon et instantanés partent vers tous
         les abonnés du canal, y compris un arrivant qu'il vient de refuser
         (partie déjà lancée, salon complet). Sans vérifier qu'on a bien un
         siège, ce client basculait sur l'écran de jeu en spectateur fantôme —
         il voyait la partie, ne pouvait rien faire et ne pouvait pas revenir.
       */
-      const assis = (ids: string[]) => ids.includes(get().identity.id);
+        const assis = (ids: string[]) => ids.includes(get().identity.id);
 
-      switch (msg.k) {
-        case 'LOBBY':
-          if (!assis(msg.lobby.seats.map((s) => s.id))) break;
-          if(joinTimer){clearTimeout(joinTimer);joinTimer=null;}
-          set({ lobby: msg.lobby, screen: msg.lobby.started ? 'game' : 'lobby' });
-          break;
-        case 'SNAPSHOT':
-          if (!assis(Object.keys(msg.state.players))) break;
-          set((s) => ({
-            state: msg.state,
-            screen: 'game',
-            queue: msg.events.length ? [...s.queue, ...msg.events] : s.queue,
-          }));
-          break;
-        case 'REJECT':
-          if (msg.to !== get().identity.id) break;
-          // Refus faute de siège : c'est la connexion qui échoue, pas une
-          // action de jeu. On repart à l'accueil au lieu d'afficher un salon
-          // dont on ne fait pas partie.
-          if (!assis((get().lobby?.seats ?? []).map((s) => s.id))) {
-            set({ error: msg.reason, screen: 'home', lobby: null, connecting: false });
-            // Sans cela, le prochain rafraîchissement tenterait de reprendre
-            // un salon qui vient justement de nous refuser.
-            forgetRoom();
-            teardown();
+        switch (msg.k) {
+          case 'LOBBY':
+            if (!assis(msg.lobby.seats.map((s) => s.id))) break;
+            finishJoin();
+            set({
+              lobby: msg.lobby,
+              connecting: false,
+              screen: msg.lobby.started ? 'game' : 'lobby',
+            });
             break;
-          }
-          set({ toast: msg.reason });
-          break;
-        case 'CLOSED':
-          set({ error: msg.reason, screen: 'home' });
-          teardown();
-          break;
-      }
-    }));
+          case 'SNAPSHOT':
+            if (!assis(Object.keys(msg.state.players)) || msg.seq <= lastSnapshotSeq) break;
+            lastSnapshotSeq = msg.seq;
+            finishJoin();
+            set((s) => ({
+              connecting: false,
+              state: msg.state,
+              screen: 'game',
+              queue: msg.events.length ? [...s.queue, ...msg.events] : s.queue,
+            }));
+            break;
+          case 'REJECT':
+            if (msg.to !== get().identity.id) break;
+            // Refus faute de siège : c'est la connexion qui échoue, pas une
+            // action de jeu. On repart à l'accueil au lieu d'afficher un salon
+            // dont on ne fait pas partie.
+            if (!assis((get().lobby?.seats ?? []).map((s) => s.id))) {
+              finishJoin(msg.reason);
+              set({
+                error: msg.reason,
+                screen: 'home',
+                lobby: null,
+                state: null,
+                queue: [],
+                isHost: false,
+                connecting: false,
+              });
+              // Sans cela, le prochain rafraîchissement tenterait de reprendre
+              // un salon qui vient justement de nous refuser.
+              forgetRoom();
+              teardown();
+              break;
+            }
+            set({ toast: msg.reason });
+            break;
+          case 'CLOSED':
+            finishJoin(msg.reason);
+            if (!msg.recoverable || get().isHost) forgetRoom();
+            teardown();
+            set({
+              error: msg.reason,
+              screen: 'home',
+              lobby: null,
+              state: null,
+              queue: [],
+              isHost: false,
+              connecting: false,
+              resuming: false,
+            });
+            break;
+        }
+      }),
+    );
   };
 
   const connect = async (code: string, mode: NetMode, asHost: boolean) => {
     teardown();
-    set({ connecting: true, error: null, queue: [], state: null });
+    forgetRoom();
+    set({
+      connecting: true,
+      error: null,
+      toast: null,
+      lobby: null,
+      queue: [],
+      state: null,
+      screen: 'home',
+      isHost: asHost,
+      mode,
+    });
     const id = get().identity;
-    transport = makeTransport(mode, code, id.id, asHost);
-    await transport.connect();
-
-    if (asHost) {
-      hostLobby = {
-        roomCode: code,
-        hostId: id.id,
-        seats: [{ ...seatFrom(id), connected: true, host: true, ready: true }],
-        started: false,
-      };
-      attach(true);
-      pushLobby();
-    } else {
-      attach(false);
-      transport.sendToHost({ k: 'HELLO', seat: { ...seatFrom(id), ready: false } });
-      // Si l'hôte est déjà en jeu, on demande l'état complet.
-      transport.sendToHost({ k: 'REQUEST_SYNC', id: id.id });
+    const next = makeTransport(mode, code, id.id, asHost);
+    transport = next;
+    try {
+      await next.connect();
+      if (transport !== next) return;
+      await new Promise<void>((resolve, reject) => {
+        joining = { resolve, reject };
+        joinTimer = setTimeout(
+          () => finishJoin('Le salon ne répond pas. Vérifiez le code et la connexion de l’hôte.'),
+          12000,
+        );
+        if (asHost) {
+          hostLobby = {
+            roomCode: code,
+            hostId: id.id,
+            seats: [{ ...seatFrom(id), connected: true, host: true, ready: true }],
+            started: false,
+          };
+          attach(true);
+          pushLobby();
+        } else {
+          attach(false);
+          next.sendToHost({ k: 'HELLO', seat: { ...seatFrom(id), ready: false } });
+          next.sendToHost({ k: 'REQUEST_SYNC', id: id.id });
+        }
+      });
+      if (transport !== next) return;
+      rememberRoom({ code, host: asHost, mode });
+      set({ connecting: false });
+    } catch (error) {
+      if (transport !== next) return;
+      teardown();
+      forgetRoom();
+      set({
+        connecting: false,
+        isHost: false,
+        lobby: null,
+        state: null,
+        queue: [],
+        screen: 'home',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
-    if(!asHost){joinTimer=setTimeout(()=>{if(!get().lobby){teardown();forgetRoom();set({screen:'home',connecting:false,error:'Le salon ne répond pas. Vérifiez le code ou demandez à l’hôte de garder la page ouverte.'});}},12000);}
-    rememberRoom({ code, host: asHost, mode });
-    set({ connecting: false, isHost: asHost, mode, screen: 'lobby' });
   };
 
   return {
@@ -270,27 +395,36 @@ export const useRoom = create<RoomStore>((set, get) => {
       set({ identity: next });
       if (transport && get().screen === 'lobby') {
         transport.sendToHost({
-          k: 'UPDATE_SEAT', id: next.id,
+          k: 'UPDATE_SEAT',
+          id: next.id,
           patch: { name: next.name, avatar: next.avatar, color: next.color, token: next.token },
         });
       }
     },
 
     createRoom: async (mode) => {
-      try { await connect(makeRoomCode(), mode, true); }
-      catch (e) { set({ connecting: false, error: String(e) }); }
+      if (get().connecting || get().resuming) return;
+      await connect(makeRoomCode(), mode, true);
     },
 
     joinRoom: async (code, mode) => {
-      try { await connect(code.toUpperCase().trim(), mode, false); }
-      catch (e) { set({ connecting: false, error: String(e) }); }
+      if (get().connecting || get().resuming) return;
+      await connect(code.toUpperCase().trim(), mode, false);
     },
 
     leaveRoom: () => {
       forgetRoom();
       transport?.sendToHost({ k: 'LEAVE', id: get().identity.id });
       teardown();
-      set({ screen: 'home', lobby: null, state: null, queue: [], isHost: false });
+      set({
+        screen: 'home',
+        lobby: null,
+        state: null,
+        queue: [],
+        isHost: false,
+        connecting: false,
+        resuming: false,
+      });
     },
 
     setReady: (ready) => {
@@ -309,16 +443,26 @@ export const useRoom = create<RoomStore>((set, get) => {
         return;
       }
       hostLobby.started = true;
-      hostState = createGame(hostLobby.roomCode, hostLobby.seats.map((s) => ({
-        id: s.id, name: s.name || 'Joueur', avatar: s.avatar, color: s.color, token: s.token,
-      })), String(Date.now()));
+      hostState = createGame(
+        hostLobby.roomCode,
+        hostLobby.seats.map((s) => ({
+          id: s.id,
+          name: s.name || 'Joueur',
+          avatar: s.avatar,
+          color: s.color,
+          token: s.token,
+        })),
+        String(Date.now()),
+      );
       pushLobby();
       const r = applyCommand(hostState, { t: 'START_GAME', by: identity.id });
       hostState = r.state;
       pushSnapshot(r.events);
     },
 
-    send: (cmd) => { transport?.sendToHost({ k: 'INTENT', cmd }); },
+    send: (cmd) => {
+      transport?.sendToHost({ k: 'INTENT', cmd });
+    },
 
     /**
      * Après un rafraîchissement, l'onglet garde son identité et le code du
@@ -327,17 +471,11 @@ export const useRoom = create<RoomStore>((set, get) => {
      */
     resume: async () => {
       const last = recallRoom();
-      if (!last || last.host || get().screen !== 'home') return;
+      if (!last || last.host || get().screen !== 'home' || get().resuming || get().connecting)
+        return;
       set({ resuming: true });
       try {
         await connect(last.code, last.mode, false);
-        // Sans réponse de l'hôte, le salon n'existe plus : on rend la main.
-        await new Promise((r) => setTimeout(r, 6000));
-        if (!get().lobby) {
-          forgetRoom();
-          teardown();
-          set({ screen: 'home', error: 'La partie précédente n’est plus accessible.' });
-        }
       } catch {
         forgetRoom();
         set({ screen: 'home' });
@@ -357,7 +495,12 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 }
 
 const seatFrom = (i: Identity): Omit<Seat, 'host' | 'connected'> => ({
-  id: i.id, name: i.name || 'Joueur', avatar: i.avatar, color: i.color, token: i.token, ready: false,
+  id: i.id,
+  name: i.name || 'Joueur',
+  avatar: i.avatar,
+  color: i.color,
+  token: i.token,
+  ready: false,
 });
 
 /** Signale le départ proprement quand l'onglet se ferme. */

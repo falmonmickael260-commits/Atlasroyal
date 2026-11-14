@@ -8,7 +8,7 @@ import { runBotGame } from './bot';
  * commandes publiques. Un blocage du moteur lève une exception dans `bot.ts`.
  */
 describe('parties complètes simulées', () => {
-  it.each([2, 3, 4, 5, 6])('mène une partie à %i joueurs jusqu’à son terme', (n) => {
+  it.each([2, 3, 4, 5, 6, 7, 8])('mène une partie à %i joueurs jusqu’à son terme', (n) => {
     const { s, steps, rejects } = runBotGame(`sim-${n}`, n);
     expect(s.phase).toBe('GAME_OVER');
     expect(s.winner).toBeTruthy();

@@ -32,7 +32,7 @@ export type ServerMsg =
   | { k: 'LOBBY'; lobby: LobbyState }
   | { k: 'SNAPSHOT'; seq: number; state: GameState; events: GameEvent[] }
   | { k: 'REJECT'; to: PlayerId; reason: string }
-  | { k: 'CLOSED'; reason: string };
+  | { k: 'CLOSED'; reason: string; recoverable?: boolean };
 
 export type NetMsg = ClientMsg | ServerMsg;
 
