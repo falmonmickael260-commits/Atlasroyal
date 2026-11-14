@@ -7,7 +7,7 @@ run/main_scene="res://main.tscn"
 [display]
 window/size/viewport_width=1600
 window/size/viewport_height=1000
-window/stretch/mode="canvas_items"
+window/stretch/mode="disabled"
 
 [rendering]
 renderer/rendering_method="gl_compatibility"
@@ -15,3 +15,5 @@ textures/default_filters/use_nearest_mipmap_filter=false
 environment/defaults/default_clear_color=Color(0.025,0.04,0.055,1)
 
 anti_aliasing/quality/msaa_3d=2
+
+textures/default_filters/anisotropic_filtering_level=4

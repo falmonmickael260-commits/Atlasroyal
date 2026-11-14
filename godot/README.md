@@ -1,5 +1,7 @@
 ![Aperçu du plateau Godot](preview.jpg)
 
+![Interface portrait](preview-mobile.jpg)
+
 # ATLAS ROYAL — Le Grand Tour
 
 Prototype visuel original sous **Godot 4.6**. Plateau 3D autonome avec les 40 cases du jeu Atlasroyal, 22 monuments stylisés, matériaux ivoire/laiton/vert profond, rose des vents, cartes et quatre pions.
@@ -36,3 +38,25 @@ Les monuments sont des miniatures procédurales stylisées inspirées des types 
 - `smoke.gd` : vérifie la création du plateau et un déplacement complet.
 
 Vérification sans interface : `godot --headless --path godot --script res://smoke.gd`.
+
+## Lisibilité des villes
+
+Les 22 noms de villes et leurs prix apparaissent dans des étiquettes 2D horizontales reliées aux cases. Leur taille reste constante à l’écran et leur disposition évite les chevauchements. Les monuments ne peuvent plus masquer les noms. Le test smoke vérifie les 22 étiquettes sur quatre angles de caméra à la taille de fenêtre par défaut.
+
+## Plateau vivant et lisibilité
+
+- Globe armillaire en rotation, dirigeable en orbite et trois tramways animés.
+- Quatre jardins avec arbres et fontaines, lampadaires, drapeaux et vitrines éclairées.
+- Les 22 villes utilisent des étiquettes horizontales avec traits de liaison ; noms et prix gardent leur taille à l’écran.
+- En dessous de 1 100 pixels de largeur (ou 700 de hauteur), seule l’étiquette de la ville sélectionnée apparaît. Le menu « Explorer les 40 cases » donne accès à chaque nom complet et au détail de chaque case.
+- Sur téléphone : glisser pour tourner et utiliser la liste pour sélectionner. Sur les appareils qui exposent les gestes de grossissement, le pincement permet le zoom.
+- L’interface et les commandes se réorganisent en portrait. Le prototype n’est pas encore une application Android exportée.
+
+## Sources vectorielles
+
+- `assets/plateau-vectoriel.svg` : plateau complet de 40 cases, autonome et éditable, ouvrable dans un navigateur ou un éditeur SVG.
+- `assets/centre-vectoriel.svg` : motif vectoriel central réellement utilisé dans la scène Godot.
+- Les lettres SVG sont converties en tracés : aucun besoin d’installer la police. Licence des glyphes DejaVu incluse dans `assets/FONT-LICENSE.txt`.
+- Le centre SVG est importé en texture 4 096 × 4 096 avec mipmaps et filtrage anisotrope. La source vectorielle peut être agrandie ; le rendu GPU reste une texture à résolution finie. Les bâtiments et pions restent de la géométrie 3D.
+
+Les tests couvrent les noms sur quatre angles en 1 600 × 1 000, une disposition en 1 280 × 800 et une interface portrait en 390 × 844, ainsi que les animations et le déplacement. D’autres tailles et appareils peuvent nécessiter des ajustements.

@@ -20,6 +20,22 @@ var selection: MeshInstance3D
 var time := 0.0
 var dice: Array[Node3D] = []
 var rng := RandomNumberGenerator.new()
+var city_labels: Array[Dictionary] = []
+var name_overlay: Control
+var footer_panel: PanelContainer
+var footer_grid: GridContainer
+var footer_buttons: Array[Button] = []
+var footer_hint: Label
+var collection_label: Label
+var tile_picker: OptionButton
+var selected_tile := -1
+var last_viewport_size := Vector2.ZERO
+var animated_globe: Node3D
+var airship: Node3D
+var traffic: Array[Node3D] = []
+var motes: Array[MeshInstance3D] = []
+var sails: Array[Node3D] = []
+var header_labels: Array[Label] = []
 
 func mat(color: Color, metal := 0.0, rough := 0.5, glow := 0.0) -> StandardMaterial3D:
  var m := StandardMaterial3D.new()
@@ -75,6 +91,7 @@ func _ready() -> void:
  build_center()
  build_tokens()
  build_dice()
+ build_living_world()
  build_ui()
  camera = Camera3D.new()
  camera.fov = 43
@@ -83,6 +100,8 @@ func _ready() -> void:
  add_child(camera)
  camera.current = true
  update_camera()
+ build_city_labels()
+ update_city_labels()
 
 func environment_setup() -> void:
  var world := WorldEnvironment.new()
@@ -152,16 +171,13 @@ func build_board() -> void:
   box(root,Vector3(0,0.39,-0.65),Vector3(1.70,0.06,0.30),mat(c,0.4))
   # A matte inset separates the lettering from lit geometry and reflections.
   box(root,Vector3(0,0.375,0.46),Vector3(1.61,0.025,0.72),mat(Color("a8b5a8"),0.0,1.0))
-  var name_label := text3(root,wrapped_name(str(t.name)),Vector3(0,0.397,0.41),32,Color("07191e"))
-  name_label.pixel_size = 0.009
-  name_label.line_spacing = -4
-  var max_width := 0.0
-  for line in name_label.text.split("\n"):
-   max_width = max(max_width,ThemeDB.fallback_font.get_string_size(line,HORIZONTAL_ALIGNMENT_LEFT,-1,32).x)
-  if max_width > 0: name_label.pixel_size = min(0.009,1.45/max_width)
+  # City names are rendered in screen space: always horizontal and crisp.
+  if t.kind != "city":
+   var name_label := text3(root,wrapped_name(str(t.name)),Vector3(0,0.397,0.41),26,Color("07191e"))
+   name_label.pixel_size = 0.007
 
   if t.kind == "city":
-   text3(root,"%s €" % t.price,Vector3(0,0.40,0.75),24,Color("203c3b"))
+   text3(root,"%02d" % (i+1),Vector3(0,0.40,0.53),28,Color("203c3b"))
    landmark(root,str(t.landmark),c,i)
   else:
    text3(root,{"depart":"➜","card":"?","hub":"✦","tax":"€","prison":"II","parc":"✧","gotoprison":"!","reseau":"+"}.get(str(t.kind),"◆"),Vector3(0,0.42,-0.14),65,c)
@@ -218,35 +234,14 @@ func landmark(root: Node3D, kind: String, color: Color, index: int) -> void:
    cylinder(root,base+Vector3(0,1.05,0),0.035,0.6,brass,0)
 
 func build_center() -> void:
- var gold := mat(GOLD,0.8,0.3)
- # Concentric inlaid rings and compass rose.
- for radius in [2.1,2.2,5.7,5.76,6.5]:
-  var ring := TorusMesh.new()
-  ring.inner_radius = radius-0.015
-  ring.outer_radius = radius+0.015
-  mesh(self,ring,Vector3(0,0.34,0),gold)
- for i in range(32):
-  var a := TAU*float(i)/32
-  var tick := box(self,Vector3(sin(a)*5.45,0.34,cos(a)*5.45),Vector3(0.025,0.015,0.32 if i%4==0 else 0.13),gold)
-  tick.rotation.y = a
- for i in range(8):
-  var rose := ImmediateMesh.new()
-  rose.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
-  var length := 2.8 if i%2==0 else 1.8
-  rose.surface_add_vertex(Vector3(0,0,0))
-  rose.surface_add_vertex(Vector3(length,0,0))
-  rose.surface_add_vertex(Vector3(0.6,0,-0.32))
-  rose.surface_add_vertex(Vector3(0,0,0))
-  rose.surface_add_vertex(Vector3(0.6,0,0.32))
-  rose.surface_add_vertex(Vector3(length,0,0))
-  rose.surface_end()
-  var needle := mesh(self,rose,Vector3(0,0.38,0),gold)
-  needle.rotation.y = TAU*float(i)/8
- cylinder(self,Vector3(0,0.45,0),0.45,0.12,gold)
- text3(self,"ATLAS  ROYAL",Vector3(0,0.36,3.25),96,Color("efdbab"))
- text3(self,"L E   G R A N D   T O U R",Vector3(0,0.36,4.15),25,GOLD)
- text3(self,"N",Vector3(0,0.36,-5.05),40,GOLD)
- # Layered travel cards.
+ # Vector source imported at 4096 px, with mipmaps for stable oblique viewing.
+ var artwork := PlaneMesh.new()
+ artwork.size = Vector2(15.7,15.7)
+ var material := StandardMaterial3D.new()
+ material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+ material.albedo_texture = load("res://assets/centre-vectoriel.svg")
+ material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+ mesh(self,artwork,Vector3(0,0.335,0),material)
  for side in [-1,1]:
   for j in range(4):
    var card := box(self,Vector3(side*4.3,0.4+j*0.045,-2.3),Vector3(1.3,0.04,1.9),mat(Color("1c4c56") if side<0 else Color("bda06c"),0.2))
@@ -301,6 +296,7 @@ func label_at(parent: Control, value: String, pos: Vector2, size: int, color: Co
  l.add_theme_font_size_override("font_size",size)
  l.add_theme_color_override("font_color",color)
  parent.add_child(l)
+ header_labels.append(l)
  return l
 
 func build_ui() -> void:
@@ -319,8 +315,10 @@ func build_ui() -> void:
  top.position = Vector2(-480,42)
  top.add_theme_font_size_override("font_size",12)
  top.add_theme_color_override("font_color",GOLD)
+ collection_label = top
  ui.add_child(top)
  var panel := PanelContainer.new()
+ footer_panel = panel
  panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
  panel.offset_left = 32
  panel.offset_right = -32
@@ -335,8 +333,11 @@ func build_ui() -> void:
  style.content_margin_right = 24
  panel.add_theme_stylebox_override("panel",style)
  ui.add_child(panel)
- var row := HBoxContainer.new()
- row.add_theme_constant_override("separation",24)
+ var row := GridContainer.new()
+ footer_grid = row
+ row.columns = 2
+ row.add_theme_constant_override("h_separation",24)
+ row.add_theme_constant_override("v_separation",10)
  panel.add_child(row)
  var column := VBoxContainer.new()
  column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -346,15 +347,22 @@ func build_ui() -> void:
  status.text = "EXPLOREZ VOTRE EMPIRE"
  status.add_theme_color_override("font_color",GOLD)
  status.add_theme_font_size_override("font_size",22)
+ status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
  column.add_child(status)
  detail = Label.new()
  detail.text = "Cliquez sur une ville pour découvrir son escale."
  detail.add_theme_font_size_override("font_size",17)
+ detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
  column.add_child(detail)
+ var actions := HBoxContainer.new()
+ actions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+ actions.add_theme_constant_override("separation",8)
+ row.add_child(actions)
  for title in ["Vue cinéma","Vue du dessus","Lancer les dés"]:
   var button := Button.new()
   button.text = title
-  button.custom_minimum_size = Vector2(165,48)
+  button.custom_minimum_size = Vector2(100,48)
+  button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
   button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
   var s := StyleBoxFlat.new()
   s.bg_color = Color("bda374") if title=="Lancer les dés" else Color("193b43")
@@ -363,31 +371,60 @@ func build_ui() -> void:
   s.content_margin_right = 16
   button.add_theme_stylebox_override("normal",s)
   button.add_theme_color_override("font_color",INK if title=="Lancer les dés" else Color("e9e1ce"))
-  row.add_child(button)
+  actions.add_child(button)
+  footer_buttons.append(button)
   if title=="Vue cinéma": button.pressed.connect(func(): orbit = not orbit)
   elif title=="Vue du dessus": button.pressed.connect(func(): orbit = false; pitch = 1.48; yaw = 0; distance = 29)
   else:
    roll_button = button
    button.pressed.connect(roll)
  var hint := Label.new()
+ footer_hint = hint
  hint.text = "GLISSER POUR TOURNER   /   MOLETTE POUR ZOOMER   /   ESPACE : DÉS   /   R : VUE INITIALE"
  hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
  hint.position = Vector2(42,-145)
  hint.add_theme_font_size_override("font_size",11)
  hint.add_theme_color_override("font_color",Color("93aaa8"))
  ui.add_child(hint)
+ tile_picker = OptionButton.new()
+ tile_picker.position = Vector2(42,126)
+ tile_picker.custom_minimum_size = Vector2(300,44)
+ tile_picker.add_theme_font_size_override("font_size",17)
+ tile_picker.get_popup().add_theme_font_size_override("font_size",19)
+ tile_picker.add_item("Explorer les 40 cases",0)
+ for i in range(40):
+  tile_picker.add_item("%02d · %s" % [i+1,tiles[i].name],i+1)
+ tile_picker.item_selected.connect(func(index: int):
+  if index>0: select_tile(index-1)
+ )
+ ui.add_child(tile_picker)
+ update_responsive_ui()
 
 func update_camera() -> void:
  camera.position = Vector3(sin(yaw)*cos(pitch),sin(pitch),cos(yaw)*cos(pitch))*distance
+ var view := get_viewport().get_visible_rect().size
+ var aspect: float = view.x/maxf(1.0,view.y)
+ var framing: float = maxf(1.0,0.92/aspect)
+ camera.position *= framing
  camera.look_at(Vector3(0,0.15,0))
 
 func _process(delta: float) -> void:
  time += delta
+ if get_viewport().get_visible_rect().size != last_viewport_size:
+  update_responsive_ui()
  if orbit and not dragging: yaw += delta*0.045
  update_camera()
+ update_city_labels()
+ animate_world(delta)
  if selection: selection.position.y = 0.15+sin(time*2)*0.025
 
 func _unhandled_input(event: InputEvent) -> void:
+ if event is InputEventScreenDrag:
+  orbit = false
+  yaw -= event.relative.x*0.006
+  pitch = clamp(pitch+event.relative.y*0.005,0.35,1.5)
+ if event is InputEventScreenTouch and not event.pressed: pick(event.position)
+ if event is InputEventMagnifyGesture: distance = clamp(distance/event.factor,15.0,45.0)
  if event is InputEventMouseButton:
   if event.button_index == MOUSE_BUTTON_RIGHT: dragging = event.pressed; orbit = false
   if event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP: distance = max(15.0,distance-1.5)
@@ -405,11 +442,36 @@ func pick(screen: Vector2) -> void:
  var query := PhysicsRayQueryParameters3D.create(from,from+camera.project_ray_normal(screen)*100)
  var hit := get_world_3d().direct_space_state.intersect_ray(query)
  if hit and hit.collider.has_meta("tile"):
-  var i: int = hit.collider.get_meta("tile")
-  var t: Dictionary = tiles[i]
-  selection.position = positions[i]+Vector3(0,0.15,0)
-  status.text = str(t.name).to_upper()
-  detail.text = "%s  •  %s €  •  Escale %02d / 40" % [t.get("country","Grand Tour"), t.price, i+1] if t.kind=="city" else "Escale spéciale  •  " + str(t.name)
+  select_tile(int(hit.collider.get_meta("tile")))
+
+func select_tile(i: int) -> void:
+ selected_tile = i
+ var t: Dictionary = tiles[i]
+ selection.position = positions[i]+Vector3(0,0.15,0)
+ status.text = str(t.name).to_upper()
+ detail.text = "%s  •  %s €  •  Case %02d / 40" % [t.get("country","Grand Tour"), t.price, i+1] if t.kind=="city" else "Case %02d / 40  •  %s" % [i+1,str(t.name)]
+ tile_picker.select(i+1)
+
+func update_responsive_ui() -> void:
+ last_viewport_size = get_viewport().get_visible_rect().size
+ if not is_instance_valid(footer_panel): return
+ var compact := last_viewport_size.x < 1100 or last_viewport_size.y < 700
+ var short_screen := last_viewport_size.y < 600
+ footer_grid.columns = 1 if compact else 2
+ footer_panel.offset_left = 16 if compact else 32
+ footer_panel.offset_right = -16 if compact else -32
+ footer_panel.offset_top = -135 if short_screen else (-220 if compact else -140)
+ for label in header_labels: label.visible = not short_screen
+ collection_label.visible = not compact
+ footer_hint.visible = not compact
+ footer_hint.position.y = -165
+ for i in range(footer_buttons.size()):
+  footer_buttons[i].text = ["Cinéma","Dessus","Lancer"][i] if compact else ["Vue cinéma","Vue du dessus","Lancer les dés"][i]
+  footer_buttons[i].custom_minimum_size.x = 65 if compact else 140
+ tile_picker.position = Vector2(20 if compact else 42,12 if short_screen else 126)
+ tile_picker.custom_minimum_size.x = min(300,last_viewport_size.x-40)
+ status.add_theme_font_size_override("font_size",20 if compact else 22)
+ detail.add_theme_font_size_override("font_size",17)
 
 func roll() -> void:
  if moving: return
@@ -441,3 +503,248 @@ func roll() -> void:
  detail.text = "Arrivée  •  %d + %d  •  Démonstration visuelle, sans règles économiques" % [a,b]
  moving = false
  roll_button.disabled = false
+
+
+func build_city_labels() -> void:
+ var layer := CanvasLayer.new()
+ layer.layer = 2
+ add_child(layer)
+ name_overlay = Control.new()
+ name_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ name_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ layer.add_child(name_overlay)
+ for i in range(40):
+  var t: Dictionary = tiles[i]
+  if t.kind != "city": continue
+  var line := Line2D.new()
+  line.width = 1.0
+  line.default_color = Color(0.65,0.77,0.73,0.65)
+  name_overlay.add_child(line)
+  var panel := PanelContainer.new()
+  panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+  var style := StyleBoxFlat.new()
+  style.bg_color = Color("10252d")
+  style.border_color = Color(t.color)
+  style.border_width_left = 3
+  style.set_corner_radius_all(4)
+  style.content_margin_left = 9
+  style.content_margin_right = 9
+  style.content_margin_top = 5
+  style.content_margin_bottom = 5
+  panel.add_theme_stylebox_override("panel",style)
+  var column := VBoxContainer.new()
+  column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+  column.add_theme_constant_override("separation",0)
+  panel.add_child(column)
+  var name_label := Label.new()
+  name_label.text = str(t.name)
+  name_label.add_theme_font_size_override("font_size",15)
+  name_label.add_theme_color_override("font_color",Color("f3f0e5"))
+  column.add_child(name_label)
+  var price := Label.new()
+  price.text = "%02d   /   %s €" % [i+1,t.price]
+  price.add_theme_font_size_override("font_size",11)
+  price.add_theme_color_override("font_color",Color("b4c8bf"))
+  column.add_child(price)
+  name_overlay.add_child(panel)
+  city_labels.append({"index":i,"panel":panel,"line":line})
+
+func update_city_labels() -> void:
+ if city_labels.is_empty(): return
+ var viewport_size := get_viewport().get_visible_rect().size
+ var compact := viewport_size.x<1100 or viewport_size.y<700
+ var safe := Rect2(Vector2(18,180),viewport_size-Vector2(36,365))
+ var placed: Array[Rect2] = []
+ var center := camera.unproject_position(Vector3(0,0.4,0))
+ for entry in city_labels:
+  var i: int = entry.index
+  var panel: PanelContainer = entry.panel
+  var line: Line2D = entry.line
+  panel.visible = not compact or selected_tile==i
+  line.visible = panel.visible
+  if not panel.visible: continue
+  var anchor := camera.unproject_position(positions[i]+Vector3(0,0.65,0))
+  var outer := camera.unproject_position(positions[i]*1.22+Vector3(0,0.65,0))
+  var outward := (outer-center).normalized()
+  var tangent := Vector2(-outward.y,outward.x)
+  var size := panel.get_combined_minimum_size()
+  panel.size = size
+  var desired := outer+outward*12-size/2
+  var chosen := desired
+  var found := false
+  # Find a free rectangle around its projected case; labels never rotate or shrink.
+  for band in range(10):
+   if found: break
+   for offset in [0,1,-1,2,-2,3,-3,4,-4]:
+    var candidate := desired+outward*float(band)*19+tangent*float(offset)*24
+    candidate.x = clamp(candidate.x,safe.position.x,max(safe.position.x,safe.end.x-size.x))
+    candidate.y = clamp(candidate.y,safe.position.y,max(safe.position.y,safe.end.y-size.y))
+    var rect := Rect2(candidate,size).grow(4)
+    var free := true
+    for other in placed:
+     if rect.intersects(other): free = false; break
+    if free:
+     chosen = candidate
+     found = true
+     break
+  if not found:
+   var best_score := INF
+   for y in range(int(safe.position.y),int(safe.end.y-size.y)+1,12):
+    for x in range(int(safe.position.x),int(safe.end.x-size.x)+1,16):
+     var candidate := Vector2(x,y)
+     var score := candidate.distance_squared_to(desired)
+     if score>=best_score: continue
+     var rect := Rect2(candidate,size).grow(4)
+     var free := true
+     for other in placed:
+      if rect.intersects(other): free = false; break
+     if free:
+      best_score = score
+      chosen = candidate
+  panel.position = chosen
+  placed.append(Rect2(chosen,size).grow(4))
+  var end := Vector2(clamp(anchor.x,chosen.x,chosen.x+size.x),clamp(anchor.y,chosen.y,chosen.y+size.y))
+  line.points = PackedVector2Array([anchor,end])
+
+
+func tree_at(parent: Node3D, base: Vector3, scale_factor := 1.0) -> void:
+ var group := Node3D.new()
+ parent.add_child(group)
+ group.position = base
+ group.scale = Vector3.ONE*scale_factor
+ cylinder(group,Vector3(0,0.20,0),0.035,0.40,mat(Color("755941")))
+ for i in range(3):
+  var sphere := SphereMesh.new()
+  sphere.radius = 0.15+float(i)*0.015
+  sphere.height = sphere.radius*2
+  mesh(group,sphere,Vector3(sin(i*2.1)*0.09,0.45+i*0.07,cos(i*2.1)*0.07),mat([Color("296c58"),Color("408467"),Color("66a476")][i],0.0,0.9))
+
+func lamp_at(pos: Vector3) -> void:
+ var dark := mat(Color("183339"),0.65)
+ cylinder(self,pos+Vector3(0,0.38,0),0.018,0.76,dark)
+ cylinder(self,pos+Vector3(0,0.04,0),0.07,0.08,dark)
+ var globe := SphereMesh.new()
+ globe.radius = 0.065
+ globe.height = 0.13
+ mesh(self,globe,pos+Vector3(0,0.8,0),mat(Color("ffd99a"),0.2,0.4,0.65))
+ cylinder(self,pos+Vector3(0,0.88,0),0.085,0.035,dark,0.02)
+
+func build_living_world() -> void:
+ var bronze := mat(GOLD,0.75,0.3)
+ var stone := mat(Color("57736e"),0.05,0.85)
+ # Four miniature garden terraces inside the board's corners.
+ for x in [-6.5,6.5]:
+  for z in [-6.5,6.5]:
+   var garden := Node3D.new()
+   add_child(garden)
+   garden.position = Vector3(x,0.36,z)
+   box(garden,Vector3(0,0.05,0),Vector3(1.65,0.14,1.65),bronze)
+   box(garden,Vector3(0,0.13,0),Vector3(1.53,0.08,1.53),mat(Color("284f46"),0.0,1))
+   for k in range(4):
+    var a := k*PI/2+PI/4
+    tree_at(garden,Vector3(sin(a)*0.7,0.17,cos(a)*0.7),0.9)
+   cylinder(garden,Vector3(0,0.22,0),0.36,0.13,stone)
+   cylinder(garden,Vector3(0,0.30,0),0.29,0.02,mat(Color("399b9b"),0.35,0.15,0.12))
+   cylinder(garden,Vector3(0,0.46,0),0.055,0.32,bronze)
+   cylinder(garden,Vector3(0,0.62,0),0.18,0.035,bronze)
+   # Fountain jets, softly translucent in spirit, with animated droplets.
+   for k in range(3):
+    var drop := SphereMesh.new()
+    drop.radius = 0.023
+    drop.height = 0.046
+    var node := mesh(garden,drop,Vector3(0,0.75+k*0.12,0),mat(Color("9be1db"),0.25,0.2,0.25))
+    node.set_meta("phase",k*1.8+x)
+    motes.append(node)
+ # Fine rail lines around the central inset and moving miniature trams.
+ for side in range(4):
+  for offset in [-0.045,0.045]:
+   var rail := box(self,Vector3(0,0.36,7.50+offset),Vector3(14.9,0.018,0.018),bronze)
+   var parent := Node3D.new()
+   add_child(parent)
+   remove_child(rail)
+   parent.add_child(rail)
+   parent.rotation.y = side*PI/2
+  for k in range(5):
+   var a := -5.2+k*2.6
+   var v := Vector3(a,0.38,7.2).rotated(Vector3.UP,side*PI/2)
+   lamp_at(v)
+ for i in range(3):
+  var tram := Node3D.new()
+  add_child(tram)
+  var color: Color = [Color("ba7951"),Color("539c95"),Color("aebda4")][i]
+  box(tram,Vector3(0,0.12,0),Vector3(0.25,0.22,0.60),mat(color,0.5))
+  box(tram,Vector3(0,0.27,0),Vector3(0.27,0.07,0.64),bronze)
+  for z in [-0.18,0.0,0.18]:
+   for x in [-0.132,0.132]:
+    box(tram,Vector3(x,0.17,z),Vector3(0.008,0.09,0.12),mat(Color("ffe1a7"),0.0,0.5,0.45))
+  traffic.append(tram)
+ # A rotating armillary globe, the living heart of the Grand Tour.
+ cylinder(self,Vector3(0,0.43,0),1.0,0.18,bronze)
+ cylinder(self,Vector3(0,0.57,0),0.86,0.12,stone)
+ animated_globe = Node3D.new()
+ animated_globe.position = Vector3(0,1.8,0)
+ add_child(animated_globe)
+ var globe_mesh := SphereMesh.new()
+ globe_mesh.radius = 0.92
+ globe_mesh.height = 1.84
+ mesh(animated_globe,globe_mesh,Vector3.ZERO,mat(Color("164d61"),0.45,0.25))
+ # Stylized raised continental patches on a spherical surface.
+ for patch in range(55):
+  var lat := sin(patch*2.19)*1.0
+  var lon := patch*2.4
+  if sin(lon*2+lat*3)+cos(lat*7-lon)<0.2: continue
+  var normal := Vector3(cos(lat)*sin(lon),sin(lat),cos(lat)*cos(lon))
+  var piece := SphereMesh.new()
+  piece.radius = 0.12+float(patch%3)*0.035
+  piece.height = piece.radius*1.1
+  var land := mesh(animated_globe,piece,normal*0.91,mat(Color("7da68b"),0.35,0.65))
+  land.look_at(animated_globe.global_position,Vector3.UP)
+ for i in range(3):
+  var ring := TorusMesh.new()
+  ring.inner_radius = 1.08+i*0.08
+  ring.outer_radius = ring.inner_radius+0.022
+  var node := mesh(self,ring,Vector3(0,1.8,0),bronze)
+  node.rotation = Vector3(0.3+i*0.65,0,i*0.75)
+ cylinder(self,Vector3(0,0.93,0),0.08,0.7,bronze)
+ # Quiet animated airship on an orbit above the central map.
+ airship = Node3D.new()
+ add_child(airship)
+ var balloon := SphereMesh.new()
+ balloon.radius = 0.25
+ balloon.height = 0.5
+ mesh(airship,balloon,Vector3.ZERO,mat(Color("d4c092"),0.25,0.65)).scale = Vector3(1,1,2.7)
+ box(airship,Vector3(0,-0.29,0),Vector3(0.16,0.12,0.38),bronze)
+ box(airship,Vector3(0,0.12,0.51),Vector3(0.025,0.32,0.28),mat(Color("57958b")))
+ # Tiny gardens and pennants give every city its own inhabited frontage.
+ for i in range(40):
+  if tiles[i].kind != "city": continue
+  var ornament := Node3D.new()
+  add_child(ornament)
+  ornament.position = positions[i]
+  ornament.rotation.y = -float(i/10)*PI/2
+  tree_at(ornament,Vector3(-0.58,0.38,-0.36),0.62)
+  cylinder(ornament,Vector3(0.55,0.71,-0.45),0.012,0.65,bronze)
+  var flag := box(ornament,Vector3(0.65,0.95,-0.45),Vector3(0.22,0.13,0.018),mat(Color(tiles[i].color),0.15))
+  flag.set_meta("phase",i*0.9)
+  sails.append(flag)
+  # Lit shop windows at the edge of the miniature plinth.
+  for j in range(3):
+   box(ornament,Vector3(-0.15+j*0.15,0.48,-0.43),Vector3(0.065,0.09,0.025),mat(Color("efce8e"),0.1,0.5,0.28))
+
+func animate_world(_delta: float) -> void:
+ if not is_instance_valid(animated_globe): return
+ animated_globe.rotation.y = time*0.12
+ airship.position = Vector3(sin(time*0.14)*3.7,2.7+sin(time*0.7)*0.12,cos(time*0.14)*3.7)
+ airship.rotation.y = time*0.14+PI/2
+ for i in range(traffic.size()):
+  var progress := fmod(time*0.50+i*20.0,60.0)
+  var side := int(progress/15)
+  var offset := fmod(progress,15.0)
+  traffic[i].position = Vector3(-7.5+offset,0.40,7.5).rotated(Vector3.UP,side*PI/2)
+  traffic[i].rotation.y = side*PI/2+PI/2
+ for drop in motes:
+  var phase: float = drop.get_meta("phase")
+  drop.position.y = 0.68+fmod(time*0.6+phase,0.42)
+ for flag in sails:
+  var phase: float = flag.get_meta("phase")
+  flag.rotation.y = sin(time*2+phase)*0.18
