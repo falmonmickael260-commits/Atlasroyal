@@ -26,6 +26,8 @@ export interface Cinema {
   actor: PlayerId | null;
   /** Case occupée visuellement (peut être en retard sur l'état autoritaire). */
   tokenTile: Record<PlayerId, number>;
+  /** Contexte du trajet visuel, issu des événements du moteur (durée en secondes). */
+  travel: { player: PlayerId; from: number; to: number; step: number; total: number; duration: number } | null;
   /** Incrémenté à chaque pas : déclenche le rebond du pion. */
   hop: Record<PlayerId, number>;
   dice: { values: [number, number]; rolling: boolean; key: number; player: PlayerId; isDouble: boolean; streak: number; jail: boolean } | null;
@@ -46,7 +48,7 @@ export interface Cinema {
 }
 
 const initial: Cinema = {
-  actor: null, tokenTile: {}, hop: {}, dice: null,
+  actor: null, tokenTile: {}, travel: null, hop: {}, dice: null,
   banner: null, card: null, highlight: null, build: null, cashFly: null, purchase: null,
   follow: null, destination: null,
   playing: false,
@@ -98,7 +100,7 @@ export const useCinematic = () => {
         break;
       }
       case 'DICE_ROLLED': {
-        audio.diceShake();
+        audio.diceRoll(0.82 * slow);
         setCinema((c) => ({
           ...c,
           actor: ev.player,
@@ -112,20 +114,18 @@ export const useCinematic = () => {
         }));
         dur = 980;
         window.setTimeout(() => {
-          audio.diceLand();
           setCinema((c) => (c.dice?.key === k ? { ...c, dice: { ...c.dice, rolling: false } } : c));
         }, 820 * slow);
         break;
       }
       case 'JAIL_ATTEMPT': {
-        audio.diceShake();
+        audio.diceRoll(0.82 * slow);
         setCinema((c) => ({
           ...c,
           actor: ev.player,
           dice: { values: ev.dice, rolling: true, key: k, player: ev.player, isDouble: ev.success, streak: 0, jail: true },
         }));
         window.setTimeout(() => {
-          audio.diceLand();
           setCinema((c) => (c.dice?.key === k ? { ...c, dice: { ...c.dice, rolling: false } } : c));
         }, 820 * slow);
         banner({
@@ -136,18 +136,19 @@ export const useCinematic = () => {
         break;
       }
       case 'MOVE_STEP': {
+        dur = ev.total > 8 ? 135 : 175;
         audio.step();
         setCinema((c) => ({
           ...c,
           actor: ev.player,
           tokenTile: { ...c.tokenTile, [ev.player]: ev.to },
+          travel: { player: ev.player, from: ev.from, to: ev.to, step: ev.step, total: ev.total, duration: dur * slow / 1000 },
           hop: { ...c.hop, [ev.player]: (c.hop[ev.player] ?? 0) + 1 },
           follow: ev.to,
           dice: c.dice ? { ...c.dice, rolling: false } : null,
         }));
         // Un déplacement long s'accélère : on garde le rythme sans perdre
         // la lecture case par case.
-        dur = ev.total > 8 ? 135 : 175;
         break;
       }
       case 'PASSED_GO':
@@ -160,7 +161,7 @@ export const useCinematic = () => {
         break;
       case 'LANDED':
         audio.land();
-        setCinema((c) => ({ ...c, highlight: ev.tile, destination: null }));
+        setCinema((c) => ({ ...c, highlight: ev.tile, destination: null, travel: null }));
         if (state.round < RULES.purchasesFromRound && (tileAt(ev.tile).kind==='city' || tileAt(ev.tile).kind==='hub' || tileAt(ev.tile).kind==='reseau') && !state.tiles[ev.tile]?.owner) {
           setCinema((c)=>({...c,banner:{key:k,kind:'buy',title:'Premier tour de table',detail:`Les achats ouvrent au tour ${RULES.purchasesFromRound}.`}}));
           dur=900;
@@ -227,7 +228,7 @@ export const useCinematic = () => {
         break;
       case 'JAILED':
         audio.jail();
-        setCinema((c) => ({ ...c, tokenTile: { ...c.tokenTile, [ev.player]: 10 } }));
+        setCinema((c) => ({ ...c, travel: null, tokenTile: { ...c.tokenTile, [ev.player]: 10 } }));
         banner({ kind: 'jail', title: 'PRISON', detail: { doubles: 'Trois doubles consécutifs', card: 'Ordre de la carte', tile: 'Case Allez en Prison' }[ev.reason], color: '#94A3B8' }, 1800);
         break;
       case 'JAIL_RELEASED':
@@ -268,7 +269,7 @@ export const useCinematic = () => {
         }
       }
       if (!changed && !c.playing && !c.banner && c.follow === null) return c;
-      return { ...c, actor: state.order[state.currentIndex], tokenTile, playing: false, banner: null, follow: null, destination: null };
+      return { ...c, actor: state.order[state.currentIndex], tokenTile, playing: false, banner: null, follow: null, destination: null, travel: null };
     });
   }, [queue.length, state]);
 

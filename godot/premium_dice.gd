@@ -10,7 +10,10 @@ var tween: Tween
 var impact: AudioStreamPlayer
 var hit_first := false
 var hit_second := false
+var hit_third := false
+var roll_number := 0
 var muted := false
+var reduced_motion := false
 
 func _ready() -> void:
  var shell := StandardMaterial3D.new()
@@ -60,6 +63,7 @@ func _ready() -> void:
      dot.position = normal*(0.376+layer*0.003)+u*pt.x*0.18+v*pt.y*0.18
      dot.quaternion = Quaternion(Vector3.UP,normal)
      body.add_child(dot)
+  load("res://static_batch.gd").bake(body,[])
  impact = AudioStreamPlayer.new()
  impact.volume_db = -25
  impact.stream = make_tap()
@@ -105,37 +109,63 @@ func top_value(index: int) -> int:
 func top_values() -> Array[int]: return [top_value(0),top_value(1)]
 
 func sample_roll(t: float) -> void:
+ if reduced_motion:
+  for i in range(2):
+   dice[i].quaternion = target_rotations[i]
+   dice[i].position = roots[i]+Vector3.UP*sin(t*PI)*0.025
+  return
  for i in range(2):
+  # Offset the contacts slightly: the dice have individual weight and timing.
+  var u := clampf((t-i*0.045)/(1.0-i*0.045),0.0,1.0)
   var direction := -1.0 if i==0 else 1.0
-  var p := 1.0-pow(1.0-t,3)
-  dice[i].position = roots[i]+Vector3(direction*1.7*(1-p),0,2.4*(1-p))
+  var remaining := pow(1.0-u,2.4)
+  var lateral := sin(u*PI)*0.16*direction
+  dice[i].position = roots[i]+Vector3(direction*1.5*remaining+lateral,0,2.4*remaining)
   var height := 0.0
-  if t<0.55:
-   var u := t/0.55
-   height = 0.9*(1-u)+sin(u*PI)*1.0
-  else:
-   var v := (t-0.55)/0.45
-   height = absf(sin(v*TAU))*0.25*(1-v)
-  dice[i].position.y += height
-  var spin := Quaternion.from_euler(Vector3(minf(t,0.72)*TAU*(3+i),t*0.2,minf(t,0.72)*TAU*(2-i)*direction))
-  if t<0.72: dice[i].quaternion = spin
-  else:
-   var stop := Quaternion.from_euler(Vector3(0.72*TAU*(3+i),0.72*0.2,0.72*TAU*(2-i)*direction))
-   var settle := smoothstep(0.72,1.0,t)
-   dice[i].quaternion = stop.slerp(target_rotations[i],settle)
- if t>=0.55 and not hit_first:
+  if u<0.46:
+   var flight := u/0.46
+   height = 0.90*(1.0-flight)+1.05*4.0*flight*(1.0-flight)
+  elif u<0.72:
+   var bounce := (u-0.46)/0.26
+   height = 0.32*4.0*bounce*(1.0-bounce)
+  elif u<0.88:
+   var bounce := (u-0.72)/0.16
+   height = 0.09*4.0*bounce*(1.0-bounce)
+  var turns := Vector3((2.7+i*0.4)*u*TAU,u*0.7,(1.8-i*0.45)*u*TAU*direction)
+  var spin := Quaternion.from_euler(turns)
+  var alignment := smoothstep(0.56,0.88,u)
+  dice[i].quaternion = spin.slerp(target_rotations[i],alignment)
+  if u>=0.88:
+   var settle := (u-0.88)/0.12
+   var rock := sin(settle*TAU)*0.055*pow(1.0-settle,2)
+   dice[i].quaternion = target_rotations[i]*Quaternion(Vector3.FORWARD,rock*direction)
+  # Keep the rotated cube above the felt even while it rocks on an edge.
+  var basis := dice[i].basis
+  var support := 0.31*(absf(basis.x.y)+absf(basis.y.y)+absf(basis.z.y))+0.065
+  dice[i].position.y += height+maxf(0.0,support-0.375)
+ if t>=0.46 and not hit_first:
   hit_first = true
-  if not muted: impact.play()
- if t>=0.78 and not hit_second:
+  if not muted:
+   impact.volume_db = -25
+   impact.play()
+ if t>=0.72 and not hit_second:
   hit_second = true
-  if not muted: impact.play()
+  if not muted:
+   impact.volume_db = -31
+   impact.play()
+ if t>=0.88 and not hit_third:
+  hit_third = true
+  if not muted:
+   impact.volume_db = -37
+   impact.play()
 
 func roll_pair(a: int, b: int, duration := 1.45) -> bool:
  if busy or a<1 or a>6 or b<1 or b>6: return false
  busy = true
  result = [a,b]
- target_rotations = [orientation_for(a,0.12),orientation_for(b,-0.18)]
- hit_first = false; hit_second = false
+ roll_number += 1
+ target_rotations = [orientation_for(a,0.12+sin(roll_number*1.7)*0.20),orientation_for(b,-0.18+cos(roll_number*1.3)*0.20)]
+ hit_first = false; hit_second = false; hit_third = false
  tween = create_tween()
  tween.tween_method(sample_roll,0.0,1.0,maxf(0.01,duration))
  await tween.finished

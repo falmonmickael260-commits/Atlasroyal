@@ -11,6 +11,7 @@ var busy := false
 var track: Array[Vector3] = []
 var halo: MeshInstance3D
 var last_crossed := 0
+var moving_parts: Dictionary = {}
 var movement_tween: Tween
 
 func material(c: Color, metallic := 0.7) -> StandardMaterial3D:
@@ -251,10 +252,11 @@ func sample_track(progress: float) -> Vector3:
  return 0.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t*t+(-a+3*b-3*c+d)*t*t*t)
 
 func apply_progress(value: float, piece: int, start: int, steps: int, origin_offset: Vector3) -> void:
- var normalized := (value-float(start))/float(steps)
+ var normalized := clampf((value-float(start))/float(steps),0.0,1.0)
+ var direction := 1 if steps>0 else -1
  var pos := sample_track(value)
- pos += origin_offset*pow(1.0-clampf((value-start)/0.7,0.0,1.0),3)
- var forward := sample_track(value+0.02)-sample_track(value)
+ pos += origin_offset*pow(1.0-clampf(absf(value-start)/0.7,0.0,1.0),3)
+ var forward := sample_track(value+0.02*direction)-sample_track(value)
  var target_yaw := atan2(-forward.x,-forward.z)
  var distance_travelled := pieces[piece].position.distance_to(pos)
  pieces[piece].position = pos
@@ -262,7 +264,7 @@ func apply_progress(value: float, piece: int, start: int, steps: int, origin_off
  var visual := pieces[piece].get_node("Sculpture") as Node3D
  var wave := sin(normalized*PI)
  visual.position.y = wave*(0.20 if piece==7 else (0.12 if piece==1 else 0.018))
- var ahead := sample_track(value+0.10)-sample_track(value+0.08)
+ var ahead := sample_track(value+0.32*direction)-sample_track(value+0.28*direction)
  var turn := wrapf(atan2(-ahead.x,-ahead.z)-target_yaw,-PI,PI)
  visual.rotation.z = clampf(-turn*(2.2 if piece==1 else 1.2),-0.20,0.20)*wave
  var launch := sin(clampf(normalized/0.18,0,1)*PI) if normalized<0.18 else 0.0
@@ -279,16 +281,28 @@ func apply_progress(value: float, piece: int, start: int, steps: int, origin_off
   visual.rotation.y = sin(normalized*TAU)*0.06
  elif piece==7:
   visual.rotation.x += wave*0.10
- for pivot in visual.get_children():
-  if pivot.has_meta("steering"): pivot.rotation.y = clampf(-turn*1.8,-0.24,0.24)
- for part in visual.find_children("*","MeshInstance3D",true,false):
+ if not moving_parts.has(piece):
+  moving_parts[piece] = []
+  for part in visual.find_children("*","Node3D",true,false):
+   if part.has_meta("radius") or part.has_meta("needle") or part.has_meta("steering"):
+    moving_parts[piece].append(part)
+ for part in moving_parts[piece]:
+  if part.has_meta("steering"): part.rotation.y = clampf(-turn*1.8,-0.24,0.24)
   if part.has_meta("radius"):
    part.rotate_object_local(Vector3.UP,distance_travelled/float(part.get_meta("radius")))
   if part.has_meta("needle"): part.rotation.y = 0.45+wave*sin(value*PI)*0.45
- var crossed := mini(start+steps,int(floor(value+0.0001)))
- while last_crossed<crossed:
-  last_crossed += 1
+ var crossed := int(floor(value+0.0001)) if direction>0 else int(ceil(value-0.0001))
+ crossed = clampi(crossed,mini(start,start+steps),maxi(start,start+steps))
+ while direction*(crossed-last_crossed)>0:
+  last_crossed += direction
   crossed_tile.emit(posmod(last_crossed,40))
+
+func rest_pose(piece: int) -> void:
+ var visual := pieces[piece].get_node("Sculpture") as Node3D
+ visual.position = Vector3.ZERO
+ visual.rotation = Vector3.ZERO
+ for pivot in visual.get_children():
+  if pivot.has_meta("steering"): pivot.rotation.y = 0.0
 
 func move_active(steps: int, duration_scale := 1.0) -> bool:
  if busy or steps<1 or steps>40: return false

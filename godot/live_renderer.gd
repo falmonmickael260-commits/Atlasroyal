@@ -6,6 +6,8 @@ var browser: JavaScriptObject
 var id_to_slot: Dictionary = {}
 var targets: Dictionary = {}
 var motion: Dictionary = {}
+var progress: Dictionary = {}
+var departure_offsets: Dictionary = {}
 var dice_key := -1
 var pending_roll: Dictionary = {}
 var buildings: Dictionary = {}
@@ -48,6 +50,12 @@ func apply_frame(packet: Dictionary) -> void:
  var players: Dictionary = state.players
  var active_id: String = str(cinema.get("actor") if cinema.get("actor")!=null else order[int(state.currentIndex)])
  for piece in host.pawns.pieces: piece.visible = false
+ # Resolve every occupant before choosing parking slots (independent of turn order).
+ for id in order:
+  var player: Dictionary = players[id]
+  var slot := clampi(int(str(player.get("token","t1")).trim_prefix("t"))-1,0,7)
+  host.pawns.pieces[slot].visible = not player.bankrupt
+  host.pawns.indices[slot] = int(cinema.get("tokenTile",{}).get(id,player.position))
  id_to_slot.clear()
  for rank in range(order.size()):
   var id: String = order[rank]
@@ -62,36 +70,35 @@ func apply_frame(packet: Dictionary) -> void:
   var old: float = float(targets.get(id,tile))
   var current: int = posmod(int(round(old)),40)
   var diff := posmod(tile-current,40)
+  var travel = cinema.get("travel")
+  var has_step: bool = travel is Dictionary and str(travel.get("player",""))==id and int(travel.get("to",-1))==tile
   if not targets.has(id):
    targets[id] = float(tile)
-   host.pawns.indices[slot] = tile
-   node.position = host.pawns.track[tile]
+   progress[id] = float(tile)
+   park_piece(slot,tile)
   elif diff!=0:
    if motion.has(id) and motion[id].is_running(): motion[id].kill()
-   host.pawns.indices[slot] = tile
-   if diff==1:
-    targets[id] = old+1
-    var tween := create_tween()
-    var duration := 0.025 if packet.get("reduced",false) else 0.12
-    host.pawns.last_crossed = int(old)
-    tween.tween_method(func(value: float): host.pawns.apply_progress(value,slot,int(old),1,Vector3.ZERO),old,old+1,duration)
-    motion[id] = tween
+   if diff==1 or (diff==39 and has_step):
+    animate_step(id,slot,old,tile,travel if has_step else {},bool(packet.get("reduced",false)))
    else:
+    # Jail, reconnects and direct card transfers do not invent visited tiles.
     targets[id] = float(tile)
-    node.position = host.pawns.track[tile]
-    node.get_node("Sculpture").rotation = Vector3.ZERO
+    progress[id] = float(tile)
+    park_piece(slot,tile)
   if motion.has(id) and motion[id].is_running(): continue
-  node.position = host.pawns.track[tile]+host.pawns.slot(slot,tile)
-  var forward: Vector3 = host.pawns.sample_track(float(tile)+0.02)-host.pawns.sample_track(float(tile))
-  node.rotation.y = atan2(-forward.x,-forward.z)
-  node.get_node("Sculpture").rotation = Vector3.ZERO
-  node.get_node("Sculpture").position = Vector3.ZERO
+  if has_step and int(travel.step)<int(travel.total): continue
+  var destination: Vector3 = host.pawns.track[tile]+host.pawns.slot(slot,tile)
+  if node.position.distance_to(destination)>0.001:
+   var parking := create_tween()
+   parking.tween_property(node,"position",destination,0.04 if packet.get("reduced",false) else 0.16).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+   motion[id] = parking
+  host.pawns.rest_pose(slot)
  host.pawns.active = int(id_to_slot.get(active_id,0))
  host.pawns.busy = cinema.get("follow")!=null and bool(cinema.get("playing",false))
  var roll = cinema.get("dice")
  if roll is Dictionary and int(roll.get("key",-1))!=dice_key:
   dice_key = int(roll.key)
-  pending_roll = {"a":int(roll.values[0]),"b":int(roll.values[1]),"duration":0.18 if packet.get("reduced",false) else 0.74}
+  pending_roll = {"a":int(roll.values[0]),"b":int(roll.values[1]),"duration":0.1804 if packet.get("reduced",false) else 0.82,"reduced":bool(packet.get("reduced",false))}
   play_pending_dice()
  host.session.owners.clear()
  for key in state.tiles:
@@ -111,6 +118,46 @@ func apply_frame(packet: Dictionary) -> void:
  if highlight!=null: host.selection.position = host.positions[int(highlight)]+Vector3(0,0.15,0)
  if browser!=null:
   browser.parent.postMessage(JSON.stringify({"type":"fortune-rendered","version":int(state.get("version",0))}),str(browser.location.origin))
+
+func park_piece(slot: int, tile: int) -> void:
+ var node: Node3D = host.pawns.pieces[slot]
+ node.position = host.pawns.track[tile]+host.pawns.slot(slot,tile)
+ var forward: Vector3 = host.pawns.sample_track(float(tile)+0.02)-host.pawns.sample_track(float(tile))
+ node.rotation.y = atan2(-forward.x,-forward.z)
+ host.pawns.rest_pose(slot)
+
+func animate_step(id: String, slot: int, old: float, tile: int, travel: Dictionary, reduced: bool) -> void:
+ var direction := -1 if posmod(tile-posmod(int(round(old)),40),40)==39 else 1
+ var step := maxi(1,int(travel.get("step",1)))
+ var total := maxi(step,int(travel.get("total",1)))
+ var start := int(round(old))-direction*(step-1)
+ var finish := old+direction
+ var from: float = float(progress.get(id,old))
+ var node: Node3D = host.pawns.pieces[slot]
+ if step==1:
+  departure_offsets[id] = node.position-host.pawns.sample_track(from)
+ var origin: Vector3 = departure_offsets.get(id,Vector3.ZERO)
+ targets[id] = finish
+ var duration := clampf(float(travel.get("duration",0.16)),0.025,0.22)
+ if reduced: duration = minf(duration,0.035)
+ var tween := create_tween()
+ if step==1: tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+ elif step==total: tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+ host.pawns.last_crossed = int(floor(from)) if direction>0 else int(ceil(from))
+ tween.tween_method(func(value: float):
+  progress[id] = value
+  host.pawns.apply_progress(value,slot,start,total*direction,origin)
+  if step==total:
+   var parked: Vector3 = host.pawns.slot(slot,tile)
+   var fraction := 1.0-absf(finish-value)
+   node.position += parked*smoothstep(0.20,1.0,fraction)
+ ,from,finish,duration)
+ if step==total:
+  tween.tween_callback(func():
+   node.position = host.pawns.track[tile]+host.pawns.slot(slot,tile)
+   host.pawns.rest_pose(slot)
+  )
+ motion[id] = tween
 
 func update_building(tile: int, level: int) -> void:
  if int(building_levels.get(tile,0))==level: return
@@ -162,6 +209,7 @@ func play_pending_dice() -> void:
  var roll := pending_roll.duplicate()
  pending_roll.clear()
  host.dice_rig.show()
+ host.dice_rig.reduced_motion = bool(roll.get("reduced",false))
  host.dice_rig.roll_pair(int(roll.a),int(roll.b),float(roll.duration))
 
 func send_player_labels() -> void:

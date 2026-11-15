@@ -271,3 +271,9 @@ joueurs** pilotées par un bot qui ne passe que par des commandes publiques
 (`src/engine/__tests__/bot.ts`). Toute phase sans coup jouable lève une
 exception : c'est le test anti-blocage. Les invariants comptables sont vérifiés
 sur dix parties (aucun solde négatif, aucune case orpheline, un seul survivant).
+
+### Déplacements et dés
+
+Le rendu reçoit le trajet et la cadence des événements `MOVE_STEP` du moteur. Les pions conservent leur progression entre les cases, s’inclinent dans les virages et rejoignent leurs places sans chevauchement à l’arrivée. Les reculs des cartes suivent le trajet inverse ; les transferts directs et la reprise de partie gardent la position autoritaire. La caméra reste fixe.
+
+Les dés utilisent trois rebonds amortis et des sons de contact synchronisés. Leurs faces finales proviennent du résultat du moteur, sans nouveau tirage visuel. Les géométries sont regroupées par matériau. La préférence de mouvements réduits remplace la rotation des dés par un léger mouvement vertical.

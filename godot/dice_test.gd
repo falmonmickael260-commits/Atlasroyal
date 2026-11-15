@@ -30,6 +30,21 @@ func run() -> void:
    await rig.move_active(total,0.01)
    check(rig.indices[piece]==(before+a+b)%40,"Distance must match dice total")
    check(crossings.count==total,"Exact number of visited cases for every combination")
+ # Rotating edges never sink below the tabletop; final positions stay exact.
+ for sample in range(101):
+  dice.sample_roll(float(sample)/100.0)
+  for i in range(2):
+   var basis: Basis = dice.dice[i].basis
+   var support := 0.31*(absf(basis.x.y)+absf(basis.y.y)+absf(basis.z.y))+0.065
+   check(dice.dice[i].position.y-support>=dice.roots[i].y-0.375-0.0001,"Dice must stay above the tabletop")
+ check(dice.top_values()==[6,6],"Rocking must settle on the original faces")
+ for i in range(2): check(dice.dice[i].position.distance_to(dice.roots[i])<0.0001,"Dice must return to their resting position")
+ dice.reduced_motion = true
+ check(await dice.roll_pair(1,6,0.01),"Reduced motion keeps the authoritative faces")
+ dice.sample_roll(0.4)
+ check(dice.top_values()==[1,6],"Reduced motion must avoid spinning")
+ dice.sample_roll(1.0)
+ dice.reduced_motion = false
  var rejected: bool = await dice.roll_pair(0,7,0.01)
  check(not rejected,"Reject values outside 1–6")
  # Every face remains correct under arbitrary yaw.
