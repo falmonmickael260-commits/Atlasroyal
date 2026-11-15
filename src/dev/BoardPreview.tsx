@@ -40,7 +40,7 @@ const build = (level: BuildLevel): GameState => {
 const EMPTY_CINEMA = (state: GameState): Cinema => ({
   actor: state.order[0],
   tokenTile: Object.fromEntries(state.order.map((id) => [id, state.players[id].position])),
-  hop: {},
+  hop: {}, travel: null,
   dice: { values: [4, 2], rolling: false, key: 1, player: state.order[0], isDouble:false, streak:0, jail:false },
   banner: null,
   card: null,

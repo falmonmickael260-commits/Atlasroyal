@@ -61,14 +61,16 @@ const RESERVE_ACHAT = () => RULES.startingCash * 0.08;
 const SEUIL_CAUTION = () => RULES.jailFine * 4;
 const SEUIL_CONSTRUCTION = () => RULES.startingCash * 0.3;
 
-export const runBotGame = (seed: string, seats: number, maxSteps = 40_000): BotResult => {
+export const runBotGame = (seed: string, seats: number, maxSteps = 40_000, observe?: (state: GameState, command: Command | null) => void): BotResult => {
   let s: GameState = createGame('SIM', SEATS(seats), seed);
   s = applyCommand(s, { t: 'START_GAME', by: s.order[0] }).state;
+  observe?.(s, null);
   let steps = 0; let rejects = 0; let trades = 0;
   const rejections: string[] = [];
 
   const send = (cmd: Command): boolean => {
     const r = applyCommand(s, cmd);
+    observe?.(r.state, cmd);
     if (r.rejected) { rejects++; rejections.push(`${cmd.t}: ${r.rejected}`); return false; }
     s = r.state;
     return true;

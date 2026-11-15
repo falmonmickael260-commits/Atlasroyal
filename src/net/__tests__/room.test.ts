@@ -8,6 +8,7 @@ vi.mock('../serverTransport', () => ({
     servers = new Set<(m: any) => void>();
     close = vi.fn();
     sendToHost = vi.fn();
+    startVerifiedGame = vi.fn();
     constructor() {
       harness.instances.push(this);
     }

@@ -451,6 +451,7 @@ export const useRoom = create<RoomStore>((set, get) => {
         return;
       }
       hostLobby.started = true;
+      const seed = String(Date.now());
       hostState = createGame(
         hostLobby.roomCode,
         hostLobby.seats.map((s) => ({
@@ -460,9 +461,10 @@ export const useRoom = create<RoomStore>((set, get) => {
           color: s.color,
           token: s.token,
         })),
-        String(Date.now()),
+        seed,
       );
       pushLobby();
+      if (transport instanceof ServerTransport) transport.startVerifiedGame(seed, hostState.startedAt);
       const r = applyCommand(hostState, { t: 'START_GAME', by: identity.id });
       hostState = r.state;
       pushSnapshot(r.events);

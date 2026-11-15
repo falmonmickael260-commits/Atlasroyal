@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { nodeConnector } from './game-connector.mjs';
+import { initializeRoom, authorizeSeat, accountFor, createAdapter, startMirror, mirrorClient, verifySnapshot, enqueueResult } from './platform.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,11 +18,16 @@ const types = {
   '.json': 'application/json',
 };
 export const rooms = new Map();
-export const server = http.createServer((req, res) => {
+export const server = http.createServer(async (req, res) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   const pathname = new URL(req.url, 'http://local').pathname;
+  if (pathname.startsWith('/api/platform/')) {
+    try { if (await nodeConnector(req,res,'fortune-empire',platformAdapter)) return; }
+    catch { res.writeHead(503,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Connexion indisponible.'}));return; }
+    res.writeHead(404);res.end();return;
+  }
   if (pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('Fortune Empire OK');
@@ -109,6 +116,7 @@ const fail = (ws, message) => {
   send(ws, { type: 'error', message });
   ws.close(1008, message);
 };
+const platformAdapter = createAdapter(rooms,send);
 wsServer.on('connection', (ws) => {
   ws.isAlive = true;
   ws.on('pong', () => {
@@ -117,10 +125,11 @@ wsServer.on('connection', (ws) => {
   let room = null,
     id = null,
     host = false;
+  let authenticating = false;
   let windowStart = Date.now(),
     rate = 0;
   const timeout = setTimeout(() => fail(ws, 'Connexion au salon expirée.'), 10000);
-  ws.on('message', (raw) => {
+  ws.on('message', async (raw) => {
     if (Date.now() - windowStart > 1000) {
       windowStart = Date.now();
       rate = 0;
@@ -141,6 +150,7 @@ wsServer.on('connection', (ws) => {
       return;
     }
     if (!room) {
+      if (authenticating) return;
       if (
         packet.type !== 'connect' ||
         !/^([A-Z2-9]){5}$/.test(packet.code) ||
@@ -152,6 +162,12 @@ wsServer.on('connection', (ws) => {
         fail(ws, 'Code de salon invalide.');
         return;
       }
+      authenticating = true;
+      let account;
+      try { account = await accountFor(packet.rg_token); }
+      catch { authenticating=false;fail(ws,'Connexion à Revanche Games indisponible. Réessaie.');return; }
+      authenticating = false;
+      if (ws.readyState !== WebSocket.OPEN) return;
       id = packet.id;
       host = packet.host === true;
       if (host) {
@@ -160,6 +176,7 @@ wsServer.on('connection', (ws) => {
           return;
         }
         room = { code: packet.code, host: ws, peers: new Map(), lastLobby: null };
+        initializeRoom(room);
         rooms.set(packet.code, room);
       } else {
         room = rooms.get(packet.code);
@@ -178,11 +195,15 @@ wsServer.on('connection', (ws) => {
         fail(ws, 'Ce joueur est déjà connecté dans un autre onglet.');
         return;
       }
+      let seat;
+      try { seat=authorizeSeat(room,id,packet.proof,account); }
+      catch(error) { room=null;fail(ws,error.message);return; }
       room.peers.set(id, ws);
       clearTimeout(timeout);
-      send(ws, { type: 'ready' });
+      send(ws, { type: 'ready', token: seat.token });
       return;
     }
+    if (packet.type === 'start' && host) { startMirror(room,packet,id);return; }
     if (packet.type === 'client') {
       const m = packet.payload;
       if (!m || typeof m.k !== 'string') return;
@@ -208,10 +229,14 @@ wsServer.on('connection', (ws) => {
       if (['UPDATE_SEAT', 'LEAVE', 'REQUEST_SYNC'].includes(m.k) && m.id !== id) return;
       if (m.k === 'INTENT' && m.cmd?.by !== id) return;
       if (!['HELLO', 'UPDATE_SEAT', 'LEAVE', 'REQUEST_SYNC', 'INTENT'].includes(m.k)) return;
+      if (m.k==='HELLO' && room.auth.get(id)?.name) m.seat.name=room.auth.get(id).name.slice(0,32);
+      mirrorClient(room,m);
       send(room.host, { type: 'client', payload: m });
     } else if (packet.type === 'server' && host) {
       const m = packet.payload;
       if (!m || !['LOBBY', 'SNAPSHOT', 'REJECT', 'CLOSED'].includes(m.k)) return;
+      if (m.k==='LOBBY' && Array.isArray(m.lobby?.seats) && typeof m.lobby.started==='boolean') {room.lastLobby=m.lobby;for(const notify of [...room.watchers])notify();}
+      if (m.k==='SNAPSHOT' && verifySnapshot(room,m.state) && m.state.phase==='GAME_OVER') enqueueResult(room);
       for (const peer of room.peers.values()) send(peer, { type: 'server', payload: m });
     }
   });
@@ -228,8 +253,10 @@ wsServer.on('connection', (ws) => {
           peer.close(1000);
         }
       rooms.delete(room.code);
+      for(const notify of [...room.watchers])notify();
     } else if (room.peers.get(id) === ws) {
       room.peers.delete(id);
+      mirrorClient(room,{k:'LEAVE',id});
       send(room.host, { type: 'client', payload: { k: 'LEAVE', id } });
     }
   });

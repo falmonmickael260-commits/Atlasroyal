@@ -1,3 +1,4 @@
+import { nativeSeat, saveNativeSeat, platformToken } from './platformSession';
 import { BaseTransport } from './transport';
 import type { ClientMsg, ServerMsg } from './protocol';
 export class ServerTransport extends BaseTransport {
@@ -25,7 +26,7 @@ export class ServerTransport extends BaseTransport {
         );
         ws.onopen = () =>
           ws.send(
-            JSON.stringify({ type: 'connect', code: this.code, id: this.id, host: this.host }),
+            JSON.stringify({ type: 'connect', code: this.code, id: this.id, host: this.host, proof: nativeSeat(this.code)?.token, rg_token: platformToken() }),
           );
         ws.onmessage = (event) => {
           let data;
@@ -36,6 +37,7 @@ export class ServerTransport extends BaseTransport {
           }
           if (!data || typeof data !== 'object' || Array.isArray(data)) return;
           if (data.type === 'ready') {
+            if (data.token) saveNativeSeat({code:this.code,playerId:this.id,token:data.token});
             ready = true;
             clearTimeout(timeout);
             resolve();
@@ -66,6 +68,9 @@ export class ServerTransport extends BaseTransport {
       this.close();
       throw error;
     }
+  }
+  startVerifiedGame(seed: string, startedAt: number) {
+    if(this.socket?.readyState===WebSocket.OPEN) this.socket.send(JSON.stringify({type:'start',seed,startedAt}));
   }
   sendToHost(payload: ClientMsg) {
     if (this.socket?.readyState === WebSocket.OPEN)

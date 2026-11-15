@@ -277,3 +277,11 @@ sur dix parties (aucun solde négatif, aucune case orpheline, un seul survivant)
 Le rendu reçoit le trajet et la cadence des événements `MOVE_STEP` du moteur. Les pions conservent leur progression entre les cases, s’inclinent dans les virages et rejoignent leurs places sans chevauchement à l’arrivée. Les reculs des cartes suivent le trajet inverse ; les transferts directs et la reprise de partie gardent la position autoritaire. La caméra reste fixe.
 
 Les dés utilisent trois rebonds amortis et des sons de contact synchronisés. Leurs faces finales proviennent du résultat du moteur, sans nouveau tirage visuel. Les géométries sont regroupées par matériau. La préférence de mouvements réduits remplace la rotation des dés par un léger mouvement vertical.
+
+### Revanche Games : comptes, invitations et résultats
+
+Fortune Empire se lance depuis la plateforme avec `rg_token` ; le serveur le fait vérifier par la plateforme avant d’associer un compte au siège. Les invités continuent à créer et rejoindre les salons par code. Un bouton « Inviter un ami » dans le salon ouvre le sélecteur Revanche Games ; les invitations natives réutilisent le même siège après un rechargement. La preuve aléatoire d’un siège est conservée dans le navigateur et n’apparaît jamais dans les liens publics.
+
+Le serveur reconstitue la partie avec le même moteur et vérifie les états du navigateur avant de transmettre un résultat signé unique. Les statistiques alimentent le compte Revanche Games, pas les invités. Aucun prix, montant de carte ou règlement du moteur n’a été modifié. La partie reste hébergée par le navigateur de l’hôte ; sa fermeture clôt le salon. Les retries de résultat sont en mémoire et ne survivent pas au redémarrage du service.
+
+Configuration serveur : `PLATFORM_SHARED_SECRET` contient la clé **dédiée à Fortune Empire** (`GAME_CONNECTOR_SECRET_FORTUNE_EMPIRE` côté plateforme), et `PLATFORM_SHELL_ORIGIN` son origine canonique. Ne jamais publier ces clés. Le moteur serveur est construit par `npm run build` ; `npm run test:platform` vérifie le connecteur et les résultats. Voir également `docs/ACTIVATION_FORTUNE_EMPIRE.md` dans le dépôt revanchegames.

@@ -6,9 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node server/build-engine.mjs && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "node server/build-engine.mjs && vitest run",
+    "test:platform": "node server/build-engine.mjs && node --test server/*.test.mjs",
     "test:watch": "vitest",
     "check": "tsc --noEmit -p tsconfig.json",
     "intro:studio": "remotion studio remotion/index.ts",
@@ -36,6 +37,7 @@
     "prettier": "3.8.1",
     "typescript": "5.9.3",
     "vite": "7.3.6",
-    "vitest": "3.2.7"
+    "vitest": "3.2.7",
+    "esbuild": "0.28.1"
   }
 }
