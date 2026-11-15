@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRoom, type NetMode } from '../net/room';
 import { supabaseConfigured } from '../net/supabaseTransport';
+import { recallRoom } from '../net/identity';
 import { audio } from '../audio/audio';
 import { Icon, type IconName } from './Icon';
 import { Rules } from './Rules';
@@ -39,7 +40,7 @@ const TUILES: { cle: string; icone: IconName; titre: string; ouvre: Feuille }[] 
 ];
 
 export const Home = () => {
-  const { identity, setIdentity, createRoom, joinRoom, connecting, error } = useRoom();
+  const { identity, setIdentity, createRoom, joinRoom, connecting, error, resume } = useRoom();
   const [feuille, setFeuille] = useState<Feuille>(null);
   const [code, setCode] = useState('');
   const [mode, setMode] = useState<NetMode>(supabaseConfigured ? 'supabase' : 'server');
@@ -97,6 +98,7 @@ export const Home = () => {
       <div className="menu__corps">
         <img className="menu__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune Empire" draggable={false} />
 
+        {recallRoom()&&!recallRoom()?.host&&<button className="btn btn--accent btn--block" style={{marginBottom:16}} disabled={connecting} onClick={()=>go(()=>void resume())}><Icon name="play" size={18}/>Reprendre ma partie</button>}
         <nav className="menu__principal">
           {PRINCIPALES.map((e) => (
             <button

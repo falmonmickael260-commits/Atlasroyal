@@ -262,7 +262,7 @@ export const Game = () => {
               </div>
               {id!==me&&!p.bankrupt&&<button className="pcard__trade" aria-label={`Négocier avec ${p.name}`} onClick={()=>{setTradePartner(id);setTradeView(null);setDrawer('trade');}}><Icon name="swap" size={15}/></button>}
               {p.inJail && <span className="pcard__tag pcard__tag--jail">Prison</span>}
-              {!p.connected && !p.bankrupt && <span className="pcard__tag pcard__tag--off">Hors ligne</span>}
+              {!p.connected && !p.bankrupt && <span className="pcard__tag pcard__tag--off" title="Sa place et ses biens sont réservés pour son retour">Déconnecté · retour possible</span>}
             </div>
           );
         })}

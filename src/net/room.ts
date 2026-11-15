@@ -19,6 +19,7 @@ import {
   recallRoom,
   rememberRoom,
   saveIdentity,
+  restoreRoomIdentity,
   type Identity,
 } from './identity';
 import type { Transport } from './transport';
@@ -409,11 +410,17 @@ export const useRoom = create<RoomStore>((set, get) => {
 
     joinRoom: async (code, mode) => {
       if (get().connecting || get().resuming) return;
-      await connect(code.toUpperCase().trim(), mode, false);
+      const normalized = code.toUpperCase().trim();
+      const savedId = mode !== 'local' ? restoreRoomIdentity(normalized) : null;
+      if (savedId) set({ identity: { ...get().identity, id: savedId } });
+      await connect(normalized, mode, false);
     },
 
     leaveRoom: () => {
-      forgetRoom();
+      const current = get();
+      if (!current.isHost && current.state && current.lobby)
+        rememberRoom({ code: current.lobby.roomCode, host: false, mode: current.mode });
+      else forgetRoom();
       if (get().isHost) transport?.broadcast({ k: 'CLOSED', reason: 'L’hôte a quitté le salon.' });
       else transport?.sendToHost({ k: 'LEAVE', id: get().identity.id });
       teardown();

@@ -30,6 +30,12 @@ L’entrée dans un salon attend la confirmation de l’hôte et reste visible p
 
 Un lancement répété ne recrée plus la partie. Le départ explicite de l’hôte annonce aussi la fermeture aux autres onglets en mode local. Si le contexte graphique disparaît après le chargement, la récupération relance uniquement le rendu du plateau et conserve la connexion de la partie.
 
+## Retour d’un joueur déconnecté
+
+En ligne, la place d’un invité reste réservée avec une balise « Déconnecté · retour possible ». Revenir depuis le même navigateur du téléphone restaure son identité et son état ; le même code de salon permet aussi de retrouver la place après un départ volontaire. Le bouton « Reprendre ma partie » évite de retaper le code. Le stockage du navigateur doit être conservé. Une faillite ne donne pas une nouvelle fortune en revenant.
+
+L’hôte doit encore garder sa page ouverte : le serveur relaie la partie mais son autorité vit dans le navigateur hôte. Le mode local conserve des identités distinctes par onglet.
+
 ## Documentation des règles d’origine
 
 ## Règles et fonctionnement

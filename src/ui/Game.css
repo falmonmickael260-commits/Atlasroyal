@@ -623,3 +623,5 @@
 .game .ticker .tilechip{font-size:9px;padding:3px 6px}
 .game .ticker .btn{border-radius:8px;font-size:10px;min-height:34px}
 @media(max-width:860px){.game .ticker{right:8px;left:auto;bottom:145px;width:min(265px,calc(100vw - 24px));max-height:28dvh}.game .ticker__row{padding:10px}.game .ticker__body{display:none}}
+
+.game .pcard__tag--off{position:static;align-self:flex-start;flex:none;max-width:100%;font-size:8px;letter-spacing:0;background:#b6893b24;color:#e3c48c;white-space:normal}.game .pcard:has(.pcard__tag--off){flex-wrap:wrap}.game .pcard__tag--off{margin-left:38px}
