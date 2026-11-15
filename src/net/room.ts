@@ -414,7 +414,8 @@ export const useRoom = create<RoomStore>((set, get) => {
 
     leaveRoom: () => {
       forgetRoom();
-      transport?.sendToHost({ k: 'LEAVE', id: get().identity.id });
+      if (get().isHost) transport?.broadcast({ k: 'CLOSED', reason: 'L’hôte a quitté le salon.' });
+      else transport?.sendToHost({ k: 'LEAVE', id: get().identity.id });
       teardown();
       set({
         screen: 'home',
@@ -433,7 +434,7 @@ export const useRoom = create<RoomStore>((set, get) => {
 
     startGame: () => {
       const { lobby, identity } = get();
-      if (!lobby || lobby.hostId !== identity.id || !hostLobby) return;
+      if (!lobby || lobby.hostId !== identity.id || !hostLobby || hostLobby.started) return;
       if (hostLobby.seats.length < RULES.minPlayers) {
         set({ toast: 'Il faut au moins 2 joueurs.' });
         return;
@@ -506,7 +507,10 @@ const seatFrom = (i: Identity): Omit<Seat, 'host' | 'connected'> => ({
 /** Signale le départ proprement quand l'onglet se ferme. */
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
-    const { identity, screen } = useRoom.getState();
-    if (screen !== 'home') transport?.sendToHost({ k: 'LEAVE', id: identity.id });
+    const { identity, screen, isHost } = useRoom.getState();
+    if (screen !== 'home') {
+      if (isHost) transport?.broadcast({ k: 'CLOSED', reason: 'L’hôte a quitté le salon.' });
+      else transport?.sendToHost({ k: 'LEAVE', id: identity.id });
+    }
   });
 }

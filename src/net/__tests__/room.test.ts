@@ -169,3 +169,35 @@ it('conserve le code d’un invité après une coupure récupérable', async () 
     host: false,
   });
 });
+
+it('ne démarre qu’une fois malgré deux demandes de lancement', async () => {
+  const room = await load();
+  await room.getState().createRoom('server');
+  const transport = harness.instances[0];
+  for (const handler of transport.clients)
+    handler({
+      k: 'HELLO',
+      seat: {
+        id: 'guest',
+        name: 'Guest',
+        avatar: 'a1',
+        token: 't2',
+        color: '#5FE3BC',
+        ready: true,
+      },
+    });
+  const broadcast = vi.spyOn(transport, 'broadcast');
+  room.getState().startGame();
+  room.getState().startGame();
+  const starts = broadcast.mock.calls.filter(
+    ([m]: any) => m.k === 'SNAPSHOT' && m.events.some((e: any) => e.e === 'GAME_STARTED'),
+  );
+  expect(starts).toHaveLength(1);
+});
+it('annonce la fermeture aux invités avant de quitter le salon', async () => {
+  const room = await load();
+  await room.getState().createRoom('server');
+  const broadcast = vi.spyOn(harness.instances[0], 'broadcast');
+  room.getState().leaveRoom();
+  expect(broadcast).toHaveBeenCalledWith({ k: 'CLOSED', reason: 'L’hôte a quitté le salon.' });
+});

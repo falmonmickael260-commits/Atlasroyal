@@ -28,6 +28,8 @@ Les dettes conservent la suite des paiements et des effets de carte. Le règleme
 
 L’entrée dans un salon attend la confirmation de l’hôte et reste visible pendant la connexion. Les états d’une ancienne connexion sont effacés, la reprise évite les connexions concurrentes et les instantanés reçus deux fois ne rejouent pas leurs animations. Un invité conserve son code lors d’une coupure récupérable. Un battement WebSocket repère les connexions disparues ; un message mal formé ne doit pas arrêter les autres salons.
 
+Un lancement répété ne recrée plus la partie. Le départ explicite de l’hôte annonce aussi la fermeture aux autres onglets en mode local. Si le contexte graphique disparaît après le chargement, la récupération relance uniquement le rendu du plateau et conserve la connexion de la partie.
+
 ## Documentation des règles d’origine
 
 ## Règles et fonctionnement

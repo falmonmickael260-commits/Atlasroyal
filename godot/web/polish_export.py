@@ -22,6 +22,12 @@ html = html.replace('Your browser does not support JavaScript.','Activez JavaScr
 # Report real progress to the parent while the engine downloads and starts.
 html = html.replace("if (current > 0 && total > 0) {", "window.parent.postMessage(JSON.stringify({type:'fortune-loading',progress:total>0?Math.floor(current/total*95):0}),window.location.origin);\n\t\t\t\tif (current > 0 && total > 0) {")
 html = html.replace("function displayFailureNotice(err) {", "function displayFailureNotice(err) {\nwindow.parent.postMessage(JSON.stringify({type:'fortune-error'}),window.location.origin);")
+# Recover the renderer without reloading the host's authoritative game page.
+html = html.replace('const engine = new Engine(GODOT_CONFIG);', """const engine = new Engine(GODOT_CONFIG);
+document.getElementById('canvas').addEventListener('webglcontextlost', function(event) {
+    event.preventDefault();
+    window.parent.postMessage(JSON.stringify({type:'fortune-error'}),window.location.origin);
+});""")
 # Content-addressed files prevent a cached pack or binary from a previous release.
 digest = hashlib.sha256((root/'index.wasm').read_bytes()+(root/'index.pck').read_bytes()).hexdigest()[:12]
 stem = 'fortune-'+digest
