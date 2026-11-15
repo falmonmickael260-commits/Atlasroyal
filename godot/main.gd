@@ -35,8 +35,6 @@ var dice_total := 0
 var steps_moved := 0
 var travel_stage := ""
 var rng := RandomNumberGenerator.new()
-var city_labels: Array[Dictionary] = []
-var name_overlay: Control
 var footer_panel: PanelContainer
 var footer_grid: GridContainer
 var footer_buttons: Array[Button] = []
@@ -51,10 +49,6 @@ var traffic: Array[Node3D] = []
 var motes: Array[MeshInstance3D] = []
 var sails: Array[Node3D] = []
 var header_labels: Array[Label] = []
-var labels_viewport := Vector2.ZERO
-var labels_camera := Transform3D.IDENTITY
-var labels_selection := -999
-var labels_layout_count := 0
 var static_batch_stats: Dictionary = {}
 
 func mat(color: Color, metal := 0.0, rough := 0.5, glow := 0.0) -> StandardMaterial3D:
@@ -130,8 +124,6 @@ func _ready() -> void:
  add_child(camera)
  camera.current = true
  update_camera()
- build_city_labels()
- update_city_labels()
  session = load("res://trade_state.gd").new()
  session.setup(tiles,pawns.NAMES)
  session.changed.connect(refresh_ownership)
@@ -504,7 +496,6 @@ func _process(delta: float) -> void:
  if follow_pawn:
   camera_target = camera_target.lerp(token.position,1.0-exp(-delta*4.0))
  update_camera()
- update_city_labels()
  animate_world(delta)
  if selection: selection.position.y = 0.15+sin(time*2)*0.025
 
@@ -652,114 +643,6 @@ func roll() -> void:
  if purchase_ready: trading.open("portfolio")
 
 
-func build_city_labels() -> void:
- var layer := CanvasLayer.new()
- layer.layer = 2
- add_child(layer)
- name_overlay = Control.new()
- name_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- name_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
- layer.add_child(name_overlay)
- for i in range(40):
-  var t: Dictionary = tiles[i]
-  if t.kind != "city": continue
-  var line := Line2D.new()
-  line.width = 1.0
-  line.default_color = Color(0.65,0.77,0.73,0.65)
-  name_overlay.add_child(line)
-  var panel := PanelContainer.new()
-  panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-  var style := StyleBoxFlat.new()
-  style.bg_color = Color("10252d")
-  style.border_color = Color(t.color)
-  style.border_width_left = 3
-  style.set_corner_radius_all(4)
-  style.content_margin_left = 9
-  style.content_margin_right = 9
-  style.content_margin_top = 5
-  style.content_margin_bottom = 5
-  panel.add_theme_stylebox_override("panel",style)
-  var column := VBoxContainer.new()
-  column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-  column.add_theme_constant_override("separation",0)
-  panel.add_child(column)
-  var name_label := Label.new()
-  name_label.text = str(t.name)
-  name_label.add_theme_font_size_override("font_size",15)
-  name_label.add_theme_color_override("font_color",Color("f3f0e5"))
-  column.add_child(name_label)
-  var price := Label.new()
-  price.text = "%02d   /   %d €" % [i+1,t.price]
-  price.add_theme_font_size_override("font_size",11)
-  price.add_theme_color_override("font_color",Color("b4c8bf"))
-  column.add_child(price)
-  name_overlay.add_child(panel)
-  city_labels.append({"index":i,"panel":panel,"line":line})
-
-func update_city_labels() -> void:
- if city_labels.is_empty(): return
- var viewport_size := get_viewport().get_visible_rect().size
- if viewport_size==labels_viewport and camera.transform.is_equal_approx(labels_camera) and selected_tile==labels_selection: return
- labels_viewport = viewport_size
- labels_camera = camera.transform
- labels_selection = selected_tile
- labels_layout_count += 1
- var compact := viewport_size.x<1100 or viewport_size.y<700
- compact = compact or camera_target.length()>1
- var safe := Rect2(Vector2(248,205),viewport_size-Vector2(270,370))
- var placed: Array[Rect2] = []
- var center := camera.unproject_position(Vector3(0,0.4,0))
- for entry in city_labels:
-  var i: int = entry.index
-  var panel: PanelContainer = entry.panel
-  var line: Line2D = entry.line
-  panel.visible = not compact or selected_tile==i
-  line.visible = panel.visible
-  if not panel.visible: continue
-  var anchor := camera.unproject_position(positions[i]+Vector3(0,0.65,0))
-  var outer := camera.unproject_position(positions[i]*1.22+Vector3(0,0.65,0))
-  var outward := (outer-center).normalized()
-  var tangent := Vector2(-outward.y,outward.x)
-  var size := panel.get_combined_minimum_size()
-  panel.size = size
-  var desired := outer+outward*12-size/2
-  var chosen := desired
-  var found := false
-  # Find a free rectangle around its projected case; labels never rotate or shrink.
-  for band in range(10):
-   if found: break
-   for offset in [0,1,-1,2,-2,3,-3,4,-4]:
-    var candidate := desired+outward*float(band)*19+tangent*float(offset)*24
-    candidate.x = clamp(candidate.x,safe.position.x,max(safe.position.x,safe.end.x-size.x))
-    candidate.y = clamp(candidate.y,safe.position.y,max(safe.position.y,safe.end.y-size.y))
-    var rect := Rect2(candidate,size).grow(4)
-    var free := true
-    for other in placed:
-     if rect.intersects(other): free = false; break
-    if free:
-     chosen = candidate
-     found = true
-     break
-  if not found:
-   var best_score := INF
-   for y in range(int(safe.position.y),int(safe.end.y-size.y)+1,12):
-    for x in range(int(safe.position.x),int(safe.end.x-size.x)+1,16):
-     var candidate := Vector2(x,y)
-     var score := candidate.distance_squared_to(desired)
-     if score>=best_score: continue
-     var rect := Rect2(candidate,size).grow(4)
-     var free := true
-     for other in placed:
-      if rect.intersects(other): free = false; break
-     if free:
-      best_score = score
-      chosen = candidate
-  panel.position = chosen
-  placed.append(Rect2(chosen,size).grow(4))
-  var end := Vector2(clamp(anchor.x,chosen.x,chosen.x+size.x),clamp(anchor.y,chosen.y,chosen.y+size.y))
-  line.points = PackedVector2Array([anchor,end])
-
-
 func tree_at(parent: Node3D, base: Vector3, scale_factor := 1.0) -> void:
  var group := Node3D.new()
  parent.add_child(group)
@@ -793,9 +676,18 @@ func build_living_world() -> void:
    garden.position = Vector3(x,0.36,z)
    box(garden,Vector3(0,0.05,0),Vector3(1.65,0.14,1.65),bronze)
    box(garden,Vector3(0,0.13,0),Vector3(1.53,0.08,1.53),mat(Color("284f46"),0.0,1))
-   for k in range(4):
-    var a := k*PI/2+PI/4
+   for k in range(2):
+    var a := k*PI+PI/4
     tree_at(garden,Vector3(sin(a)*0.7,0.17,cos(a)*0.7),0.9)
+   var paving := mat(Color("71837a"),0.0,0.95)
+   var timber := mat(Color("896e50"),0.0,0.9)
+   box(garden,Vector3(0,0.18,0),Vector3(1.43,0.025,0.34),paving)
+   box(garden,Vector3(0,0.18,0),Vector3(0.34,0.025,1.43),paving)
+   for side in [-1,1]:
+    box(garden,Vector3(side*0.55,0.29,0),Vector3(0.16,0.08,0.43),timber)
+    box(garden,Vector3(side*0.63,0.38,0),Vector3(0.04,0.18,0.43),timber)
+    for end in [-1,1]:
+     box(garden,Vector3(side*0.55,0.22,end*0.15),Vector3(0.10,0.08,0.05),stone)
    cylinder(garden,Vector3(0,0.22,0),0.36,0.13,stone)
    cylinder(garden,Vector3(0,0.30,0),0.29,0.02,mat(Color("399b9b"),0.35,0.15,0.12))
    cylinder(garden,Vector3(0,0.46,0),0.055,0.32,bronze)

@@ -9,25 +9,7 @@ func run() -> void:
  assert(scene.tiles.size()==40)
  for i in range(40): assert(FileAccess.file_exists("res://assets/cases/%02d.svg" % i))
  assert(scene.positions.size()==40)
- assert(scene.city_labels.size()==22)
  scene.orbit = false
- for angle in [0.0, PI/2, PI, 3*PI/2]:
-  scene.yaw = angle
-  scene.update_camera()
-  scene.update_city_labels()
-  var rects: Array[Rect2] = []
-  for entry in scene.city_labels:
-   var panel: PanelContainer = entry.panel
-   var rect := Rect2(panel.position,panel.size)
-   for other in rects:
-    if rect.intersects(other):
-     print("OVERLAP ",angle," view=",root.size," rect=",rect," other=",other)
-     quit(1)
-     return
-   rects.append(rect)
- scene.yaw = 0
- scene.update_camera()
- scene.update_city_labels()
  await create_timer(1.0).timeout
  if DisplayServer.get_name() != "headless":
   await RenderingServer.frame_post_draw
@@ -36,11 +18,9 @@ func run() -> void:
   var transform_before: Transform3D = scene.camera.transform
   scene.camera.position = Vector3(2,7,15)
   scene.camera.look_at(Vector3(1,0,8))
-  scene.name_overlay.visible = false
   await RenderingServer.frame_post_draw
   root.get_texture().get_image().save_png("res://preview-cases.png")
   scene.camera.transform = transform_before
-  scene.name_overlay.visible = true
   scene.set_process(true)
  # Verify the tablet-width desktop layout too.
  root.size = Vector2i(1280,800)
@@ -48,13 +28,6 @@ func run() -> void:
  await process_frame
  scene.update_responsive_ui()
  scene.update_camera()
- scene.update_city_labels()
- var tablet_rects: Array[Rect2] = []
- for entry in scene.city_labels:
-  var panel: PanelContainer = entry.panel
-  var rect := Rect2(panel.position,panel.size)
-  for other in tablet_rects: assert(not rect.intersects(other), "Tablet labels overlap")
-  tablet_rects.append(rect)
  root.size = Vector2i(1600,1000)
  await process_frame
  # Check portrait UI without squeezing all 22 names onto a phone.
@@ -64,14 +37,9 @@ func run() -> void:
  scene.update_responsive_ui()
  scene.select_tile(14)
  scene.update_camera()
- scene.update_city_labels()
  assert(scene.footer_grid.columns==1)
  assert(scene.tile_picker.item_count==41)
  assert(scene.footer_panel.get_combined_minimum_size().x<=358, "Footer too wide for phone")
- var visible_names := 0
- for entry in scene.city_labels:
-  if entry.panel.visible: visible_names += 1
- assert(visible_names==1)
  assert(scene.status.text=="RIO DE JANEIRO")
  if DisplayServer.get_name() != "headless":
   await RenderingServer.frame_post_draw
@@ -92,5 +60,5 @@ func run() -> void:
  scene.focus_tile()
  assert(scene.camera_target==scene.positions[14])
  assert(scene.distance==8.5)
- print("SMOKE OK: 40 cases, 22 noms sans chevauchement sur 4 angles, interface 390x844, lancer et déplacement terminés")
+ print("SMOKE OK: 40 cases, noms intégrés aux cases, interface 390x844, lancer et déplacement terminés")
  quit()

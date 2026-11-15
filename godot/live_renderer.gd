@@ -124,20 +124,36 @@ func update_building(tile: int, level: int) -> void:
  group.position = host.positions[tile]+Vector3(0,0.38,0)
  group.rotation.y = -float(tile/10)*PI/2
  buildings[tile] = group
- var gold: Material = host.mat(Color("cfb276"),0.6)
- var walls: Material = host.mat(Color("c9c7aa"),0.1)
- var roof: Material = host.mat(Color("317c60") if level<5 else Color("9d4d50"),0.3)
+ # Small architectural details share materials and are merged per property.
+ var stone: Material = host.mat(Color("8a9589"),0.0,0.9)
+ var walls: Material = host.mat(Color("d2ccb3"),0.0,0.85)
+ var glass: Material = host.mat(Color("23474b"),0.15,0.45)
+ var timber: Material = host.mat(Color("65503d"),0.0,0.85)
+ var roof: Material = host.mat(Color("376a57") if level<5 else Color("864b4d"),0.05,0.8)
  if level<5:
   for i in range(level):
    var x := -0.54+i*0.36
-   host.box(group,Vector3(x,0.11,-0.68),Vector3(0.23,0.20,0.22),walls)
-   var top: MeshInstance3D = host.cylinder(group,Vector3(x,0.26,-0.68),0.18,0.12,roof,0)
-   top.mesh.radial_segments = 4
-   top.rotation.y = PI/4
+   host.box(group,Vector3(x,0.025,-0.65),Vector3(0.29,0.05,0.30),stone)
+   host.box(group,Vector3(x,0.15,-0.65),Vector3(0.24,0.22,0.23),walls)
+   var gable := PrismMesh.new()
+   gable.size = Vector3(0.30,0.14,0.30)
+   host.mesh(group,gable,Vector3(x,0.32,-0.65),roof)
+   host.box(group,Vector3(x-0.047,0.12,-0.527),Vector3(0.045,0.13,0.012),timber)
+   host.box(group,Vector3(x+0.062,0.18,-0.527),Vector3(0.055,0.065,0.012),glass)
+   host.box(group,Vector3(x+0.075,0.32,-0.70),Vector3(0.045,0.17,0.05),stone)
  else:
-  host.box(group,Vector3(0,0.22,-0.62),Vector3(0.85,0.42,0.36),walls)
-  host.box(group,Vector3(0,0.45,-0.62),Vector3(0.93,0.06,0.42),roof)
-  for i in range(5): host.box(group,Vector3(-0.32+i*0.16,0.27,-0.43),Vector3(0.055,0.09,0.015),gold)
+  host.box(group,Vector3(0,0.035,-0.62),Vector3(1.02,0.07,0.48),stone)
+  host.box(group,Vector3(0,0.27,-0.62),Vector3(0.87,0.46,0.35),walls)
+  host.box(group,Vector3(0,0.53,-0.62),Vector3(0.95,0.08,0.43),roof)
+  host.box(group,Vector3(0,0.29,-0.43),Vector3(0.24,0.50,0.035),stone)
+  host.box(group,Vector3(0,0.13,-0.402),Vector3(0.12,0.19,0.018),glass)
+  host.box(group,Vector3(0,0.24,-0.35),Vector3(0.29,0.035,0.20),roof)
+  for floor in range(3):
+   for x in [-0.33,-0.20,0.20,0.33]:
+    host.box(group,Vector3(x,0.14+floor*0.13,-0.438),Vector3(0.065,0.075,0.015),glass)
+  for x in [-0.30,0.30]:
+   host.box(group,Vector3(x,0.59,-0.62),Vector3(0.16,0.06,0.20),stone)
+ load("res://static_batch.gd").bake(group,[])
  group.scale = Vector3.ONE*0.01
  create_tween().tween_property(group,"scale",Vector3.ONE,0.40).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 

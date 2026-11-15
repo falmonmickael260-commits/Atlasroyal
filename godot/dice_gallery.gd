@@ -7,7 +7,6 @@ func run() -> void:
  await process_frame
  scene.orbit = false
  scene.session.seed_demo()
- scene.name_overlay.hide()
  scene.camera_target = Vector3(0,0.4,-3.6)
  scene.distance = 6.2
  scene.pitch = 0.92

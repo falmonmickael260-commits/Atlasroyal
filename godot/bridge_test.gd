@@ -37,13 +37,6 @@ func run() -> void:
  bridge.apply_frame(fixture)
  await create_timer(1.7).timeout
  assert(scene.dice_rig.top_values()==[4,4])
- var layouts: int = scene.labels_layout_count
- for i in range(20): scene.update_city_labels()
- assert(scene.labels_layout_count==layouts)
- scene.get_viewport().size = Vector2i(800,600)
- scene.update_camera()
- scene.update_city_labels()
- assert(scene.labels_layout_count>layouts)
  print("STATIC GEOMETRY: ",scene.static_batch_stats)
  print("LIVE RENDERER: PASS · original state, pieces, dice, houses, hotel and fixed camera")
  quit()
