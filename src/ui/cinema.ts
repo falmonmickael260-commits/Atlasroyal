@@ -92,7 +92,14 @@ export const useCinematic = () => {
 
     switch (ev.e) {
       case 'TURN_STARTED': {
-        setCinema((c) => ({ ...c, banner: null, card: null, highlight: null }));
+        setCinema((c) => ({
+          ...c,
+          banner: null,
+          card: null,
+          highlight: null,
+          destination: null,
+          follow: null,
+        }));
         dur = 420;
         break;
       }
@@ -156,7 +163,7 @@ export const useCinematic = () => {
         break;
       case 'LANDED':
         audio.land();
-        setCinema((c) => ({ ...c, highlight: ev.tile, destination: null }));
+        setCinema((c) => ({ ...c, highlight: ev.tile, destination: null, follow: null }));
         dur = 200;
         break;
       case 'PROPERTY_OFFERED':

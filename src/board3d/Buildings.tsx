@@ -11,8 +11,11 @@ import type { CityTile, GameState } from '../engine/types';
  * un bâtiment ne « pop » jamais, il sort du sol.
  */
 const WINDOW_MAT = new THREE.MeshStandardMaterial({
-  color: '#FDE68A', emissive: '#F59E0B', emissiveIntensity: 1.6, roughness: 0.3,
+  color: '#FFF0B5', emissive: '#F59E0B', emissiveIntensity: 1.25, roughness: 0.28,
 });
+const WINDOW_RECESS = new THREE.MeshStandardMaterial({ color: '#382A25', roughness: 0.52, metalness: 0.12 });
+const DOOR_MAT = new THREE.MeshPhysicalMaterial({ color: '#593629', roughness: 0.42, clearcoat: 0.38 });
+const TRIM_MAT = new THREE.MeshPhysicalMaterial({ color: '#D5AE68', roughness: 0.3, metalness: 0.62, clearcoat: 0.45 });
 
 /**
  * Couronnement du Grand Hôtel, dessiné d'après le repère de la ville
@@ -150,14 +153,45 @@ const Structure = ({
   /** Pavillon : corps, toit à quatre pentes, fenêtre éclairée. */
   const maison = (x: number, z = 0, echelle = 1) => (
     <group key={`${x}:${z}`} position={[x, 0, z]} scale={echelle}>
-      <mesh castShadow material={CORPS} position={[0, 0.17, 0]}>
+      <mesh castShadow material={TRIM_MAT} position={[0, 0.035, 0]}>
+        <boxGeometry args={[0.58, 0.07, 0.52]} />
+      </mesh>
+      <mesh castShadow material={CORPS} position={[0, 0.21, 0]}>
         <boxGeometry args={[0.52, 0.34, 0.46]} />
       </mesh>
-      <mesh castShadow material={TOIT} position={[0, 0.42, 0]} rotation={[0, Math.PI / 4, 0]}>
-        <coneGeometry args={[0.42, 0.24, 4]} />
+      <mesh castShadow material={TOIT} position={[0, 0.43, 0]} rotation={[0, Math.PI / 4, 0]}>
+        <coneGeometry args={[0.43, 0.27, 4]} />
       </mesh>
-      <mesh material={WINDOW_MAT} position={[0, 0.16, 0.235]}>
-        <planeGeometry args={[0.16, 0.12]} />
+      {/* Façade, porte encadrée et fenêtres à meneaux : le volume se lit comme
+          une petite résidence plutôt que comme un bloc posé sur la ville. */}
+      <mesh material={DOOR_MAT} position={[0, 0.12, 0.234]}>
+        <planeGeometry args={[0.11, 0.22]} />
+      </mesh>
+      <mesh material={TRIM_MAT} position={[0.055, 0.12, 0.236]}>
+        <sphereGeometry args={[0.012, 8, 8]} />
+      </mesh>
+      {[-0.15, 0.15].map((wx) => (
+        <group key={wx} position={[wx, 0.235, 0.236]}>
+          <mesh material={WINDOW_RECESS}>
+            <planeGeometry args={[0.13, 0.105]} />
+          </mesh>
+          <mesh material={WINDOW_MAT} position={[0, 0, 0.002]}>
+            <planeGeometry args={[0.085, 0.065]} />
+          </mesh>
+          <mesh material={TRIM_MAT} position={[0, 0, 0.004]}>
+            <boxGeometry args={[0.012, 0.09, 0.008]} />
+          </mesh>
+        </group>
+      ))}
+      {/* Bandeau de corniche et cheminée, visibles en vue oblique. */}
+      <mesh castShadow material={TRIM_MAT} position={[0, 0.37, 0]}>
+        <boxGeometry args={[0.58, 0.045, 0.51]} />
+      </mesh>
+      <mesh castShadow material={CORPS} position={[-0.17, 0.53, -0.08]}>
+        <boxGeometry args={[0.09, 0.2, 0.1]} />
+      </mesh>
+      <mesh castShadow material={TRIM_MAT} position={[-0.17, 0.635, -0.08]}>
+        <boxGeometry args={[0.12, 0.035, 0.12]} />
       </mesh>
     </group>
   );
@@ -200,6 +234,25 @@ const Structure = ({
       <mesh castShadow material={HOTEL} position={[0, 0.84, 0]}>
         <boxGeometry args={[0.44, 0.34, 0.4]} />
       </mesh>
+      {/* Ceintures d'étage et baies verticales encadrées. */}
+      {[0.08, 0.68, 1.02].map((y) => (
+        <mesh key={`cornice-${y}`} material={TRIM_MAT} position={[0, y, 0]}>
+          <boxGeometry args={[0.68 - Math.max(0, y - 0.7) * 0.55, 0.045, 0.57 - Math.max(0, y - 0.7) * 0.45]} />
+        </mesh>
+      ))}
+      {[0.19, 0.39, 0.59].flatMap((y) => [-0.19, 0.19].map((x) => (
+        <group key={`hotel-window-${x}:${y}`} position={[x, y, 0.267]}>
+          <mesh material={WINDOW_RECESS}>
+            <planeGeometry args={[0.105, 0.115]} />
+          </mesh>
+          <mesh material={WINDOW_MAT} position={[0, 0, 0.003]}>
+            <planeGeometry args={[0.068, 0.078]} />
+          </mesh>
+          <mesh material={TRIM_MAT} position={[0, 0, 0.005]}>
+            <boxGeometry args={[0.012, 0.102, 0.008]} />
+          </mesh>
+        </group>
+      )))}
       {/* Seul rappel de la couleur du groupe, tout en haut. */}
       <Crown landmark={landmark} mat={mat} />
       <mesh position={[0, 1.52, 0]}>
