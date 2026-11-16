@@ -87,7 +87,8 @@ export function createAdapter(rooms,send){
       const uid=c.operation==='admit'?c.inviter:c.uid;
       if(!member||!sameSecret(member.token,c.proof.token)||!room.lastLobby.seats.some(s=>s.id===c.proof.playerId)||uid&&member.uid&&member.uid!==uid)throw Error('Présence dans le salon non vérifiée.');
       if(uid&&!member.uid){if([...room.auth].some(([id,s])=>id!==c.proof.playerId&&s.uid===uid))throw Error('Compte déjà présent.');member.uid=uid;}
-      return {...snapshot(room),ownerUid:member.uid};
+      const isHost = room.peers?.get(c.proof.playerId) === room.host && room.host?.readyState === 1;
+      return {...snapshot(room),ownerUid:member.uid,isHost};
     },
     async admit(c){
       const room=find(c);
