@@ -1,3 +1,4 @@
+import { nodeObserver } from '../admin-observer/server.mjs';
 import http from 'node:http';
 import { nodeConnector } from './game-connector.mjs';
 import { initializeRoom, authorizeSeat, accountFor, createAdapter, startMirror, mirrorClient, verifySnapshot, enqueueResult } from './platform.mjs';
@@ -23,6 +24,14 @@ export const server = http.createServer(async (req, res) => {
   res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   const pathname = new URL(req.url, 'http://local').pathname;
+  if(await nodeObserver(req,res,'fortune-empire',(code,instance)=>{
+    const room=rooms.get(code);if(!room||room.instance!==instance)return null;
+    const s=room.mirror;
+    return {code:room.code,started:!!room.lastLobby?.started,
+      players:s?Object.values(s.players).map(p=>({id:p.id,name:p.name,cash:p.cash,position:p.position,inJail:p.inJail,bankrupt:p.bankrupt,connected:p.connected})):
+        (room.lastLobby?.seats||[]).map(p=>({id:p.id,name:p.name})),
+      board:s?{phase:s.phase,round:s.round,lastRoll:s.lastRoll,pot:s.pot,tiles:s.tiles,currentIndex:s.currentIndex,winner:s.winner}:null};
+  }))return;
   if (pathname.startsWith('/api/platform/')) {
     try { if (await nodeConnector(req,res,'fortune-empire',platformAdapter)) return; }
     catch { res.writeHead(503,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'Connexion indisponible.'}));return; }
