@@ -9,7 +9,7 @@ export type TransportRole = 'host' | 'client';
  * fait que véhiculer des messages.
  */
 export interface Transport {
-  readonly kind: 'local' | 'supabase';
+  readonly kind: 'local' | 'supabase' | 'server';
   connect(): Promise<void>;
   /** Client → autorité. */
   sendToHost(msg: ClientMsg): void;
@@ -23,7 +23,7 @@ export interface Transport {
 type Listener<T> = (msg: T) => void;
 
 export abstract class BaseTransport implements Transport {
-  abstract readonly kind: 'local' | 'supabase';
+  abstract readonly kind: 'local' | 'supabase' | 'server';
   protected clientListeners = new Set<Listener<ClientMsg>>();
   protected serverListeners = new Set<Listener<ServerMsg>>();
 

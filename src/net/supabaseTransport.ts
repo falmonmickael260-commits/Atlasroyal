@@ -35,13 +35,23 @@ export class SupabaseTransport extends BaseTransport {
     ch.on('broadcast', { event: 'to_all' }, ({ payload }) => {
       this.emitServer(payload as ServerMsg);
     });
-    await new Promise<void>((resolve, reject) => {
-      ch.subscribe((status) => {
-        if (status === 'SUBSCRIBED') resolve();
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') reject(new Error(status));
-      });
-    });
     this.channel = ch;
+    try {
+      await new Promise<void>((resolve, reject) => {
+      const fail = () => {
+        clearTimeout(timer);
+        reject(new Error("Connexion au serveur impossible. Vérifiez votre connexion et la configuration Supabase, puis réessayez."));
+      };
+      const timer = setTimeout(fail, 10000);
+      ch.subscribe((status) => {
+        if (status === 'SUBSCRIBED') { clearTimeout(timer); resolve(); }
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') fail();
+      });
+      });
+    } catch (error) {
+      this.close();
+      throw error;
+    }
   }
 
   sendToHost(msg: ClientMsg) {

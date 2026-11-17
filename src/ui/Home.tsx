@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRoom, type NetMode } from '../net/room';
 import { supabaseConfigured } from '../net/supabaseTransport';
+import { recallRoom } from '../net/identity';
 import { audio } from '../audio/audio';
 import { Icon, type IconName } from './Icon';
 import { Rules } from './Rules';
@@ -39,10 +40,10 @@ const TUILES: { cle: string; icone: IconName; titre: string; ouvre: Feuille }[] 
 ];
 
 export const Home = () => {
-  const { identity, setIdentity, createRoom, joinRoom, connecting, error } = useRoom();
+  const { identity, setIdentity, createRoom, joinRoom, connecting, error, resume } = useRoom();
   const [feuille, setFeuille] = useState<Feuille>(null);
   const [code, setCode] = useState('');
-  const [mode, setMode] = useState<NetMode>(supabaseConfigured ? 'supabase' : 'local');
+  const [mode, setMode] = useState<NetMode>(supabaseConfigured ? 'supabase' : 'server');
   const [sfx, setSfx] = useState(audio.sfxOn);
   const [musique, setMusique] = useState(audio.musicOn);
   const nom = identity.name;
@@ -95,8 +96,9 @@ export const Home = () => {
       </header>
 
       <div className="menu__corps">
-        <img className="menu__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune City" />
+        <img className="menu__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune Empire" draggable={false} />
 
+        {recallRoom()&&!recallRoom()?.host&&<button className="btn btn--accent btn--block" style={{marginBottom:16}} disabled={connecting} onClick={()=>go(()=>void resume())}><Icon name="play" size={18}/>Reprendre ma partie</button>}
         <nav className="menu__principal">
           {PRINCIPALES.map((e) => (
             <button
@@ -143,6 +145,10 @@ export const Home = () => {
             {feuille === 'jouer' && (
               <>
                 <h2 className="feuille__titre">Entrer en partie</h2>
+                {error && <p className="menu__erreur" role="alert">{error}</p>}
+                <p>{mode === 'local'
+                  ? 'Mode local : seuls les onglets de ce navigateur peuvent se rejoindre.'
+                  : 'Mode en ligne : partagez le code avec les autres joueurs.'}</p>
                 <label className="label" htmlFor="pseudo">Votre pseudo</label>
                 <input
                   id="pseudo" className="input" maxLength={16} placeholder="Ex. Alexandra"
@@ -153,7 +159,7 @@ export const Home = () => {
                   disabled={!nom.trim() || connecting}
                   onClick={() => go(() => void createRoom(mode))}
                 >
-                  <Icon name="spark" size={18} /> Créer une partie
+                  <Icon name="spark" size={18} /> {connecting ? 'Connexion en cours…' : 'Créer une partie'}
                 </button>
 
                 <div className="feuille__sep">ou rejoindre</div>
@@ -198,11 +204,11 @@ export const Home = () => {
                 <div className="option">
                   <span>
                     Connexion
-                    <small>{mode === 'supabase' ? 'Serveur temps réel' : 'Onglets de cet appareil'}</small>
+                    <small>{mode === 'local' ? 'Onglets de cet appareil' : 'Serveur en ligne'}</small>
                   </span>
                   <button
-                    className="btn btn--sm" disabled={!supabaseConfigured}
-                    onClick={() => setMode((m) => (m === 'local' ? 'supabase' : 'local'))}
+                    className="btn btn--sm" disabled={connecting}
+                    onClick={() => setMode((m) => (m === 'local' ? 'server' : 'local'))}
                   >
                     Changer
                   </button>

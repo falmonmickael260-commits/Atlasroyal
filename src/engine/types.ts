@@ -1,5 +1,5 @@
 /**
- * FORTUNE CITY — types du moteur.
+ * FORTUNE EMPIRE — types du moteur.
  * Aucun import React/DOM ici : ce module doit rester exécutable côté serveur.
  */
 
@@ -12,12 +12,25 @@ export type TileIndex = number;
  * plateau, plus faciles à réunir, comme dans les jeux du genre.
  */
 export type GroupId =
-  | 'terre' | 'azur' | 'fuchsia' | 'orange'
-  | 'rubis' | 'safran' | 'emeraude' | 'nuit';
+  | 'terre'
+  | 'azur'
+  | 'fuchsia'
+  | 'orange'
+  | 'rubis'
+  | 'safran'
+  | 'emeraude'
+  | 'nuit';
 
 export type TileKind =
-  | 'depart' | 'city' | 'hub' | 'reseau' | 'card'
-  | 'tax' | 'prison' | 'gotoprison' | 'parc';
+  | 'depart'
+  | 'city'
+  | 'hub'
+  | 'reseau'
+  | 'card'
+  | 'tax'
+  | 'prison'
+  | 'gotoprison'
+  | 'parc';
 
 /**
  * 0 terrain nu, puis une à quatre maisons, puis l'hôtel.
@@ -46,19 +59,33 @@ export interface CityTile {
 }
 
 export interface HubTile {
-  i: TileIndex; kind: 'hub'; name: string; price: number;
+  i: TileIndex;
+  kind: 'hub';
+  name: string;
+  price: number;
 }
 export interface ReseauTile {
-  i: TileIndex; kind: 'reseau'; name: string; price: number;
+  i: TileIndex;
+  kind: 'reseau';
+  name: string;
+  price: number;
 }
 export interface CardTile {
-  i: TileIndex; kind: 'card'; deck: DeckId; name: string;
+  i: TileIndex;
+  kind: 'card';
+  deck: DeckId;
+  name: string;
 }
 export interface TaxTile {
-  i: TileIndex; kind: 'tax'; name: string; amount: number;
+  i: TileIndex;
+  kind: 'tax';
+  name: string;
+  amount: number;
 }
 export interface PlainTile {
-  i: TileIndex; kind: 'depart' | 'prison' | 'gotoprison' | 'parc'; name: string;
+  i: TileIndex;
+  kind: 'depart' | 'prison' | 'gotoprison' | 'parc';
+  name: string;
 }
 
 export type Tile = CityTile | HubTile | ReseauTile | CardTile | TaxTile | PlainTile;
@@ -69,8 +96,8 @@ export type DeckId = 'destin' | 'marche';
 export type Rarity = 'commune' | 'rare' | 'legendaire';
 
 export type CardEffect =
-  | { k: 'cash'; amount: number }                                   // + banque / − vers cagnotte si négatif
-  | { k: 'cashToPot'; amount: number }                              // paie vers la cagnotte
+  | { k: 'cash'; amount: number } // + banque / − vers cagnotte si négatif
+  | { k: 'cashToPot'; amount: number } // paie vers la cagnotte
   | { k: 'collectFromEach'; amount: number }
   | { k: 'payEach'; amount: number }
   | { k: 'moveTo'; tile: TileIndex; collectGo: boolean }
@@ -78,7 +105,7 @@ export type CardEffect =
   | { k: 'moveToNearest'; target: 'hub' | 'reseau' }
   | { k: 'goToJail' }
   | { k: 'jailFree' }
-  | { k: 'repairs'; perHouse: number; perVilla: number; perHotel: number }
+  | { k: 'repairs'; perHouse: number; perHotel: number }
   | { k: 'takePot' }
   | { k: 'cashPerProperty'; amount: number }
   | { k: 'discountNextPurchase'; percent: number }
@@ -122,9 +149,27 @@ export interface TileState {
 }
 
 export type Phase =
-  | 'LOBBY' | 'GAME_START' | 'ROLL_DICE' | 'DICE_RESULT' | 'MOVING' | 'LANDING'
-  | 'PROPERTY_DECISION' | 'PAYMENT' | 'BUILDING' | 'CARD_EVENT' | 'JAIL'
-  | 'TRADE' | 'DEBT_RESOLUTION' | 'BANKRUPTCY' | 'NEXT_PLAYER' | 'GAME_OVER';
+  | 'LOBBY'
+  | 'GAME_START'
+  | 'ROLL_DICE'
+  | 'DICE_RESULT'
+  | 'MOVING'
+  | 'LANDING'
+  | 'PROPERTY_DECISION'
+  | 'PAYMENT'
+  | 'BUILDING'
+  | 'CARD_EVENT'
+  | 'JAIL'
+  | 'TRADE'
+  | 'DEBT_RESOLUTION'
+  | 'BANKRUPTCY'
+  | 'NEXT_PLAYER'
+  | 'GAME_OVER';
+
+export type DeferredAction =
+  | { k: 'payment'; from: PlayerId; to: PlayerId | null; amount: number; toPot?: boolean }
+  | { k: 'effect'; player: PlayerId; effect: CardEffect }
+  | { k: 'releaseJail'; player: PlayerId; dice: [number, number] };
 
 export interface Debt {
   debtor: PlayerId;
@@ -132,6 +177,7 @@ export interface Debt {
   creditor: PlayerId | null;
   amount: number;
   toPot: boolean;
+  continuation?: DeferredAction[];
 }
 
 export type Pending =
@@ -205,9 +251,22 @@ export type Command =
 export type GameEvent =
   | { e: 'GAME_STARTED'; order: PlayerId[] }
   | { e: 'TURN_STARTED'; player: PlayerId; round: number }
-  | { e: 'DICE_ROLLED'; player: PlayerId; dice: [number, number]; isDouble: boolean; doublesStreak: number }
+  | {
+      e: 'DICE_ROLLED';
+      player: PlayerId;
+      dice: [number, number];
+      isDouble: boolean;
+      doublesStreak: number;
+    }
   | { e: 'THREE_DOUBLES'; player: PlayerId }
-  | { e: 'MOVE_STEP'; player: PlayerId; from: TileIndex; to: TileIndex; step: number; total: number }
+  | {
+      e: 'MOVE_STEP';
+      player: PlayerId;
+      from: TileIndex;
+      to: TileIndex;
+      step: number;
+      total: number;
+    }
   | { e: 'PASSED_GO'; player: PlayerId; amount: number }
   | { e: 'EXACT_GO'; player: PlayerId; amount: number }
   | { e: 'LANDED'; player: PlayerId; tile: TileIndex }
@@ -225,7 +284,13 @@ export type GameEvent =
   | { e: 'MORTGAGED'; player: PlayerId; tile: TileIndex; amount: number }
   | { e: 'UNMORTGAGED'; player: PlayerId; tile: TileIndex; amount: number }
   | { e: 'JAILED'; player: PlayerId; reason: 'doubles' | 'card' | 'tile' }
-  | { e: 'JAIL_ATTEMPT'; player: PlayerId; attempt: number; dice: [number, number]; success: boolean }
+  | {
+      e: 'JAIL_ATTEMPT';
+      player: PlayerId;
+      attempt: number;
+      dice: [number, number];
+      success: boolean;
+    }
   | { e: 'JAIL_RELEASED'; player: PlayerId; reason: 'double' | 'fine' | 'card' }
   | { e: 'TRADE_PROPOSED'; offer: TradeOffer }
   | { e: 'TRADE_ACCEPTED'; offer: TradeOffer }

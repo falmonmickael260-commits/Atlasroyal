@@ -1,27 +1,62 @@
 import {
-  BOARD_SIZE, GO_TILE, GROUP_INDEX, HUB_TILES, JAIL_TILE, MAX_LEVEL, RESEAU_TILES,
-  RULES, isOwnable, tileAt,
+  BOARD_SIZE,
+  GO_TILE,
+  GROUP_INDEX,
+  HUB_TILES,
+  JAIL_TILE,
+  MAX_LEVEL,
+  RESEAU_TILES,
+  RULES,
+  isOwnable,
+  tileAt,
 } from './board';
 import { CARDS_BY_ID, buildDeck } from './cards';
+import { isCommand } from './commands';
 import { rollDie, seedFromString, shuffle } from './rng';
 import {
-  activePlayers, buildCostFor, canBuild, canMortgage, countOwnedIn, maisonsEnJeu,
-  mortgageValue, ownedBy, ownsFullGroup, priceOf, rentFor, unmortgageCost,
+  activePlayers,
+  buildCostFor,
+  canBuild,
+  canMortgage,
+  countOwnedIn,
+  maisonsEnJeu,
+  mortgageValue,
+  ownedBy,
+  ownsFullGroup,
+  priceOf,
+  rentFor,
+  unmortgageCost,
 } from './rules';
 import type {
-  BuildLevel, CardEffect, Command, CommandResult, Debt, GameEvent, GameState,
-  PlayerId, TileIndex, TradeOffer,
+  BuildLevel,
+  CardEffect,
+  Command,
+  CommandResult,
+  Debt,
+  DeferredAction,
+  GameEvent,
+  GameState,
+  PlayerId,
+  TileIndex,
+  TradeOffer,
 } from './types';
 
 const clone = <T>(v: T): T => structuredClone(v);
 
 export interface SeatConfig {
-  id: PlayerId; name: string; avatar: string; color: string; token: string;
+  id: PlayerId;
+  name: string;
+  avatar: string;
+  color: string;
+  token: string;
 }
 
 export const createGame = (roomCode: string, seats: SeatConfig[], seedSalt = ''): GameState => {
   let rng = seedFromString(`${roomCode}:${seedSalt}:${seats.map((s) => s.id).join(',')}`);
-  const [order, r1] = shuffle(seats.map((s) => s.id), rng);
+  const [order, r1] = shuffle(
+    seats.map((s) => s.id),
+    rng,
+  );
   rng = r1;
   const [destin, r2] = shuffle(buildDeck('destin'), rng);
   rng = r2;
@@ -33,20 +68,28 @@ export const createGame = (roomCode: string, seats: SeatConfig[], seedSalt = '')
     phase: 'GAME_START',
     rng,
     order,
-    players: Object.fromEntries(seats.map((s) => [s.id, {
-      ...s,
-      cash: RULES.startingCash,
-      position: 0,
-      inJail: false,
-      jailAttempts: 0,
-      jailFreeCards: 0,
-      bankrupt: false,
-      connected: true,
-      purchaseDiscount: 0,
-      roundsPlayed: 0,
-    }])),
+    players: Object.fromEntries(
+      seats.map((s) => [
+        s.id,
+        {
+          ...s,
+          cash: RULES.startingCash,
+          position: 0,
+          inJail: false,
+          jailAttempts: 0,
+          jailFreeCards: 0,
+          bankrupt: false,
+          connected: true,
+          purchaseDiscount: 0,
+          roundsPlayed: 0,
+        },
+      ]),
+    ),
     tiles: Object.fromEntries(
-      Array.from({ length: BOARD_SIZE }, (_, i) => [i, { owner: null, level: 0 as BuildLevel, mortgaged: false }]),
+      Array.from({ length: BOARD_SIZE }, (_, i) => [
+        i,
+        { owner: null, level: 0 as BuildLevel, mortgaged: false },
+      ]),
     ),
     currentIndex: 0,
     round: 1,
@@ -92,7 +135,12 @@ const addToPot = (c: Ctx, amount: number) => {
  * (phase DEBT_RESOLUTION) et renvoie `false` : l'appelant doit s'arrêter là.
  */
 const debit = (
-  c: Ctx, from: PlayerId, to: PlayerId | null, amount: number, reason: string, toPot = false,
+  c: Ctx,
+  from: PlayerId,
+  to: PlayerId | null,
+  amount: number,
+  reason: string,
+  toPot = false,
 ): boolean => {
   if (amount <= 0) return true;
   const player = c.s.players[from];
@@ -156,15 +204,17 @@ const moveTo = (c: Ctx, p: PlayerId, target: TileIndex, collectGo: boolean) => {
  * déplacement provoqué par une carte doit donc s'appuyer sur le lancer du
  * tour, sinon le loyer tomberait à zéro et la case serait gratuite.
  */
-const lastSum = (s: GameState): number =>
-  s.lastRoll ? s.lastRoll[0] + s.lastRoll[1] : 7;
+const lastSum = (s: GameState): number => (s.lastRoll ? s.lastRoll[0] + s.lastRoll[1] : 7);
 
 const nearestOf = (from: TileIndex, list: readonly TileIndex[]): TileIndex => {
   let best = list[0];
   let bestD = BOARD_SIZE + 1;
   for (const i of list) {
     const d = (i - from + BOARD_SIZE) % BOARD_SIZE;
-    if (d > 0 && d < bestD) { bestD = d; best = i; }
+    if (d > 0 && d < bestD) {
+      bestD = d;
+      best = i;
+    }
   }
   return best;
 };
@@ -198,41 +248,29 @@ const applyEffect = (c: Ctx, p: PlayerId, fx: CardEffect): boolean => {
       return true;
     case 'cashToPot':
       return debit(c, p, null, fx.amount, 'Carte', true);
-    case 'collectFromEach': {
-      for (const o of others) {
-        // Un débiteur insolvable ouvre sa propre dette : on la traite au tour suivant.
-        if (c.s.players[o].cash >= fx.amount) {
-          c.s.players[o].cash -= fx.amount;
-          c.ev.push({ e: 'CASH_CHANGED', player: o, delta: -fx.amount, cash: c.s.players[o].cash, reason: 'Carte' });
-          credit(c, p, fx.amount, 'Carte');
-        } else {
-          const all = c.s.players[o].cash;
-          c.s.players[o].cash = 0;
-          c.ev.push({ e: 'CASH_CHANGED', player: o, delta: -all, cash: 0, reason: 'Carte' });
-          credit(c, p, all, 'Carte');
-        }
-      }
-      return true;
-    }
-    case 'payEach': {
-      for (const o of others) {
-        if (!debit(c, p, o, fx.amount, 'Carte')) return false;
-      }
-      return true;
-    }
+    case 'collectFromEach':
+      return runActions(
+        c,
+        others.map((from) => ({ k: 'payment', from, to: p, amount: fx.amount })),
+      );
+    case 'payEach':
+      return runActions(
+        c,
+        others.map((to) => ({ k: 'payment', from: p, to, amount: fx.amount })),
+      );
     case 'moveTo':
       moveTo(c, p, fx.tile, fx.collectGo);
       resolveLanding(c, p, lastSum(c.s));
-      return true;
+      return c.s.pending?.type !== 'DEBT';
     case 'moveBy':
       movePlayer(c, p, fx.steps, fx.steps > 0);
       resolveLanding(c, p, lastSum(c.s));
-      return true;
+      return c.s.pending?.type !== 'DEBT';
     case 'moveToNearest': {
       const list = fx.target === 'hub' ? HUB_TILES : RESEAU_TILES;
       moveTo(c, p, nearestOf(c.s.players[p].position, list), true);
       resolveLanding(c, p, lastSum(c.s));
-      return true;
+      return c.s.pending?.type !== 'DEBT';
     }
     case 'goToJail':
       sendToJail(c, p, 'card');
@@ -244,9 +282,7 @@ const applyEffect = (c: Ctx, p: PlayerId, fx: CardEffect): boolean => {
       let total = 0;
       for (const i of ownedBy(c.s, p)) {
         const lvl = c.s.tiles[i].level;
-        if (lvl === 1) total += fx.perHouse;
-        if (lvl === 2) total += fx.perVilla;
-        if (lvl === 3) total += fx.perHotel;
+        total += lvl === MAX_LEVEL ? fx.perHotel : lvl * fx.perHouse;
       }
       return total === 0 ? true : debit(c, p, null, total, 'Travaux', true);
     }
@@ -264,17 +300,55 @@ const applyEffect = (c: Ctx, p: PlayerId, fx: CardEffect): boolean => {
       const n = ownedBy(c.s, p).length;
       const total = Math.abs(fx.amount) * n;
       if (total === 0) return true;
-      if (fx.amount >= 0) { credit(c, p, total, 'Patrimoine'); return true; }
+      if (fx.amount >= 0) {
+        credit(c, p, total, 'Patrimoine');
+        return true;
+      }
       return debit(c, p, null, total, 'Patrimoine', true);
     }
     case 'discountNextPurchase':
       c.s.players[p].purchaseDiscount = fx.percent;
       return true;
-    case 'multi': {
-      for (const sub of fx.effects) if (!applyEffect(c, p, sub)) return false;
-      return true;
+    case 'multi':
+      return runActions(
+        c,
+        fx.effects.map((effect) => ({ k: 'effect', player: p, effect })),
+      );
+  }
+};
+
+/** Save the rest of a card sequence behind the current unpaid amount. */
+const deferActions = (c: Ctx, actions: DeferredAction[]) => {
+  if (c.s.pending?.type === 'DEBT') {
+    const debt = c.s.pending.debt;
+    debt.continuation = [...(debt.continuation ?? []), ...actions];
+  }
+};
+
+const runActions = (c: Ctx, actions: DeferredAction[]): boolean => {
+  for (let index = 0; index < actions.length; index++) {
+    const action = actions[index];
+    if (action.k === 'payment') {
+      if (!c.s.players[action.from].bankrupt && (!action.to || !c.s.players[action.to].bankrupt)) {
+        debit(c, action.from, action.to, action.amount, 'Carte', action.toPot ?? false);
+      }
+    } else if (action.k === 'effect') {
+      if (!c.s.players[action.player].bankrupt) applyEffect(c, action.player, action.effect);
+    } else {
+      const player = c.s.players[action.player];
+      player.inJail = false;
+      player.jailAttempts = 0;
+      c.ev.push({ e: 'JAIL_RELEASED', player: action.player, reason: 'fine' });
+      movePlayer(c, action.player, action.dice[0] + action.dice[1]);
+      resolveLanding(c, action.player, action.dice[0] + action.dice[1]);
+      c.s.doubles = 0;
+    }
+    if (c.s.pending?.type === 'DEBT') {
+      deferActions(c, actions.slice(index + 1));
+      return false;
     }
   }
+  return true;
 };
 
 /* ------------------------------------------------------------------ */
@@ -447,10 +521,16 @@ const goBankrupt = (c: Ctx, p: PlayerId, creditor: PlayerId | null) => {
 /* Commandes                                                           */
 /* ------------------------------------------------------------------ */
 
-const reject = (state: GameState, why: string): CommandResult =>
-  ({ state, events: [], rejected: why });
+const reject = (state: GameState, why: string): CommandResult => ({
+  state,
+  events: [],
+  rejected: why,
+});
 
 export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
+  if (!isCommand(cmd)) return reject(prev, 'Commande invalide.');
+  if (prev.phase === 'GAME_OVER' && cmd.t !== 'SET_CONNECTED')
+    return reject(prev, 'La partie est terminée.');
   const s = clone(prev);
   const c: Ctx = { s, ev: [] };
   const actor = s.players[cmd.by];
@@ -505,7 +585,13 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       actor.cash -= pend.price;
       actor.purchaseDiscount = 0;
       s.tiles[pend.tile].owner = cmd.by;
-      c.ev.push({ e: 'CASH_CHANGED', player: cmd.by, delta: -pend.price, cash: actor.cash, reason: 'Acquisition' });
+      c.ev.push({
+        e: 'CASH_CHANGED',
+        player: cmd.by,
+        delta: -pend.price,
+        cash: actor.cash,
+        reason: 'Acquisition',
+      });
       c.ev.push({ e: 'PROPERTY_BOUGHT', player: cmd.by, tile: pend.tile, price: pend.price });
       s.pending = null;
       finishTurnStep(c);
@@ -530,7 +616,13 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       actor.cash -= cost;
       const lvl = (s.tiles[cmd.tile].level + 1) as BuildLevel;
       s.tiles[cmd.tile].level = lvl;
-      c.ev.push({ e: 'CASH_CHANGED', player: cmd.by, delta: -cost, cash: actor.cash, reason: 'Construction' });
+      c.ev.push({
+        e: 'CASH_CHANGED',
+        player: cmd.by,
+        delta: -cost,
+        cash: actor.cash,
+        reason: 'Construction',
+      });
       c.ev.push({ e: 'BUILT', player: cmd.by, tile: cmd.tile, level: lvl, cost });
       break;
     }
@@ -543,7 +635,8 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       if (t.kind === 'city') {
         // Symétrique de canBuild : on ne descend pas sous le niveau du groupe.
         const max = Math.max(...GROUP_INDEX[t.group].map((i) => s.tiles[i].level));
-        if (st.level < max) return reject(prev, 'Revendez d’abord les niveaux supérieurs du groupe.');
+        if (st.level < max)
+          return reject(prev, 'Revendez d’abord les niveaux supérieurs du groupe.');
       }
       /*
         Défaire un hôtel réclame quatre maisons en banque — il faut bien
@@ -579,7 +672,13 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       if (actor.cash < cost) return reject(prev, 'Fonds insuffisants.');
       actor.cash -= cost;
       st.mortgaged = false;
-      c.ev.push({ e: 'CASH_CHANGED', player: cmd.by, delta: -cost, cash: actor.cash, reason: 'Levée d’hypothèque' });
+      c.ev.push({
+        e: 'CASH_CHANGED',
+        player: cmd.by,
+        delta: -cost,
+        cash: actor.cash,
+        reason: 'Levée d’hypothèque',
+      });
       c.ev.push({ e: 'UNMORTGAGED', player: cmd.by, tile: cmd.tile, amount: cost });
       break;
     }
@@ -590,7 +689,13 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       if (actor.cash < RULES.jailFine) return reject(prev, 'Fonds insuffisants.');
       actor.cash -= RULES.jailFine;
       addToPot(c, RULES.jailFine);
-      c.ev.push({ e: 'CASH_CHANGED', player: cmd.by, delta: -RULES.jailFine, cash: actor.cash, reason: 'Caution' });
+      c.ev.push({
+        e: 'CASH_CHANGED',
+        player: cmd.by,
+        delta: -RULES.jailFine,
+        cash: actor.cash,
+        reason: 'Caution',
+      });
       actor.inJail = false;
       actor.jailAttempts = 0;
       s.pending = null;
@@ -601,6 +706,7 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
 
     case 'USE_JAIL_CARD': {
       if (!isCurrent || !actor.inJail) return reject(prev, 'Vous n’êtes pas en prison.');
+      if (s.phase !== 'JAIL') return reject(prev, 'Phase invalide.');
       if (actor.jailFreeCards < 1) return reject(prev, 'Aucun laissez-passer.');
       actor.jailFreeCards -= 1;
       actor.inJail = false;
@@ -639,7 +745,10 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       if (actor.jailAttempts >= RULES.jailMaxAttempts) {
         // Troisième échec : la caution devient obligatoire.
         s.pending = null;
-        if (!debit(c, cmd.by, null, RULES.jailFine, 'Caution obligatoire', true)) break;
+        if (!debit(c, cmd.by, null, RULES.jailFine, 'Caution obligatoire', true)) {
+          deferActions(c, [{ k: 'releaseJail', player: cmd.by, dice }]);
+          break;
+        }
         actor.inJail = false;
         actor.jailAttempts = 0;
         c.ev.push({ e: 'JAIL_RELEASED', player: cmd.by, reason: 'fine' });
@@ -658,10 +767,13 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
 
     case 'PROPOSE_TRADE': {
       const o = cmd.offer;
-      if (!s.players[o.to] || s.players[o.to].bankrupt) return reject(prev, 'Destinataire invalide.');
+      if (!s.players[o.to] || s.players[o.to].bankrupt)
+        return reject(prev, 'Destinataire invalide.');
       if (o.to === cmd.by) return reject(prev, 'Échange avec soi-même impossible.');
-      if (o.giveTiles.some((i) => s.tiles[i].owner !== cmd.by)) return reject(prev, 'Vous ne possédez pas ces propriétés.');
-      if (o.getTiles.some((i) => s.tiles[i].owner !== o.to)) return reject(prev, 'Propriétés adverses invalides.');
+      if (o.giveTiles.some((i) => s.tiles[i].owner !== cmd.by))
+        return reject(prev, 'Vous ne possédez pas ces propriétés.');
+      if (o.getTiles.some((i) => s.tiles[i].owner !== o.to))
+        return reject(prev, 'Propriétés adverses invalides.');
       if ([...o.giveTiles, ...o.getTiles].some((i) => s.tiles[i].level > 0)) {
         return reject(prev, 'Revendez les constructions avant d’échanger.');
       }
@@ -697,10 +809,14 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       if (!offer) return reject(prev, 'Offre introuvable.');
       if (offer.to !== cmd.by) return reject(prev, 'Cette offre ne vous est pas destinée.');
       const from = s.players[offer.from];
-      if (offer.giveTiles.some((i) => s.tiles[i].owner !== offer.from)
-        || offer.getTiles.some((i) => s.tiles[i].owner !== offer.to)) {
-        s.trades = s.trades.filter((t) => t.id !== cmd.id);
+      if (
+        offer.giveTiles.some((i) => s.tiles[i].owner !== offer.from) ||
+        offer.getTiles.some((i) => s.tiles[i].owner !== offer.to)
+      ) {
         return reject(prev, 'Offre périmée.');
+      }
+      if ([...offer.giveTiles, ...offer.getTiles].some((i) => s.tiles[i].level > 0)) {
+        return reject(prev, 'Revendez les constructions avant d’échanger.');
       }
       if (from.cash < offer.giveCash || actor.cash < offer.getCash) {
         return reject(prev, 'Fonds insuffisants pour honorer l’échange.');
@@ -710,12 +826,24 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
       if (offer.giveCash > 0) {
         from.cash -= offer.giveCash;
         credit(c, offer.to, offer.giveCash, 'Échange');
-        c.ev.push({ e: 'CASH_CHANGED', player: offer.from, delta: -offer.giveCash, cash: from.cash, reason: 'Échange' });
+        c.ev.push({
+          e: 'CASH_CHANGED',
+          player: offer.from,
+          delta: -offer.giveCash,
+          cash: from.cash,
+          reason: 'Échange',
+        });
       }
       if (offer.getCash > 0) {
         actor.cash -= offer.getCash;
         credit(c, offer.from, offer.getCash, 'Échange');
-        c.ev.push({ e: 'CASH_CHANGED', player: offer.to, delta: -offer.getCash, cash: actor.cash, reason: 'Échange' });
+        c.ev.push({
+          e: 'CASH_CHANGED',
+          player: offer.to,
+          delta: -offer.getCash,
+          cash: actor.cash,
+          reason: 'Échange',
+        });
       }
       s.trades = s.trades.filter((t) => t.id !== cmd.id);
       c.ev.push({ e: 'TRADE_ACCEPTED', offer });
@@ -733,35 +861,45 @@ export const applyCommand = (prev: GameState, cmd: Command): CommandResult => {
 
     case 'SETTLE_DEBT': {
       const pend = s.pending;
-      if (!pend || pend.type !== 'DEBT' || pend.player !== cmd.by) return reject(prev, 'Aucune dette.');
+      if (!pend || pend.type !== 'DEBT' || pend.player !== cmd.by)
+        return reject(prev, 'Aucune dette.');
       const { debt } = pend;
       if (actor.cash < debt.amount) return reject(prev, 'Fonds encore insuffisants.');
       actor.cash -= debt.amount;
-      c.ev.push({ e: 'CASH_CHANGED', player: cmd.by, delta: -debt.amount, cash: actor.cash, reason: 'Règlement' });
+      c.ev.push({
+        e: 'CASH_CHANGED',
+        player: cmd.by,
+        delta: -debt.amount,
+        cash: actor.cash,
+        reason: 'Règlement',
+      });
       if (debt.creditor) credit(c, debt.creditor, debt.amount, 'Règlement');
       else if (debt.toPot) addToPot(c, debt.amount);
       s.pending = null;
       c.ev.push({ e: 'DEBT_SETTLED', debtor: cmd.by });
-      if (current(s) === cmd.by) {
-        setPhase(c, 'LANDING');
-        finishTurnStep(c);
-      } else {
-        setPhase(c, s.players[current(s)].inJail ? 'JAIL' : 'ROLL_DICE');
-      }
+      setPhase(c, 'LANDING');
+      if (runActions(c, debt.continuation ?? [])) finishTurnStep(c);
       break;
     }
 
     case 'DECLARE_BANKRUPTCY': {
       const pend = s.pending;
-      if (!pend || pend.type !== 'DEBT' || pend.player !== cmd.by) return reject(prev, 'Aucune dette.');
+      if (!pend || pend.type !== 'DEBT' || pend.player !== cmd.by)
+        return reject(prev, 'Aucune dette.');
+      const continuation = pend.debt.continuation ?? [];
       goBankrupt(c, cmd.by, pend.debt.creditor);
+      if (!isCurrent && s.phase !== 'GAME_OVER') {
+        setPhase(c, 'LANDING');
+        if (runActions(c, continuation)) finishTurnStep(c);
+      }
       break;
     }
 
     case 'END_TURN': {
       if (!isCurrent) return reject(prev, 'Ce n’est pas votre tour.');
       if (s.pending) return reject(prev, 'Décision en attente.');
-      if (s.phase === 'ROLL_DICE' || s.phase === 'JAIL') return reject(prev, 'Vous devez d’abord jouer.');
+      if (s.phase === 'ROLL_DICE' || s.phase === 'JAIL')
+        return reject(prev, 'Vous devez d’abord jouer.');
       s.doubles = 0;
       setPhase(c, 'NEXT_PLAYER');
       advanceTurn(c);

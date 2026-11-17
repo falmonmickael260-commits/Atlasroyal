@@ -23,9 +23,10 @@ const Side = ({ tiles, cash, label }: { tiles: number[]; cash: number; label: st
   <div className="ticker__side">
     <span className="ticker__label">{label}</span>
     <span className="ticker__items">
-      {tiles.map((i) => (
+      {tiles.slice(0,2).map((i) => (
         <TileChip key={i} tile={i} />
       ))}
+      {tiles.length>2&&<span className="tilechip">+{tiles.length-2} biens</span>}
       {cash > 0 && <span className="tilechip tilechip--cash">{euro(cash)}</span>}
       {tiles.length === 0 && cash === 0 && <span className="ticker__nothing">rien</span>}
     </span>
@@ -46,7 +47,7 @@ export const TradeTicker = ({
 }: {
   state: GameState;
   me: PlayerId;
-  onOpen: () => void;
+  onOpen: (view:'incoming'|'outgoing') => void;
 }) => {
   if (state.trades.length === 0) return null;
 
@@ -70,7 +71,7 @@ export const TradeTicker = ({
               <Side label="reçoit" tiles={o.getTiles} cash={o.getCash} />
             </div>
             {concerne ? (
-              <button className="btn btn--sm btn--accent" onClick={onOpen}>
+              <button className="btn btn--sm btn--accent" onClick={()=>onOpen(o.to===me?'incoming':'outgoing')}>
                 {o.to === me ? 'Répondre' : 'Voir mon offre'}
               </button>
             ) : (

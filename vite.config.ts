@@ -6,7 +6,7 @@ export default defineConfig({
   // que soit le répertoire courant.
   root: import.meta.dirname,
   plugins: [react()],
-  server: { port: 5174, host: true },
+  server: { port: 5174, host: true, proxy: { '/ws': { target: 'ws://127.0.0.1:8089', ws: true }, '/godot': { target: 'http://127.0.0.1:8089' } } },
   build: {
     target: 'es2022',
     rollupOptions: {

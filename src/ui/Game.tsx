@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoom } from '../net/room';
 import { RULES, tileAt } from '../engine/board';
 import { liquidationValue, netWorth, ownedBy } from '../engine/rules';
+import { Rules } from './Rules';
+import { RollResult } from './panels/RollResult';
 import { Scene } from '../board3d/Scene';
 import { audio } from '../audio/audio';
 import { useCinematic } from './cinema';
@@ -19,13 +21,16 @@ import { Victory } from './panels/Victory';
 import { CashFlight } from './panels/CashFlight';
 import './Game.css';
 
-type Drawer = 'none' | 'portfolio' | 'trade';
+type Drawer = 'none' | 'portfolio' | 'trade' | 'rules';
 
 export const Game = () => {
   const { state, identity, send, leaveRoom } = useRoom();
   const cinema = useCinematic();
   const compact = useCompact();
   const [drawer, setDrawer] = useState<Drawer>('none');
+  const [tradeView,setTradeView]=useState<'incoming'|'outgoing'|null>(null);
+  const [tradePartner,setTradePartner]=useState<string|null>(null);
+  const [boardReady,setBoardReady] = useState(false);
   const [glLost, setGlLost] = useState(false);
   // Pont entre les étiquettes DOM et la scène, qui les positionne.
   const labels = useRef<Map<string, HTMLElement | null>>(new Map());
@@ -50,11 +55,12 @@ export const Game = () => {
   const current = state.players[state.order[state.currentIndex]];
   const pending = state.pending;
   const iAmPending = pending && 'player' in pending && pending.player === me;
-  const busy = cinema.playing;
+  const busy = cinema.playing || !boardReady;
   const player = state.players[me];
   const spectator = !player;
 
   const incoming = state.trades.filter((t) => t.to === me).length;
+  const openTrades=()=>{setTradePartner(null);setTradeView(null);setDrawer('trade');};
 
   /* ------------------------ barre d'action ------------------------ */
   const renderActions = () => {
@@ -93,6 +99,14 @@ export const Game = () => {
       );
     }
 
+    if (pending?.type === 'DEBT') {
+      return <>
+        <div><div className="actions__turn">Règlement de {state.players[pending.player].name}</div><div className="actions__hint">{euro(pending.debt.amount)} à réunir avant de poursuivre.</div></div>
+        <button className="btn btn--ghost" onClick={()=>setDrawer('portfolio')}><Icon name="building" size={16}/>Patrimoine</button>
+        <button className="btn btn--ghost" onClick={openTrades}><Icon name="swap" size={16}/>Échanges{incoming>0&&<span className="exchange-count">{incoming}</span>}</button>
+      </>;
+    }
+
     if (!myTurn) {
       return (
         <>
@@ -107,8 +121,8 @@ export const Game = () => {
           <button className="btn btn--ghost" onClick={() => setDrawer('portfolio')}>
             <Icon name="building" size={16} /> Patrimoine
           </button>
-          <button className="btn btn--ghost" onClick={() => setDrawer('trade')}>
-            <Icon name="swap" size={16} /> Échanges{incoming ? ` (${incoming})` : ''}
+          <button className="btn btn--ghost" onClick={openTrades}>
+            <Icon name="swap" size={16} /> Échanges{incoming > 0 && <span className="exchange-count">{incoming}</span>}
           </button>
         </>
       );
@@ -141,20 +155,20 @@ export const Game = () => {
       return (
         <>
           <div>
-            <div className="actions__turn" style={{ color: 'var(--gold)' }}>À vous de jouer</div>
+            <div className="actions__turn" style={{ color: 'var(--gold)' }}>{state.doubles > 0 ? 'Double ! À vous de rejouer' : 'À vous de jouer'}</div>
             <div className="actions__hint">
-              {state.doubles > 0 ? `Double ! Vous rejouez (${state.doubles}/2).` : `Tour ${state.round}`}
+              {state.doubles > 0 ? `Double ! Vous rejouez (${state.doubles}/2).` : (state.round < RULES.purchasesFromRound ? `Tour ${state.round} · Achats ouverts au tour ${RULES.purchasesFromRound}` : `Tour ${state.round}`)}
             </div>
           </div>
           <button className="btn btn--ghost" onClick={() => setDrawer('portfolio')}>
             <Icon name="building" size={16} /> Patrimoine
           </button>
-          <button className="btn btn--ghost" onClick={() => setDrawer('trade')}>
-            <Icon name="swap" size={16} />{incoming ? ` (${incoming})` : ''}
+          <button className="btn btn--ghost" onClick={openTrades}>
+            <Icon name="swap" size={16} /> Échanges{incoming > 0 && <span className="exchange-count">{incoming}</span>}
           </button>
           <button className="btn btn--accent btn--lg" disabled={busy}
             onClick={() => { audio.unlock(); send({ t: 'ROLL_DICE', by: me }); }}>
-            <Icon name="dice" size={20} /> Lancer les dés
+            <Icon name="dice" size={20} /> {busy ? (!boardReady ? 'Préparation du plateau…' : 'Déplacement en cours…') : state.doubles > 0 ? 'Relancer — double !' : 'Lancer les dés'}
           </button>
         </>
       );
@@ -169,8 +183,8 @@ export const Game = () => {
         <button className="btn btn--ghost" onClick={() => setDrawer('portfolio')}>
           <Icon name="building" size={16} /> Patrimoine
         </button>
-        <button className="btn btn--ghost" onClick={() => setDrawer('trade')}>
-          <Icon name="swap" size={16} /> Échanges{incoming ? ` (${incoming})` : ''}
+        <button className="btn btn--ghost" onClick={openTrades}>
+          <Icon name="swap" size={16} /> Échanges{incoming > 0 && <span className="exchange-count">{incoming}</span>}
         </button>
         <button className="btn btn--primary" disabled={busy || Boolean(pending)}
           onClick={() => send({ t: 'END_TURN', by: me })}>
@@ -186,6 +200,7 @@ export const Game = () => {
         <Scene
           state={state}
           cinema={cinema}
+          onReadyChange={setBoardReady}
           compact={compact}
           activePlayer={state.order[state.currentIndex]}
           onContextLost={() => setGlLost(true)}
@@ -195,8 +210,8 @@ export const Game = () => {
 
       <div className="hud-top">
         <div className="brand glass">
-          <span className="brand__mark">FORTUNE CITY</span>
-          <span className="brand__round">Tour {state.round}</span>
+          <img className="brand__logo" src={`${import.meta.env.BASE_URL}ui/logo.webp`} alt="Fortune Empire"/>
+          <span className="brand__round">TOUR {state.round}</span>
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>
@@ -215,41 +230,47 @@ export const Game = () => {
             onClick={() => { audio.unlock(); audio.setMusic(!music); setMusic(!music); }}>
             <Icon name="music" size={18} />
           </button>
+          <button className="icon-btn" aria-label="Règles du jeu" onClick={()=>setDrawer('rules')}>
+            <Icon name="school" size={18} />
+          </button>
           <button className="icon-btn" aria-label="Quitter la partie" onClick={leaveRoom}>
             <Icon name="exit" size={18} />
           </button>
         </div>
       </div>
 
-      <div className="rail">
+      <div className="turn-indicator" style={{['--turn-color' as string]:current.color}}><span/><div><small>{myTurn?'VOTRE TOUR':'À LA TABLE'}</small><strong>{current.name}{busy?' · action en cours':''}</strong></div></div>
+      <div className="rail" aria-label="Joueurs et fortunes">
         {state.order.map((id) => {
           const p = state.players[id];
           const active = state.order[state.currentIndex] === id;
           return (
             <div
               key={id}
-              className={`pcard${active ? ' pcard--active' : ''}${p.bankrupt ? ' pcard--out' : ''}`}
+              className={`pcard${active ? ' pcard--active' : ''}${id===me?' pcard--me':''}${p.bankrupt ? ' pcard--out' : ''}`}
               style={{ ['--pc' as string]: p.color }}
               data-player={id}
             >
               <span className="pcard__dot"><Icon name="home" size={16} /></span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div className="pcard__name">{p.name}{id === me ? ' · vous' : ''}</div>
-                <div className="pcard__cash mono-num">{euro(p.cash)}</div>
+                <div className="pcard__cash mono-num"><span>Liquidités</span>{euro(p.cash)}</div>
                 <div className="pcard__meta">
-                  <span>{ownedBy(state, id).length} ville{ownedBy(state, id).length > 1 ? 's' : ''}</span>
-                  <span>{euro(netWorth(state, id))}</span>
+                  <span>{ownedBy(state, id).length} propriété{ownedBy(state, id).length > 1 ? 's' : ''}</span>
+                  <span title="Valeur totale du patrimoine">Patrimoine {euro(netWorth(state, id))}</span>
                 </div>
               </div>
+              {id!==me&&!p.bankrupt&&<button className="pcard__trade" aria-label={`Négocier avec ${p.name}`} onClick={()=>{setTradePartner(id);setTradeView(null);setDrawer('trade');}}><Icon name="swap" size={15}/></button>}
               {p.inJail && <span className="pcard__tag pcard__tag--jail">Prison</span>}
-              {!p.connected && !p.bankrupt && <span className="pcard__tag pcard__tag--off">Hors ligne</span>}
+              {!p.connected && !p.bankrupt && <span className="pcard__tag pcard__tag--off" title="Sa place et ses biens sont réservés pour son retour">Déconnecté · retour possible</span>}
             </div>
           );
         })}
       </div>
 
+      <RollResult dice={cinema.dice} state={state} me={me} />
       <TokenLabels state={state} register={registerLabels} />
-      {!spectator && <TradeTicker state={state} me={me} onOpen={() => setDrawer('trade')} />}
+      {!spectator && <TradeTicker state={state} me={me} onOpen={view=>{setTradePartner(null);setTradeView(view);setDrawer('trade');}} />}
       <BannerLayer banner={cinema.banner} />
       <CashFlight fly={cinema.cashFly} />
       <CardOverlay cardId={cinema.card} />
@@ -274,11 +295,15 @@ export const Game = () => {
         </div>
       )}
 
+      {drawer === 'rules' && <div className="sheet sheet--right" role="dialog" aria-label="Règles du jeu">
+        <div className="sheet__head"><span className="sheet__title">Règles de Fortune Empire</span><button className="icon-btn" aria-label="Fermer les règles" onClick={()=>setDrawer('none')}><Icon name="close" size={18}/></button></div>
+        <div className="sheet__scroll"><Rules/></div>
+      </div>}
       {!spectator && drawer === 'portfolio' && (
         <Portfolio state={state} me={me} send={send} onClose={() => setDrawer('none')} />
       )}
-      {!spectator && drawer === 'trade' && (
-        <TradePanel state={state} me={me} send={send} onClose={() => setDrawer('none')} />
+      {!spectator && (
+        <TradePanel state={state} me={me} send={send} open={drawer==='trade'} partner={tradePartner} view={tradeView} onClose={() => setDrawer('none')} />
       )}
 
       {!spectator && (

@@ -58,7 +58,7 @@ export const RULES = {
   */
   houseStock: 32,
   hotelStock: 12,
-  maxPlayers: 6,
+  maxPlayers: 8,
   minPlayers: 2,
 } as const;
 

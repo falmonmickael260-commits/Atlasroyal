@@ -1,6 +1,46 @@
-# FORTUNE CITY
+# Fortune Empire
 
-Jeu de plateau multijoueur en ligne, 2 à 6 joueurs. Univers, plateau, villes,
+Le jeu complet conserve son moteur de règles d’origine. Les visuels Godot sont intégrés dans la partie via un rendu contrôlé par les instantanés du moteur : cartes, doubles, achats, loyers, maisons/hôtels et échanges restent gérés par `src/engine`.
+
+Les salons entre appareils utilisent le serveur WebSocket de `server/index.mjs`. L’hôte garde sa page ouverte : son navigateur est l’autorité de la partie. Quitter ou recharger cet onglet ferme le salon. La caméra du plateau est fixe.
+
+Déploiement Railway : racine `/`, `Dockerfile` racine, port `$PORT`, santé `/health`. Le conteneur sert le jeu principal et le rendu Godot sous `/godot/`. Le dossier Godot seul est un banc d’essai visuel, pas le jeu complet.
+
+Pour vérifier : `npm test`, `npm run check`, `node --test server/*.test.mjs` et `godot --headless --path godot --script bridge_test.gd`. Pour lancer l’ensemble, utiliser le Dockerfile racine ; il compile également le rendu Godot requis par le jeu.
+
+Les achats restent soumis à la règle d’origine : pas d’achat au premier tour de table, puis achats ouverts au deuxième. Les interfaces affichent cette condition.
+
+Le logo illustré d’origine (`public/ui/logo.webp`) reste utilisé dans les menus et la partie. Les règles sont consultables depuis la partie. Le résultat des dés et la commande **Relancer — double !** rendent explicite le droit de rejouer après résolution de la case.
+
+Le plateau se prépare dès le salon : le même cadre Godot est conservé lors du lancement. Les fichiers Web sont compressés en Brotli/gzip et portent une version issue de leur contenu pour éviter les mélanges de cache après publication. Les géométries immobiles sont regroupées ; les pions et éléments animés conservent leur hiérarchie.
+
+## Interface de partie et échanges
+
+Le comptoir des échanges présente les propriétés illustrées, leurs groupes et les hypothèques dans deux colonnes. Le récapitulatif, le solde prévu après accord et l’envoi restent visibles pendant le défilement. Les valeurs catalogue indiquent les prix d’achat, sans estimer la valeur stratégique des groupes.
+
+Les offres reçues et envoyées disposent de vues dédiées. Le joueur peut accepter, refuser, retirer ou préparer une contre-proposition. Une contre-proposition reprend l’offre en sens inverse ; l’envoi refuse l’original puis propose le nouvel accord avec les commandes existantes. Les transferts restent effectués uniquement à l’acceptation par le moteur d’origine.
+
+Le brouillon est conservé quand la fenêtre se ferme, pendant la partie en cours. Les propriétés construites sont désactivées ; une sélection devenue périmée doit être actualisée. Les refus du moteur conservent la proposition à corriger. L’interface gère le clavier, Échap et les petits écrans.
+
+## Correctifs de stabilité
+
+Les dettes conservent la suite des paiements et des effets de carte. Le règlement d’une caution obligatoire reprend la sortie de prison et le déplacement déjà tiré. Les cartes de travaux comptent chaque maison et chaque hôtel ; leurs montants affichés suivent les effets configurés. Une offre est de nouveau vérifiée à l’acceptation, et les commandes financières sont arrêtées après la victoire.
+
+L’entrée dans un salon attend la confirmation de l’hôte et reste visible pendant la connexion. Les états d’une ancienne connexion sont effacés, la reprise évite les connexions concurrentes et les instantanés reçus deux fois ne rejouent pas leurs animations. Un invité conserve son code lors d’une coupure récupérable. Un battement WebSocket repère les connexions disparues ; un message mal formé ne doit pas arrêter les autres salons.
+
+Un lancement répété ne recrée plus la partie. Le départ explicite de l’hôte annonce aussi la fermeture aux autres onglets en mode local. Si le contexte graphique disparaît après le chargement, la récupération relance uniquement le rendu du plateau et conserve la connexion de la partie.
+
+## Retour d’un joueur déconnecté
+
+En ligne, la place d’un invité reste réservée avec une balise « Déconnecté · retour possible ». Revenir depuis le même navigateur du téléphone restaure son identité et son état ; le même code de salon permet aussi de retrouver la place après un départ volontaire. Le bouton « Reprendre ma partie » évite de retaper le code. Le stockage du navigateur doit être conservé. Une faillite ne donne pas une nouvelle fortune en revenant.
+
+L’hôte doit encore garder sa page ouverte : le serveur relaie la partie mais son autorité vit dans le navigateur hôte. Le mode local conserve des identités distinctes par onglet.
+
+## Documentation des règles d’origine
+
+## Règles et fonctionnement
+
+Jeu de plateau multijoueur en ligne, 2 à 8 joueurs. Univers, plateau, villes,
 cartes, pions et identité visuelle originaux ; mécaniques d'acquisition, de
 loyers et de construction du genre « immobilier de plateau ».
 
@@ -35,7 +75,7 @@ Le dernier joueur financièrement viable gagne.
 
 | Règle | Valeur |
 |---|---|
-| Fortune de départ | 1 500 € |
+| Fortune de départ | 2 500 € |
 | Passage par le Départ | +200 € |
 | Arrivée exacte sur le Départ | +400 € (animation distincte) |
 | Premier tour de table | aucun achat possible |
@@ -56,7 +96,7 @@ Le dernier joueur financièrement viable gagne.
 
 | | |
 |---|---|
-| Fortune de départ | 1 500 € |
+| Fortune de départ | 2 500 € |
 | Terrains | 60 € (Marrakech, Le Caire) à 400 € (Monaco) |
 | Construction | 50 € à 200 € le palier selon le groupe, cinq paliers — l'hôtel s'atteint donc en cinq paiements |
 | Hubs | 200 € — loyer 25 / 50 / 100 / 200 selon le nombre possédé |
@@ -231,3 +271,17 @@ joueurs** pilotées par un bot qui ne passe que par des commandes publiques
 (`src/engine/__tests__/bot.ts`). Toute phase sans coup jouable lève une
 exception : c'est le test anti-blocage. Les invariants comptables sont vérifiés
 sur dix parties (aucun solde négatif, aucune case orpheline, un seul survivant).
+
+### Déplacements et dés
+
+Le rendu reçoit le trajet et la cadence des événements `MOVE_STEP` du moteur. Les pions conservent leur progression entre les cases, s’inclinent dans les virages et rejoignent leurs places sans chevauchement à l’arrivée. Les reculs des cartes suivent le trajet inverse ; les transferts directs et la reprise de partie gardent la position autoritaire. La caméra reste fixe.
+
+Les dés utilisent trois rebonds amortis et des sons de contact synchronisés. Leurs faces finales proviennent du résultat du moteur, sans nouveau tirage visuel. Les géométries sont regroupées par matériau. La préférence de mouvements réduits remplace la rotation des dés par un léger mouvement vertical.
+
+### Revanche Games : comptes, invitations et résultats
+
+Fortune Empire se lance depuis la plateforme avec `rg_token` ; le serveur le fait vérifier par la plateforme avant d’associer un compte au siège. Les invités continuent à créer et rejoindre les salons par code. Un bouton « Inviter un ami » dans le salon ouvre le sélecteur Revanche Games ; les invitations natives réutilisent le même siège après un rechargement. La preuve aléatoire d’un siège est conservée dans le navigateur et n’apparaît jamais dans les liens publics.
+
+Le serveur reconstitue la partie avec le même moteur et vérifie les états du navigateur avant de transmettre un résultat signé unique. Les statistiques alimentent le compte Revanche Games, pas les invités. Aucun prix, montant de carte ou règlement du moteur n’a été modifié. La partie reste hébergée par le navigateur de l’hôte ; sa fermeture clôt le salon. Les retries de résultat sont en mémoire et ne survivent pas au redémarrage du service.
+
+Configuration serveur : `PLATFORM_SHARED_SECRET` contient la clé **dédiée à Fortune Empire** (`GAME_CONNECTOR_SECRET_FORTUNE_EMPIRE` côté plateforme), et `PLATFORM_SHELL_ORIGIN` son origine canonique. Ne jamais publier ces clés. Le moteur serveur est construit par `npm run build` ; `npm run test:platform` vérifie le connecteur et les résultats. Voir également `docs/ACTIVATION_FORTUNE_EMPIRE.md` dans le dépôt revanchegames.

@@ -248,22 +248,29 @@ class AudioEngine {
 
   /* ----------------------- effets de jeu ----------------------- */
 
-  diceShake() {
+  diceShake(scale = 1) {
     // Deux dés qui s'entrechoquent dans le creux de la main : du bois sec,
     // à intervalles irréguliers — une cadence régulière sonne mécanique.
     for (let i = 0; i < 6; i++) {
       this.bois(430 + Math.random() * 420, {
         gain: 0.05 + Math.random() * 0.04,
         dur: 0.07,
-        delay: i * 0.065 + Math.random() * 0.03,
+        delay: (i * 0.065 + Math.random() * 0.03) * scale,
       });
     }
   }
-  diceLand() {
-    // Deux rebonds : le choc franc, puis le dé qui se couche.
-    this.bois(240, { gain: 0.26, dur: 0.3 });
-    this.bois(310, { gain: 0.12, dur: 0.18, delay: 0.1 });
+  diceLand(strength = 1, delay = 0) {
+    this.bois(240, { gain: 0.16 * strength, dur: 0.16, delay });
+    this.bois(310, { gain: 0.09 * strength, dur: 0.12, delay: delay + 0.025 });
   }
+  /** Contacts synchronisés avec les trois rebonds du rendu Godot. */
+  diceRoll(duration = 0.82) {
+    this.diceShake(duration / 0.82);
+    this.diceLand(1, duration * 0.46);
+    this.diceLand(0.48, duration * 0.72);
+    this.diceLand(0.20, duration * 0.88);
+  }
+
   /**
    * Pas d'un pion. Joué jusqu'à douze fois de suite à 135 ms d'intervalle :
    * volontairement effacé, et d'une hauteur légèrement différente à chaque

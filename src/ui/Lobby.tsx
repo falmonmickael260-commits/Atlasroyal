@@ -1,8 +1,10 @@
+import { invitePlatformFriend } from '../net/platformBridge';
 import { useState } from 'react';
 import { useRoom } from '../net/room';
 import { AVATARS, COLORS, TOKENS } from '../net/protocol';
 import { RULES } from '../engine/board';
 import { audio } from '../audio/audio';
+import { useBoardPreparation } from '../board3d/Scene';
 import { Icon } from './Icon';
 import './Lobby.css';
 
@@ -10,7 +12,8 @@ const avatarIcon = (id: string) =>
   ({ a1: 'globe', a2: 'hammer', a3: 'plane', a4: 'bank', a5: 'eye', a6: 'building' } as const)[id as 'a1'] ?? 'globe';
 
 export const Lobby = () => {
-  const { lobby, identity, isHost, setIdentity, setReady, startGame, leaveRoom } = useRoom();
+  const { lobby, identity, mode, isHost, setIdentity, setReady, startGame, leaveRoom } = useRoom();
+  const board=useBoardPreparation();
   const [copied, setCopied] = useState(false);
   if (!lobby) return null;
 
@@ -136,6 +139,7 @@ export const Lobby = () => {
         </div>
 
         <div className="lobby__foot">
+          <span className="lobby__hint" role="status">{board.error??(board.engineReady?'Plateau prêt':`Préparation du plateau · ${board.progress} %`)}</span>
           <p className="lobby__hint">
             {isHost
               ? allReady
@@ -143,7 +147,8 @@ export const Lobby = () => {
                 : `Partagez le code. Il faut au moins ${RULES.minPlayers} joueurs, tous prêts.`
               : 'Signalez-vous prêt. L’hôte lancera la partie.'}
           </p>
-          <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
+          <div style={{ display: 'flex', flexWrap:'wrap', gap: 'var(--sp-3)' }}>
+            {mode==='server'&&<button className="btn btn--ghost" onClick={()=>void invitePlatformFriend()}>Inviter un ami</button>}
             <button className="btn btn--ghost" onClick={leaveRoom}>
               <Icon name="exit" size={16} /> Quitter
             </button>
