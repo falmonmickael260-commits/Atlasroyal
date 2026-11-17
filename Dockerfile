@@ -24,6 +24,7 @@ COPY --from=web-build /app/dist /app/dist
 COPY --from=web-build /app/node_modules/ws /app/node_modules/ws
 COPY --from=godot-export /game/build /app/dist/godot
 COPY --from=web-build /app/server/ /app/server/
+COPY --from=web-build /app/admin-observer/ /app/admin-observer/
 RUN node server/compress.mjs dist
 EXPOSE 8080
 CMD ["node","server/index.mjs"]
